@@ -14,7 +14,7 @@ public:
     System() = default;
 
     virtual ~System() = default;
-    virtual void initialize(const Window&) = 0;
+    virtual void initialize() = 0;
     virtual void render() = 0;
     virtual void update(float dt) = 0;
     virtual void onEvent(Event& event) = 0;
@@ -23,4 +23,6 @@ protected:
     static Camera& GetCamera();
     static const Input& GetInput();
     static const World& GetWorld();
+    static const WebGPUContext& GetWebGPUContext();
+    static const WebGPUSurface& GetWebGPUSurface();
 };

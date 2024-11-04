@@ -1,10 +1,18 @@
 #include "Window.h"
 
+#include "KeyEvent.h"
+#include "MouseEvent.h"
+#include "ApplicationEvent.h"
+#include "Log.h"
+
+#include <GLFW/glfw3.h>
+
+
 Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventCallback) {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     m_Window = glfwCreateWindow(config.width, config.height, config.title, nullptr, nullptr);
 
     if (!m_Window) {
@@ -17,7 +25,8 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
 
     glfwSetWindowUserPointer(m_Window, this);
 
-    m_WebGPUContext = std::make_shared<WebGPUContext>(m_Window);
+    m_WebGPUContext = std::make_shared<WebGPUContext>();
+    m_WebGPUSurface = std::make_unique<WebGPUSurface>(m_Window, *m_WebGPUContext);
 
     glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -81,9 +90,27 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
         MouseMovedEvent event(static_cast<float>(xPos), static_cast<float>(yPos));
         window->eventCallback(event);
     });
+
+    glfwSetWindowSizeCallback(m_Window, [](GLFWwindow *glfwWindow, const int width, const int height) {
+        Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
+
+        window->m_WebGPUSurface = std::make_unique<WebGPUSurface>(glfwWindow, *window->m_WebGPUContext);
+
+        WindowResizedEvent event(width, height);
+        window->eventCallback(event);
+    });
 }
 
 Window::~Window() {
+    m_WebGPUSurface = nullptr;
     glfwTerminate();
     glfwDestroyWindow(m_Window);
+}
+
+bool Window::shouldClose() {
+    return glfwWindowShouldClose(m_Window) == GLFW_TRUE;
+}
+
+void Window::pollEvents() {
+    glfwPollEvents();
 }

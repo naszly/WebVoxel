@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include <chrono>
 #include <ranges>
 
 Application & Application::GetInstance() {
@@ -23,8 +24,10 @@ void Application::start() {
         });
 
     for (const auto& layer : m_Layers) {
-        layer->initialize(*m_Window);
+        layer->initialize();
     }
+
+    m_World.generate();
 
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(Application::emscriptenMainLoop, this, 0, true);

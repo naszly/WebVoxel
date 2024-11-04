@@ -1,13 +1,14 @@
 #include "WebGPUContext.h"
 
-WebGPUContext::WebGPUContext(GLFWwindow* window) {
+#include "Log.h"
+
+WebGPUContext::WebGPUContext() {
     createInstance();
     requestAdapter();
     logAdapterLimits();
     logAdapterFeatures();
     logAdapterProperties();
     requestDevice();
-    getSurface(window);
 }
 
 WebGPUContext::~WebGPUContext() {
@@ -217,39 +218,4 @@ void WebGPUContext::requestDevice() {
 #endif
     };
     wgpuDeviceSetUncapturedErrorCallback(m_Device, onDeviceError, nullptr);
-}
-
-void WebGPUContext::getSurface(GLFWwindow *window) {
-    m_Surface = glfwCreateWindowWGPUSurface(m_Instance, window);
-
-    int width, height;
-
-    glfwGetFramebufferSize(window, &width, &height);
-
-    if (!m_Surface) {
-        LogCore::critical("Failed to create WebGPU surface");
-        return;
-    }
-
-    // Configure the surface
-    WGPUSurfaceConfiguration config = {};
-    config.nextInChain = nullptr;
-
-    // Configuration of the textures created for the underlying swap chain
-    config.width = width;
-    config.height = height;
-    config.usage = WGPUTextureUsage_RenderAttachment;
-    m_SurfaceFormat = wgpuSurfaceGetPreferredFormat(m_Surface, m_Adapter);
-    config.format = m_SurfaceFormat;
-
-    // And we do not need any particular view format:
-    config.viewFormatCount = 0;
-    config.viewFormats = nullptr;
-    config.device = m_Device;
-    config.presentMode = WGPUPresentMode_Fifo;
-    config.alphaMode = WGPUCompositeAlphaMode_Auto;
-
-    wgpuSurfaceConfigure(m_Surface, &config);
-
-    LogCore::info("WebGPU surface created: {0}", (size_t)m_Surface);
 }

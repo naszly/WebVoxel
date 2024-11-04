@@ -1,18 +1,13 @@
 #pragma once
 
-#include <glfw3webgpu.h>
-
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-
-#include "WebGPUContext.h"
-#include "Input.h"
-#include "Event.h"
-#include "KeyEvent.h"
-#include "MouseEvent.h"
-
 #include <memory>
 
+#include "WebGPUContext.h"
+#include "WebGPUSurface.h"
+#include "Input.h"
+#include "Event.h"
+
+struct GLFWwindow;
 
 struct WindowCreationConfig {
     int width;
@@ -31,31 +26,30 @@ public:
     Window& operator=(const Window&) = delete;
     Window& operator=(Window&&) = delete;
 
-    static std::unique_ptr<Window> create(WindowCreationConfig config) {
+    static std::unique_ptr<Window> create(const WindowCreationConfig& config) {
         return std::make_unique<Window>(config);
     }
 
-    bool shouldClose() {
-        return glfwWindowShouldClose(m_Window) == GLFW_TRUE;
-    }
+    bool shouldClose();
 
-    void pollEvents() {
-        glfwPollEvents();
-    }
+    void pollEvents();
 
-    std::shared_ptr<WebGPUContext> getWebGPUContext() const {
+    [[nodiscard]] std::shared_ptr<WebGPUContext> getWebGPUContext() const {
         return m_WebGPUContext;
     }
 
-    const Input& getInput() const {
+    [[nodiscard]] const WebGPUSurface& getWebGPUSurface() const {
+        return *m_WebGPUSurface;
+    }
+
+    [[nodiscard]] const Input& getInput() const {
         return *m_Input;
     }
 
 private:
     GLFWwindow* m_Window;
     std::shared_ptr<WebGPUContext> m_WebGPUContext;
+    std::unique_ptr<WebGPUSurface> m_WebGPUSurface;
     std::unique_ptr<Input> m_Input;
     EventCallbackFn eventCallback;
-
-    void onEvent(Event &event);
 };

@@ -2,14 +2,12 @@
 #include "ControllerSystem.h"
 
 #include "../Application.h"
+#include "../MouseEvent.h"
 
-void ControllerSystem::initialize(const Window &) {
+void ControllerSystem::initialize() {
     Camera& camera = GetCamera();
 
-    constexpr float fov = glm::radians(66.0);
-
     camera.setDirection({0,0,1});
-    camera.setPerspective(fov, 1, 0.1, 1000);
     camera.setPosition({0,0,-5});
 }
 

@@ -3,13 +3,20 @@
 #include <fstream>
 
 #include "../Application.h"
+#include "../ApplicationEvent.h"
 #include "../Log.h"
 
-void RendererSystem::initialize(const Window& window) {
+void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
-    m_Context = window.getWebGPUContext();
 
-    m_Queue = wgpuDeviceGetQueue(m_Context->getDevice());
+    m_Queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
+
+	m_viewportWidth = GetWebGPUSurface().getWidth();
+	m_viewportHeight = GetWebGPUSurface().getHeight();
+
+	Camera& camera = Application::GetInstance().getCamera();
+	constexpr float fov = glm::radians(66.0);
+	camera.setPerspective(fov, (float)m_viewportWidth / (float)m_viewportHeight);
 
 	InitializeBuffers();
 	createDepthTexture();
@@ -17,7 +24,7 @@ void RendererSystem::initialize(const Window& window) {
 }
 
 WGPUTextureView RendererSystem::GetNextSurfaceTextureView() {
-	const auto surface = m_Context->getSurface();
+	const auto surface = GetWebGPUSurface().getSurface();
 	// Get the surface texture
 	WGPUSurfaceTexture surfaceTexture;
 	wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
@@ -49,17 +56,17 @@ WGPUTextureView RendererSystem::GetNextSurfaceTextureView() {
 void RendererSystem::render() {
     LogApp::info("RendererSystem::render");
 
-	auto device = m_Context->getDevice();
-    const auto surface = m_Context->getSurface();
-    const Camera camera = Application::GetInstance().getCamera();
+	auto device = GetWebGPUContext().getDevice();
+    const auto surface = GetWebGPUSurface().getSurface();
+    const Camera& camera = Application::GetInstance().getCamera();
 
 	uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
 	uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
 	uniformData.cameraPosition = camera.getPosition();
 	uniformData.fov = glm::radians(66.0);
-	uniformData.viewportSize = {800, 600};
-	uniformData.nearPlane = 0.1;
-	uniformData.farPlane = 1000.0;
+	uniformData.viewportSize = {m_viewportWidth, m_viewportHeight};
+	uniformData.nearPlane = Camera::NEAR;
+	uniformData.farPlane = Camera::FAR;
 
 	// Update uniform buffer data
 	wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));
@@ -103,6 +110,9 @@ void RendererSystem::render() {
 	renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
 	renderPassDesc.timestampWrites = nullptr;
 
+    const Application& app = Application::GetInstance();
+	auto& world = app.getWorld();
+
 	WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
 	// Select which render pipeline to use
@@ -117,12 +127,23 @@ void RendererSystem::render() {
 	// Set index buffer
 	wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(indexBuffer));
 
-	// Set instance buffer
-	wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, instanceBuffer, 0, wgpuBufferGetSize(instanceBuffer));
+	for (auto&[position, chunk] : world.getChunks()) {
 
-	// Use instanced drawing
-	wgpuRenderPassEncoderDrawIndexed(renderPass, indexCount, instanceCount, 0, 0, 0);
+		auto buffer = chunk.getVertexBuffer();
+		auto count = chunk.getVertexCount();
 
+		// Update uniform buffer data
+		wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));
+
+		// Set voxel buffer
+		wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, buffer, 0, wgpuBufferGetSize(buffer) - sizeof(glm::vec4));
+
+		// Set chunk buffer
+		wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, wgpuBufferGetSize(buffer) - sizeof(glm::vec4), sizeof(glm::vec4));
+
+		// Use instanced drawing
+		wgpuRenderPassEncoderDrawIndexed(renderPass, indexCount, count, 0, 0, 0);
+	}
 	wgpuRenderPassEncoderEnd(renderPass);
 	wgpuRenderPassEncoderRelease(renderPass);
 
@@ -133,10 +154,8 @@ void RendererSystem::render() {
 	WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
 	wgpuCommandEncoderRelease(encoder);
 
-	//std::cout << "Submitting command..." << std::endl;
 	wgpuQueueSubmit(m_Queue, 1, &command);
 	wgpuCommandBufferRelease(command);
-	//std::cout << "Command submitted." << std::endl;
 
 	// At the end of the frame
 	wgpuTextureViewRelease(targetView);
@@ -157,11 +176,28 @@ void RendererSystem::update(float dt) {
 
 void RendererSystem::onEvent(Event& event) {
 	LogApp::info("RendererSystem::onEvent");
+
+	EventDispatcher dispatcher(event);
+
+	dispatcher.dispatch<WindowResizedEvent>([&](const WindowResizedEvent &windowResizedEvent) {
+		LogApp::info("WindowResizedEvent: {0}, {1}", windowResizedEvent.getWidth(), windowResizedEvent.getHeight());
+
+		m_viewportWidth = windowResizedEvent.getWidth();
+		m_viewportHeight = windowResizedEvent.getHeight();
+
+		createDepthTexture();
+
+		Camera& camera = Application::GetInstance().getCamera();
+		constexpr float fov = glm::radians(66.0);
+		camera.setPerspective(fov, (float)m_viewportWidth / (float)m_viewportHeight);
+
+		return true;
+	});
 }
 
 void RendererSystem::createRenderPipeline() {
-	const auto device = m_Context->getDevice();
-    const auto surfaceFormat = m_Context->getSurfaceFormat();
+	const auto device = GetWebGPUContext().getDevice();
+    const auto surfaceFormat = GetWebGPUSurface().getSurfaceFormat();
 
     // Load the shader module
     WGPUShaderModuleDescriptor shaderDesc{};
@@ -212,41 +248,57 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.layout = pipelineLayout;
 
     // Configure the vertex pipeline
-    WGPUVertexBufferLayout vertexBufferLayout{};
-    WGPUVertexAttribute positionAttrib{};
-    positionAttrib.shaderLocation = 0;
-    positionAttrib.format = WGPUVertexFormat_Float32x3;
-    positionAttrib.offset = 0;
+    WGPUVertexBufferLayout billboardVertexBufferLayout{};
+    WGPUVertexAttribute billboardAttributes{};
+    billboardAttributes.shaderLocation = 0;
+    billboardAttributes.format = WGPUVertexFormat_Float32x3;
+    billboardAttributes.offset = 0;
 
-    vertexBufferLayout.attributeCount = 1;
-    vertexBufferLayout.attributes = &positionAttrib;
-    vertexBufferLayout.arrayStride = 3 * sizeof(float);
-    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
+    billboardVertexBufferLayout.attributeCount = 1;
+    billboardVertexBufferLayout.attributes = &billboardAttributes;
+    billboardVertexBufferLayout.arrayStride = 3 * sizeof(float);
+    billboardVertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
 
     // Configure the instance buffer layout
-    WGPUVertexBufferLayout instanceBufferLayout{};
-    std::vector<WGPUVertexAttribute> instanceAttributes{};
+    WGPUVertexBufferLayout voxelVertexBufferLayout{};
+    std::vector<WGPUVertexAttribute> voxelAttributes{};
 
-	instanceAttributes.push_back({
+	// Position
+	voxelAttributes.push_back({
 		.format = WGPUVertexFormat_Uint32,
 		.offset = 0,
 		.shaderLocation = 1,
 	});
 
-	instanceAttributes.push_back({
+	// Color
+	voxelAttributes.push_back({
 		.format = WGPUVertexFormat_Uint32,
 		.offset = 4 * sizeof(uint8_t),
 		.shaderLocation = 2,
 	});
 
-    instanceBufferLayout.attributeCount = instanceAttributes.size();
-    instanceBufferLayout.attributes = instanceAttributes.data();
-    instanceBufferLayout.arrayStride = 8 * sizeof(uint8_t);
-    instanceBufferLayout.stepMode = WGPUVertexStepMode_Instance;
+    voxelVertexBufferLayout.attributeCount = voxelAttributes.size();
+    voxelVertexBufferLayout.attributes = voxelAttributes.data();
+    voxelVertexBufferLayout.arrayStride = 8 * sizeof(uint8_t);
+    voxelVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
-    WGPUVertexBufferLayout bufferLayouts[] = { vertexBufferLayout, instanceBufferLayout };
+	WGPUVertexBufferLayout chunkVertexBufferLayout{};
+	std::vector<WGPUVertexAttribute> chunkAttributes{};
 
-    pipelineDesc.vertex.bufferCount = 2;
+	chunkAttributes.push_back({
+		.format = WGPUVertexFormat_Float32x4,
+		.offset = 0,
+		.shaderLocation = 3,
+	});
+
+	chunkVertexBufferLayout.attributeCount = chunkAttributes.size();
+	chunkVertexBufferLayout.attributes = chunkAttributes.data();
+	chunkVertexBufferLayout.arrayStride = 0;
+	chunkVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
+
+    WGPUVertexBufferLayout bufferLayouts[] = { billboardVertexBufferLayout, voxelVertexBufferLayout, chunkVertexBufferLayout };
+
+    pipelineDesc.vertex.bufferCount = sizeof(bufferLayouts) / sizeof(WGPUVertexBufferLayout);
     pipelineDesc.vertex.buffers = bufferLayouts;
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
@@ -305,11 +357,16 @@ void RendererSystem::createRenderPipeline() {
 }
 
 void RendererSystem::createDepthTexture() {
-	const auto device = m_Context->getDevice();
+	const auto device = GetWebGPUContext().getDevice();
+
+	if (depthTexture) {
+		wgpuTextureRelease(depthTexture);
+		wgpuTextureViewRelease(depthTextureView);
+	}
 
 	WGPUTextureDescriptor textureDesc = {};
-	textureDesc.size.width = 800; // Use your viewport width
-	textureDesc.size.height = 600; // Use your viewport height
+	textureDesc.size.width = m_viewportWidth;
+	textureDesc.size.height = m_viewportHeight;
 	textureDesc.size.depthOrArrayLayers = 1;
 	textureDesc.mipLevelCount = 1;
 	textureDesc.sampleCount = 1;
@@ -353,7 +410,7 @@ std::string RendererSystem::LoadShader(const char* filename) {
 }
 
 void RendererSystem::InitializeBuffers() {
-	const auto device = m_Context->getDevice();
+	const auto device = GetWebGPUContext().getDevice();
 
 	// Vertex buffer data
 	std::vector<float> vertexData = {
@@ -392,21 +449,6 @@ void RendererSystem::InitializeBuffers() {
 
 	// Upload index data to the buffer
 	wgpuQueueWriteBuffer(m_Queue, indexBuffer, 0, indexData.data(), indexBufferDesc.size);
-
-	// Instance buffer data
-	std::vector<Vertex> instanceData = GetWorld().getVoxelPoints();
-	instanceCount = static_cast<uint32_t>(instanceData.size());
-
-	// Create instance buffer
-	WGPUBufferDescriptor instanceBufferDesc{};
-	instanceBufferDesc.nextInChain = nullptr;
-	instanceBufferDesc.size = instanceData.size() * sizeof(Vertex);
-	instanceBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-	instanceBufferDesc.mappedAtCreation = false;
-	instanceBuffer = wgpuDeviceCreateBuffer(device, &instanceBufferDesc);
-
-	// Upload instance data to the buffer
-	wgpuQueueWriteBuffer(m_Queue, instanceBuffer, 0, instanceData.data(), instanceBufferDesc.size);
 
 	// Create uniform buffer
 	WGPUBufferDescriptor uniformBufferDesc{};

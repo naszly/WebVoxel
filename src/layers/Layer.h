@@ -17,9 +17,9 @@ public:
     Layer& operator=(const Layer&) = delete;
     Layer& operator=(Layer&&) = delete;
 
-    void initialize(const Window& window) {
+    void initialize() {
         for (const auto& system : m_Systems) {
-            system->initialize(window);
+            system->initialize();
         }
     }
 

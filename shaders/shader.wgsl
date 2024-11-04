@@ -11,8 +11,9 @@ struct Uniforms {
 
 struct VertexInput {
     @location(0) vertex_position: vec3f,
-    @location(1) instance_position: u32,
-    @location(2) instance_color: u32,
+    @location(1) voxel_position: u32,
+    @location(2) voxel_color: u32,
+    @location(3) chunk_position: vec3f,
 }
 
 struct VertexOut {
@@ -37,23 +38,28 @@ struct Billboard {
     size : f32,
 }
 
+const CHUNK_SIZE : f32 = 16.0f;
+
 @vertex fn vs_main(vertex : VertexInput) -> VertexOut {
     var billboardPos : vec2f = vertex.vertex_position.xy;
-    var instancePos: vec3f = unpack4x8unorm(vertex.instance_position).xyz * 255;
-    var instanceColor: vec4f = unpack4x8unorm(vertex.instance_color);
+    var instanceVoxelPosition: vec3f = unpack4x8unorm(vertex.voxel_position).xyz * 255;
+    var voxelColor: vec4f = unpack4x8unorm(vertex.voxel_color);
+    var chunkOffset: vec3f = vertex.chunk_position.xyz * CHUNK_SIZE;
 
-    var viewDir : vec3f = normalize(-(instancePos - u.cameraPosition));
+    var voxelPosition = instanceVoxelPosition - u.cameraPosition + chunkOffset;
+
+    var viewDir : vec3f = normalize(-(voxelPosition));
     var right : vec3f = normalize(cross(vec3f(0.0f, 1.0f, 0.0f), viewDir));
     var up : vec3f = normalize(cross(viewDir, right));
 
-    let s : f32 = 1.7f;
+    let s : f32 = 1.732051;
 
-    var pos : vec3f = ((instancePos - u.cameraPosition) + billboardPos.x * s * right + billboardPos.y * s * up);
+    var billboardPosition : vec3f = (voxelPosition + billboardPos.x * s * right + billboardPos.y * s * up);
 
     var out: VertexOut;
-    out.pos = u.projectionView * vec4f(pos, 1.0f);
-    out.vColor = instanceColor;
-    out.vPos = (instancePos - u.cameraPosition);
+    out.pos = u.projectionView * vec4f(billboardPosition, 1.0f);
+    out.vColor = voxelColor;
+    out.vPos = voxelPosition;
     return out;
 }
 
@@ -159,10 +165,10 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
         out.color.a = 1.0f;
         out.depth = hit.distance / (u.farPlane - u.nearPlane);
         return out;
-    } else {
-        discard;
-        /*out.color = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
-        out.depth = 0.5f;
-        return out;*/
     }
+        //discard;
+        out.color = vec4f(0.0f, 0.0f, 1.0f, 0.5f);
+        out.depth = 0.5f;
+        return out;
+
 }

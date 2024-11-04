@@ -6,9 +6,16 @@
 class Camera {
 public:
     Camera() = default;
+    ~Camera() = default;
 
-    void setPerspective(float fov, float aspect, float near, float far) {
-        m_projection = glm::perspective(fov, aspect, near, far);
+    Camera(const Camera&) = delete;
+    Camera& operator=(const Camera&) = delete;
+
+    constexpr static float NEAR = 0.01f;
+    constexpr static float FAR = 1000.0f;
+
+    void setPerspective(float fov, float aspect) {
+        m_projection = glm::perspective(fov, aspect, NEAR, FAR);
     }
 
     void setDirection(const glm::vec3 &direction) {

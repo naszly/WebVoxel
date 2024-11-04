@@ -4,6 +4,9 @@
 
 #include "Input.h"
 
+#include <GLFW/glfw3.h>
+
+
 bool Input::isKeyPressed(KeyCode keyCode) const {
     auto state = glfwGetKey(glfwWindow, static_cast<int>(keyCode));
     return state == GLFW_PRESS;
@@ -31,17 +34,3 @@ std::pair<float, float> Input::getCursorPosition() const {
     glfwGetCursorPos(glfwWindow, &x, &y);
     return {x, y};
 }
-
-void Input::setCursorMode(CursorMode mode) const {
-    glfwSetInputMode(glfwWindow, GLFW_CURSOR, static_cast<int>(mode));
-}
-/*
-void Input::setCursorShape(CursorShape shape) {
-    if (shape != cursorShape) {
-        GLFWcursor *cursor = glfwCreateStandardCursor(static_cast<int>(shape));
-        glfwSetCursor(glfwWindow, cursor);
-        glfwDestroyCursor(glfwCursor);
-        glfwCursor = cursor;
-        cursorShape = shape;
-    }
-}*/

@@ -3,7 +3,7 @@
 
 class ControllerSystem final : public System {
 public:
-    void initialize(const Window&) override;
+    void initialize() override;
     void render() override;
     void update(float dt) override;
     void onEvent(Event& event) override;

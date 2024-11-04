@@ -6,7 +6,7 @@
 
 class RendererSystem : public System {
 public:
-    void initialize(const Window&) override;
+    void initialize() override;
     void render() override;
     void update(float dt) override;
     void onEvent(Event& event) override;
@@ -23,11 +23,16 @@ private:
         float nearPlane;
         float farPlane;
     };
+    static_assert(sizeof(Uniforms) % 16 == 0);
 
-    std::shared_ptr<WebGPUContext> m_Context = nullptr;
+    struct DynamicUniforms {
+        glm::vec4 positionOffset;
+    };
+    static_assert(sizeof(DynamicUniforms) % 16 == 0);
 
     WGPUTexture depthTexture{};
     WGPUTextureView depthTextureView{};
+    unsigned int  m_viewportWidth{}, m_viewportHeight{};
 
     WGPUQueue m_Queue{};
     WGPURenderPipeline m_RenderPipeline{};
@@ -35,10 +40,10 @@ private:
     uint32_t vertexCount{};
     WGPUBuffer indexBuffer{};
     uint32_t indexCount{};
-    WGPUBuffer instanceBuffer{};
-    uint32_t instanceCount{};
     WGPUBuffer uniformBuffer{};
     Uniforms uniformData{};
+    WGPUBuffer dynamicUniformBuffer{};
+    DynamicUniforms dynamicUniformData{};
     WGPUBindGroup uniformBindGroup{};
 
     void createRenderPipeline();

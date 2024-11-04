@@ -18,8 +18,12 @@ public:
         m_Layers.push_back(std::move(layer));
     }
 
-    Camera& getCamera() {
-        return m_camera;
+    [[nodiscard]] std::shared_ptr<WebGPUContext> getWebGPUContext() const {
+        return m_Window->getWebGPUContext();
+    }
+
+    [[nodiscard]] const WebGPUSurface& getWebGPUSurface() const {
+        return m_Window->getWebGPUSurface();
     }
 
     [[nodiscard]] const Input& getInput() const {
@@ -28,6 +32,10 @@ public:
 
     [[nodiscard]] const World& getWorld() const {
         return m_World;
+    }
+
+    Camera& getCamera() {
+        return m_camera;
     }
 
 private:
