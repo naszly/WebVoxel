@@ -251,12 +251,12 @@ void RendererSystem::createRenderPipeline() {
     WGPUVertexBufferLayout billboardVertexBufferLayout{};
     WGPUVertexAttribute billboardAttributes{};
     billboardAttributes.shaderLocation = 0;
-    billboardAttributes.format = WGPUVertexFormat_Float32x3;
+    billboardAttributes.format = WGPUVertexFormat_Float32x2;
     billboardAttributes.offset = 0;
 
     billboardVertexBufferLayout.attributeCount = 1;
     billboardVertexBufferLayout.attributes = &billboardAttributes;
-    billboardVertexBufferLayout.arrayStride = 3 * sizeof(float);
+    billboardVertexBufferLayout.arrayStride = 2 * sizeof(float);
     billboardVertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
 
     // Configure the instance buffer layout
@@ -414,12 +414,12 @@ void RendererSystem::InitializeBuffers() {
 
 	// Vertex buffer data
 	std::vector<float> vertexData = {
-		-0.5f, -0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		0.5f, 0.5f, 0.0f,
-		-0.5f, 0.5f, 0.0f,
+		-1.0f, -1.0f,
+		1.0f, -1.0f,
+		1.0f, 1.0f,
+		-1.0f, 1.0f,
 	};
-	vertexCount = static_cast<uint32_t>(vertexData.size() / 3);
+	vertexCount = static_cast<uint32_t>(vertexData.size() / 2);
 
 	// Create vertex buffer
 	WGPUBufferDescriptor bufferDesc{};

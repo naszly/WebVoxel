@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 23
     CXX_EXTENSIONS OFF
     COMPILE_WARNING_AS_ERROR ON)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcmodel=large")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcmodel=large")
+
 include(FetchContent)
 
 # GLM

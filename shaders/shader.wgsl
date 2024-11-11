@@ -10,7 +10,7 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> u : Uniforms;
 
 struct VertexInput {
-    @location(0) vertex_position: vec3f,
+    @location(0) vertex_position: vec2f,
     @location(1) voxel_position: u32,
     @location(2) voxel_color: u32,
     @location(3) chunk_position: vec3f,
@@ -34,32 +34,75 @@ struct FragmentOut {
 }
 
 struct Billboard {
-    pos : vec4f,
-    size : f32,
+    pos : vec2f,
+    size : vec2f,
 }
 
-const CHUNK_SIZE : f32 = 16.0f;
+const CHUNK_SIZE : f32 = 64.0f;
 
-@vertex fn vs_main(vertex : VertexInput) -> VertexOut {
-    var billboardPos : vec2f = vertex.vertex_position.xy;
+const VOXEL_SIZE : f32 = 1.0f;
+
+fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x4<f32>) -> Billboard {
+    let quadricMat: vec4f = vec4f(1.0, 1.0, 1.0, -1.0);
+    let sphereRadius: f32 = voxelSize * 0.5 * 1.732051;
+    let sphereCenter: vec4f = vec4f(voxelPosition, 1.0);
+    let modelViewProj: mat4x4<f32> = transpose(objectToScreenMatrix);
+
+    var matT: mat3x4<f32> = mat3x4<f32>(
+        mat3x4<f32>(modelViewProj[0], modelViewProj[1], modelViewProj[3]) * sphereRadius
+    );
+    matT[0].w = dot(sphereCenter, modelViewProj[0]);
+    matT[1].w = dot(sphereCenter, modelViewProj[1]);
+    matT[2].w = dot(sphereCenter, modelViewProj[3]);
+
+    let matD: mat3x4<f32> = mat3x4<f32>(
+        matT[0] * quadricMat,
+        matT[1] * quadricMat,
+        matT[2] * quadricMat
+    );
+
+    if (dot(matD[2], matT[2]) > 0.0) {
+        return Billboard(vec2f(0.0, 0.0), vec2f(0.0, 0.0));
+    }
+
+    let eqCoefs: vec4f = vec4f(
+        dot(matD[0], matT[2]),
+        dot(matD[1], matT[2]),
+        dot(matD[0], matT[0]),
+        dot(matD[1], matT[1])
+    ) / dot(matD[2], matT[2]);
+
+    let outPosition: vec2f = eqCoefs.xy;
+    var AABB: vec2f = sqrt(eqCoefs.xy * eqCoefs.xy - eqCoefs.zw);
+
+    return Billboard(outPosition, AABB);
+}
+
+@vertex fn vs_main(vertex: VertexInput) -> VertexOut {
+    var vertexPosition: vec2f = vertex.vertex_position.xy;
     var instanceVoxelPosition: vec3f = unpack4x8unorm(vertex.voxel_position).xyz * 255;
     var voxelColor: vec4f = unpack4x8unorm(vertex.voxel_color);
     var chunkOffset: vec3f = vertex.chunk_position.xyz * CHUNK_SIZE;
 
     var voxelPosition = instanceVoxelPosition - u.cameraPosition + chunkOffset;
 
-    var viewDir : vec3f = normalize(-(voxelPosition));
-    var right : vec3f = normalize(cross(vec3f(0.0f, 1.0f, 0.0f), viewDir));
-    var up : vec3f = normalize(cross(viewDir, right));
+    var billboard: Billboard = quadricProj(voxelPosition, VOXEL_SIZE, u.projectionView);
 
-    let s : f32 = 1.732051;
+    var stochasticCoverage: f32 = billboard.size.x * u.viewportSize.x * billboard.size.y * u.viewportSize.y;
+    if (stochasticCoverage < 0.8) {
+        billboard.size = vec2f(0.0, 0.0);
+    }
 
-    var billboardPosition : vec3f = (voxelPosition + billboardPos.x * s * right + billboardPos.y * s * up);
+    vertexPosition *= billboard.size;
+    vertexPosition += billboard.pos;
+
+    var transformedPosition: vec4f = u.projectionView * vec4f(voxelPosition, 1.0);
 
     var out: VertexOut;
-    out.pos = u.projectionView * vec4f(billboardPosition, 1.0f);
+    out.pos = vec4f(vertexPosition, transformedPosition.z / transformedPosition.w, 1.0);
     out.vColor = voxelColor;
     out.vPos = voxelPosition;
+
     return out;
 }
 
@@ -150,7 +193,7 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
 
     var box : Box;
     box.center = in.vPos;
-    box.radius = vec3f(0.5f, 0.5f, 0.5f);
+    box.radius = vec3f(VOXEL_SIZE * 0.5);
     box.rotation = mat3x3<f32>(1.0f, 0.0f, 0.0f,
                                0.0f, 1.0f, 0.0f,
                                0.0f, 0.0f, 1.0f);
@@ -160,15 +203,15 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
     var out : FragmentOut;
 
     if (hit.isHit) {
-        let light : f32 = 1.0;//max(dot(hit.normal, lightDir), 0.0f);
-        out.color = in.vColor * light;
+        let light : f32 = max(dot(hit.normal, lightDir), 0.0f);
+        out.color = in.vColor * light + in.vColor * 0.1f;
         out.color.a = 1.0f;
         out.depth = hit.distance / (u.farPlane - u.nearPlane);
         return out;
     }
-        //discard;
-        out.color = vec4f(0.0f, 0.0f, 1.0f, 0.5f);
-        out.depth = 0.5f;
-        return out;
 
+    //discard;
+    out.color = vec4f(in.vColor.xyz, 0.5f);
+    out.depth = 0.5f;
+    return out;
 }
