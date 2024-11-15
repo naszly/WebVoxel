@@ -6,7 +6,7 @@ void Chunk::createVertexBuffer(int x, int y, int z) {
     const auto context = Application::GetInstance().getWebGPUContext();
     const auto device = context->getDevice();
 
-    const std::vector<VertexData> points = m_Data.getPoints();
+    const std::vector<VertexData> points = m_Data.getVertices(4);
     const auto chunkPosition = glm::vec4(x, y, z, 0.0f);
 
     WGPUBufferDescriptor descriptor{};

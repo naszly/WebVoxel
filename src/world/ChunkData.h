@@ -88,6 +88,6 @@ public:
         return points;
     }
 
-    private:
-        T m_Data[SIZE_X][SIZE_Y][SIZE_Z];
+private:
+    T m_Data[SIZE_X][SIZE_Y][SIZE_Z];
 };

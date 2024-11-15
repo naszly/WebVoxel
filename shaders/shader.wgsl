@@ -20,12 +20,14 @@ struct VertexOut {
     @builtin(position) pos: vec4f,
     @location(0) vColor: vec4f,
     @location(1) vPos: vec3f,
+    @location(2) vSize: f32,
 }
 
 struct FragmentIn {
     @builtin(position) fragPos: vec4f,
     @location(0) vColor: vec4f,
     @location(1) vPos: vec3f,
+    @location(2) vSize: f32,
 }
 
 struct FragmentOut {
@@ -80,13 +82,15 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x
 
 @vertex fn vs_main(vertex: VertexInput) -> VertexOut {
     var vertexPosition: vec2f = vertex.vertex_position.xy;
-    var instanceVoxelPosition: vec3f = unpack4x8unorm(vertex.voxel_position).xyz * 255;
+    var instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxel_position) * 255;
     var voxelColor: vec4f = unpack4x8unorm(vertex.voxel_color);
     var chunkOffset: vec3f = vertex.chunk_position.xyz * CHUNK_SIZE;
 
-    var voxelPosition = instanceVoxelPosition - u.cameraPosition + chunkOffset;
+    var voxelSize = instanceVoxelPosition.w;
 
-    var billboard: Billboard = quadricProj(voxelPosition, VOXEL_SIZE, u.projectionView);
+    var voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5, 0.5, 0.5) * voxelSize;
+
+    var billboard: Billboard = quadricProj(voxelPosition, voxelSize, u.projectionView);
 
     var stochasticCoverage: f32 = billboard.size.x * u.viewportSize.x * billboard.size.y * u.viewportSize.y;
     if (stochasticCoverage < 0.8) {
@@ -102,6 +106,7 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x
     out.pos = vec4f(vertexPosition, transformedPosition.z / transformedPosition.w, 1.0);
     out.vColor = voxelColor;
     out.vPos = voxelPosition;
+    out.vSize = voxelSize;
 
     return out;
 }
@@ -193,7 +198,7 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
 
     var box : Box;
     box.center = in.vPos;
-    box.radius = vec3f(VOXEL_SIZE * 0.5);
+    box.radius = vec3f(in.vSize * 0.5);
     box.rotation = mat3x3<f32>(1.0f, 0.0f, 0.0f,
                                0.0f, 1.0f, 0.0f,
                                0.0f, 0.0f, 1.0f);

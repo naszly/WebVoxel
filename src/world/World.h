@@ -14,15 +14,15 @@ public:
     World& operator=(World&&) = delete;
 
     void generate() {
-        m_Chunks.put(1,1,1);
-        m_Chunks.put(0,0,0);
-        m_Chunks.put(2,0,0);
-        m_Chunks.put(0,2,0);
-        m_Chunks.put(0,0,2);
-        m_Chunks.put(2,2,0);
-        m_Chunks.put(0,2,2);
-        m_Chunks.put(2,0,2);
-        m_Chunks.put(2,2,2);
+        for (int i = 0; i < CHUNKS; i++) {
+            for (int j = 0; j < CHUNKS; j++) {
+                for (int k = 0; k < CHUNKS; k++) {
+                    if ((i + j) % 2 == 0 && (j + k) % 2 == 0 && (i + k) % 2 == 0) {
+                        m_Chunks.put(i, j, k);
+                    }
+                }
+            }
+        }
     }
 
     [[nodiscard]] std::vector<std::pair<glm::ivec3, const Chunk&>> getChunks() const {
@@ -34,5 +34,6 @@ public:
     }
 
 private:
-    ChunkMap<Chunk, 16, 16, 16> m_Chunks;
+    constexpr static int CHUNKS = 4;
+    ChunkMap<Chunk, CHUNKS, CHUNKS, CHUNKS> m_Chunks;
 };
