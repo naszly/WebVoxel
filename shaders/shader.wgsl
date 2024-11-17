@@ -32,7 +32,6 @@ struct FragmentIn {
 
 struct FragmentOut {
     @location(0) color: vec4f,
-    @builtin(frag_depth) depth: f32,
 }
 
 struct Billboard {
@@ -88,7 +87,7 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x
 
     var voxelSize = instanceVoxelPosition.w;
 
-    var voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5, 0.5, 0.5) * voxelSize;
+    var voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
 
     var billboard: Billboard = quadricProj(voxelPosition, voxelSize, u.projectionView);
 
@@ -101,9 +100,14 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x
     vertexPosition += billboard.pos;
 
     var transformedPosition: vec4f = u.projectionView * vec4f(voxelPosition, 1.0);
+    var vertexPositionZ: f32 = transformedPosition.z / transformedPosition.w;
+
+    if (vertexPositionZ > 0.0 && vertexPositionZ < 1.0) {
+        vertexPositionZ = length(voxelPosition) / u.farPlane;
+    }
 
     var out: VertexOut;
-    out.pos = vec4f(vertexPosition, transformedPosition.z / transformedPosition.w, 1.0);
+    out.pos = vec4f(vertexPosition, vertexPositionZ, 1.0);
     out.vColor = voxelColor;
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
@@ -196,7 +200,6 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
     // crosshair
     if (length(in.fragPos.xy - u.viewportSize.xy * 0.5) < 2.0) {
         out.color = vec4f(1.0f, 1.0f, 1.0f, 1.0f);
-        out.depth = 0.0f;
         return out;
     }
 
@@ -218,10 +221,8 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
         let light : f32 = max(dot(hit.normal, lightDir), 0.0f);
         out.color = in.vColor * light + in.vColor * 0.1f;
         out.color.a = 1.0f;
-        out.depth = hit.distance / (u.farPlane - u.nearPlane);
     } else {
-        out.color = vec4f(0);
-        out.depth = 1.0f;
+        discard;
     }
 
     return out;
