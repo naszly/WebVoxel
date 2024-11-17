@@ -30,7 +30,7 @@ public:
         return m_Window->getInput();
     }
 
-    [[nodiscard]] const World& getWorld() const {
+    [[nodiscard]] World& getWorld() {
         return m_World;
     }
 

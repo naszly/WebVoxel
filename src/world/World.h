@@ -5,6 +5,8 @@
 
 class World {
 public:
+    constexpr static int CHUNKS = 2;
+
     World() = default;
     ~World() = default;
 
@@ -13,27 +15,26 @@ public:
     World& operator=(const World&) = delete;
     World& operator=(World&&) = delete;
 
-    void generate() {
-        for (int i = 0; i < CHUNKS; i++) {
-            for (int j = 0; j < CHUNKS; j++) {
-                for (int k = 0; k < CHUNKS; k++) {
-                    if ((i + j) % 2 == 0 && (j + k) % 2 == 0 && (i + k) % 2 == 0) {
-                        m_Chunks.put(i, j, k);
-                    }
-                }
-            }
-        }
+    void generate();
+
+    [[nodiscard]] std::vector<std::pair<glm::ivec3, Chunk&>> getChunks();
+
+    [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) {
+        return m_Chunks.getVoxel(coord);
     }
 
-    [[nodiscard]] std::vector<std::pair<glm::ivec3, const Chunk&>> getChunks() const {
-        std::vector<std::pair<glm::ivec3, const Chunk&>> chunks;
-        for (const auto& chunk : m_Chunks) {
-            chunks.push_back(chunk);
-        }
-        return chunks;
+    bool hasVoxel(const WorldCoordinate &coord) {
+        return !m_Chunks.getVoxel(coord).isEmpty();
+    }
+
+    void setVoxel(const WorldCoordinate &coord, const VoxelData voxel) {
+        m_Chunks.setVoxel(coord, voxel);
+    }
+
+    void removeVoxel(const WorldCoordinate &coord) {
+        m_Chunks.setVoxel(coord, VoxelData{});
     }
 
 private:
-    constexpr static int CHUNKS = 4;
-    ChunkMap<Chunk, CHUNKS, CHUNKS, CHUNKS> m_Chunks;
+    ChunkMap<CHUNKS, CHUNKS, CHUNKS> m_Chunks;
 };

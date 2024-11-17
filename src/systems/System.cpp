@@ -9,7 +9,7 @@ const Input& System::GetInput() {
     return Application::GetInstance().getInput();
 }
 
-const World& System::GetWorld() {
+World& System::GetWorld() {
     return Application::GetInstance().getWorld();
 }
 

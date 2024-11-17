@@ -7,8 +7,12 @@
 struct VoxelData {
     uint8_t r{0}, g{0}, b{0}, a{0};
 
+    VoxelData() = default;
+    VoxelData(const uint8_t r, const uint8_t g, const uint8_t b) : r(r), g(g), b(b), a(255) {}
+    VoxelData(const uint8_t r, const uint8_t g, const uint8_t b, const uint8_t a) : r(r), g(g), b(b), a(a) {}
+
     [[nodiscard]] bool isEmpty() const {
-        return r == 0 && g == 0 && b == 0 && a == 0;
+        return a == 0;
     }
 };
 

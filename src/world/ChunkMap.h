@@ -1,9 +1,11 @@
 #pragma once
 #include <cassert>
 #include <optional>
-#include <glm/vec3.hpp>
 
-template <typename T, int SIZE_X, int SIZE_Y, int SIZE_Z>
+#include "WorldCoordinate.h"
+#include "../Log.h"
+
+template <int SIZE_X, int SIZE_Y, int SIZE_Z>
 class ChunkMap {
 public:
     ChunkMap() = default;
@@ -14,15 +16,75 @@ public:
     ChunkMap& operator=(const ChunkMap&) = delete;
     ChunkMap& operator=(ChunkMap&&) = delete;
 
-    void put(const int x, const int y, const int z) {
+    Chunk& get(const int x, const int y, const int z) {
         assert(x >= 0 && x < SIZE_X);
         assert(y >= 0 && y < SIZE_Y);
         assert(z >= 0 && z < SIZE_Z);
 
-        m_Chunks[x + SIZE_X * (y + SIZE_Y * z)] = std::make_optional<T>();
+        if (!m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].has_value()) {
+            create(x, y, z);
+        }
 
-        m_Chunks[x + SIZE_X * (y + SIZE_Y * z)]->generate(x, y, z);
-        m_Chunks[x + SIZE_X * (y + SIZE_Y * z)]->createVertexBuffer(x, y, z);
+        return m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].value();
+    }
+
+    [[nodiscard]] auto begin() {
+        return m_Chunks;
+    }
+
+    [[nodiscard]] auto end() {
+        return m_Chunks + MAP_SIZE;
+    }
+
+    VoxelData getVoxel(const WorldCoordinate &coord) {
+        const auto pos = coord.worldPosition();
+        const auto cPos = coord.chunkPosition();
+        const auto lPos = coord.localPosition();
+
+        LogApp::info("ChunkMap::getVoxel: Pos: ({}, {}, {}) cPos: ({}, {}, {}), lPos: ({}, {}, {})",
+            pos.x, pos.y, pos.z, cPos.x, cPos.y, cPos.z, lPos.x, lPos.y, lPos.z);
+
+        if (cPos.x < 0 || cPos.x >= SIZE_X || cPos.y < 0 || cPos.y >= SIZE_Y || cPos.z < 0 || cPos.z >= SIZE_Z) {
+            return VoxelData{};
+        }
+
+        if (const auto &chunk = m_Chunks[cPos.x + SIZE_X * (cPos.y + SIZE_Y * cPos.z)]) {
+            return chunk->get(lPos.x, lPos.y, lPos.z);
+        }
+
+        return VoxelData{};
+    }
+
+    void setVoxel(const WorldCoordinate &coord, const VoxelData &voxel) {
+        const auto pos = coord.worldPosition();
+        const auto cPos = coord.chunkPosition();
+        const auto lPos = coord.localPosition();
+
+        LogApp::info("ChunkMap::setVoxel: Pos: ({}, {}, {}) cPos: ({}, {}, {}), lPos: ({}, {}, {})",
+            pos.x, pos.y, pos.z, cPos.x, cPos.y, cPos.z, lPos.x, lPos.y, lPos.z);
+
+        if (cPos.x < 0 || cPos.x >= SIZE_X || cPos.y < 0 || cPos.y >= SIZE_Y || cPos.z < 0 || cPos.z >= SIZE_Z) {
+            LogApp::info("ChunkMap::setVoxel: Chunk out of bounds");
+            return;
+        }
+
+        auto &chunk = get(cPos.x, cPos.y, cPos.z);
+
+        chunk.set(voxel, lPos.x, lPos.y, lPos.z);
+    }
+
+private:
+    static constexpr size_t MAP_SIZE = SIZE_X * SIZE_Y * SIZE_Z;
+    std::optional<Chunk> m_Chunks[MAP_SIZE];
+
+    void create(const int x, const int y, const int z) {
+        assert(x >= 0 && x < SIZE_X);
+        assert(y >= 0 && y < SIZE_Y);
+        assert(z >= 0 && z < SIZE_Z);
+
+        assert(!m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].has_value());
+
+        m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].emplace(x, y, z);
     }
 
     void remove(const int x, const int y, const int z) {
@@ -32,65 +94,4 @@ public:
 
         m_Chunks[x + SIZE_X * (y + SIZE_Y * z)] = std::nullopt;
     }
-
-    class ConstIterator {
-    public:
-        ConstIterator(const std::optional<T>* ptr, const std::optional<T>* end, const std::optional<T>* chunks)
-            : m_Ptr(ptr), m_End(end), m_Chunks(chunks) {
-            // Skip to the first valid element
-            while (m_Ptr != m_End && !m_Ptr->has_value()) {
-                ++m_Ptr;
-            }
-        }
-
-        std::pair<glm::ivec3, const T&> operator*() const {
-            glm::ivec3 pos;
-
-            pos.x = (m_Ptr - m_Chunks) % SIZE_X;
-            pos.y = ((m_Ptr - m_Chunks) / SIZE_X) % SIZE_Y;
-            pos.z = (m_Ptr - m_Chunks) / (SIZE_X * SIZE_Y);
-
-            std::pair<glm::ivec3, const T&> pair = {pos, m_Ptr->value()};
-
-            return pair;
-        }
-
-        ConstIterator& operator++() {
-            do {
-                ++m_Ptr;
-            } while (m_Ptr != m_End && !m_Ptr->has_value());
-            return *this;
-        }
-
-        ConstIterator operator++(int) {
-            ConstIterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        friend bool operator==(const ConstIterator& a, const ConstIterator& b) {
-            return a.m_Ptr == b.m_Ptr;
-        }
-
-        friend bool operator!=(const ConstIterator& a, const ConstIterator& b) {
-            return a.m_Ptr != b.m_Ptr;
-        }
-
-    private:
-        const std::optional<T>* m_Ptr;
-        const std::optional<T>* m_End;
-        const std::optional<T>* m_Chunks;
-    };
-
-    ConstIterator begin() const {
-        return ConstIterator(m_Chunks, m_Chunks + MAP_SIZE, m_Chunks);
-    }
-
-    ConstIterator end() const {
-        return ConstIterator(m_Chunks + MAP_SIZE, m_Chunks + MAP_SIZE, m_Chunks);
-    }
-
-private:
-    static constexpr size_t MAP_SIZE = SIZE_X * SIZE_Y * SIZE_Z;
-    std::optional<T> m_Chunks[MAP_SIZE];
 };

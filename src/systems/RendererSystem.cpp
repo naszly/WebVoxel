@@ -54,9 +54,7 @@ WGPUTextureView RendererSystem::GetNextSurfaceTextureView() {
 }
 
 void RendererSystem::render() {
-    LogApp::info("RendererSystem::render");
-
-	auto device = GetWebGPUContext().getDevice();
+    auto device = GetWebGPUContext().getDevice();
     const auto surface = GetWebGPUSurface().getSurface();
     const Camera& camera = Application::GetInstance().getCamera();
 
@@ -110,7 +108,7 @@ void RendererSystem::render() {
 	renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
 	renderPassDesc.timestampWrites = nullptr;
 
-    const Application& app = Application::GetInstance();
+    Application& app = Application::GetInstance();
 	auto& world = app.getWorld();
 
 	WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
@@ -129,8 +127,7 @@ void RendererSystem::render() {
 
 	for (auto&[position, chunk] : world.getChunks()) {
 
-		auto buffer = chunk.getVertexBuffer();
-		auto count = chunk.getVertexCount();
+		auto [buffer, vertexCount] = chunk.getVertexBuffer();
 
 		// Update uniform buffer data
 		wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));
@@ -142,7 +139,7 @@ void RendererSystem::render() {
 		wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, wgpuBufferGetSize(buffer) - sizeof(glm::vec4), sizeof(glm::vec4));
 
 		// Use instanced drawing
-		wgpuRenderPassEncoderDrawIndexed(renderPass, indexCount, count, 0, 0, 0);
+		wgpuRenderPassEncoderDrawIndexed(renderPass, indexCount, vertexCount, 0, 0, 0);
 	}
 	wgpuRenderPassEncoderEnd(renderPass);
 	wgpuRenderPassEncoderRelease(renderPass);
@@ -171,12 +168,9 @@ void RendererSystem::render() {
 }
 
 void RendererSystem::update(float dt) {
-    LogApp::info("RendererSystem::update {0}", dt);
 }
 
 void RendererSystem::onEvent(Event& event) {
-	LogApp::info("RendererSystem::onEvent");
-
 	EventDispatcher dispatcher(event);
 
 	dispatcher.dispatch<WindowResizedEvent>([&](const WindowResizedEvent &windowResizedEvent) {

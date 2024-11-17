@@ -22,7 +22,7 @@ public:
 protected:
     static Camera& GetCamera();
     static const Input& GetInput();
-    static const World& GetWorld();
+    static World& GetWorld();
     static const WebGPUContext& GetWebGPUContext();
     static const WebGPUSurface& GetWebGPUSurface();
 };

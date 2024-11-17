@@ -9,4 +9,8 @@ public:
     void onEvent(Event& event) override;
 
     ControllerSystem() : System() {}
+
+private:
+    static void updateCamera(float dt, const Input &input, Camera &camera);
+    static void updateWorld(float dt, const Input &input, const Camera &camera, World &world);
 };

@@ -191,6 +191,15 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
 }
 
 @fragment fn fs_main(in : FragmentIn) -> FragmentOut {
+    var out : FragmentOut;
+
+    // crosshair
+    if (length(in.fragPos.xy - u.viewportSize.xy * 0.5) < 2.0) {
+        out.color = vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+        out.depth = 0.0f;
+        return out;
+    }
+
     let lightDir : vec3f = normalize(vec3f(0.2f, 0.8f, -0.5f));
     var ray : Ray;
     ray.origin = vec3f(0.0, 0.0, 0.0);
@@ -205,18 +214,15 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
 
     let hit : Hit = intersectBox(box, ray);
 
-    var out : FragmentOut;
-
     if (hit.isHit) {
         let light : f32 = max(dot(hit.normal, lightDir), 0.0f);
         out.color = in.vColor * light + in.vColor * 0.1f;
         out.color.a = 1.0f;
         out.depth = hit.distance / (u.farPlane - u.nearPlane);
-        return out;
+    } else {
+        out.color = vec4f(0);
+        out.depth = 1.0f;
     }
 
-    //discard;
-    out.color = vec4f(in.vColor.xyz, 0.5f);
-    out.depth = 0.5f;
     return out;
 }
