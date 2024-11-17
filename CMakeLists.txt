@@ -87,13 +87,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 if(EMSCRIPTEN)
-    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html" OUTPUT_NAME "index")
     target_link_options(${PROJECT_NAME} PRIVATE -sASSERTIONS=2 -sSTACK_OVERFLOW_CHECK=2 -sUSE_GLFW=3 -sUSE_WEBGPU=1 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sEXIT_RUNTIME)
 
     file(GLOB_RECURSE SHADERS_FILES ${CMAKE_SOURCE_DIR}/shaders/*)
     foreach(SHADER_FILE ${SHADERS_FILES})
         get_filename_component(SHADER_NAME ${SHADER_FILE} NAME)
-        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${SHADER_FILE}@/shaders/${SHADER_NAME}")
+        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${SHADER_FILE}@/shaders/${SHADER_NAME} --shell-file ${CMAKE_SOURCE_DIR}/shell.html")
         set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS ${SHADER_FILE})
     endforeach()
 else()
