@@ -150,7 +150,7 @@ void ControllerSystem::updateWorld(float dt, const Input &input, const Camera &c
                     return false;
                 }
 
-                world.removeVoxel(worldPos);
+                world.removeVoxel(worldPos, 10);
 
                 return true;
             });
@@ -170,7 +170,7 @@ void ControllerSystem::updateWorld(float dt, const Input &input, const Camera &c
                     return false;
                 }
 
-                world.setVoxel(prevWorldPos, VoxelData(200, 30, 40));
+                world.setVoxel(prevWorldPos, VoxelData(200, 30, 40), 10);
                 return true;
             });
         }

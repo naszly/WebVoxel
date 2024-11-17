@@ -19,21 +19,17 @@ public:
 
     [[nodiscard]] std::vector<std::pair<glm::ivec3, Chunk&>> getChunks();
 
-    [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) {
-        return m_Chunks.getVoxel(coord);
-    }
+    [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord);
 
-    bool hasVoxel(const WorldCoordinate &coord) {
-        return !m_Chunks.getVoxel(coord).isEmpty();
-    }
+    bool hasVoxel(const WorldCoordinate &coord);
 
-    void setVoxel(const WorldCoordinate &coord, const VoxelData voxel) {
-        m_Chunks.setVoxel(coord, voxel);
-    }
+    void setVoxel(const WorldCoordinate &coord, VoxelData voxel);
 
-    void removeVoxel(const WorldCoordinate &coord) {
-        m_Chunks.setVoxel(coord, VoxelData{});
-    }
+    void setVoxel(const WorldCoordinate &coord, VoxelData voxel, int64_t radius);
+
+    void removeVoxel(const WorldCoordinate &coord);
+
+    void removeVoxel(const WorldCoordinate &coord, int64_t radius);
 
 private:
     ChunkMap m_Chunks;

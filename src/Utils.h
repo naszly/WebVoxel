@@ -17,4 +17,11 @@ namespace Utils {
     {
         return (numerator / denominator) + ((numerator % denominator) >> (sizeof(T) * CHAR_BIT - 1));
     }
+
+    inline int64_t distance(const glm::i64vec3 &a, const glm::i64vec3 &b) {
+        const int64_t dx = a.x - b.x;
+        const int64_t dy = a.y - b.y;
+        const int64_t dz = a.z - b.z;
+        return static_cast<int64_t>(std::sqrt(dx * dx + dy * dy + dz * dz));
+    }
 }
