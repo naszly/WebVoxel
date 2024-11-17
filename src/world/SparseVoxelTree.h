@@ -15,9 +15,9 @@ class SparseVoxelTree {
 public:
     SparseVoxelTree() {
         if constexpr (depth == 0) {
-            std::fill(&children[0][0][0], &children[0][0][0] + size * size * size, EMPTY_VOXEL);
+            std::fill_n(&children[0][0][0], size * size * size, EMPTY_VOXEL);
         } else {
-            std::fill(&children[0][0][0], &children[0][0][0] + size * size * size, nullptr);
+            std::fill_n(&children[0][0][0], size * size * size, nullptr);
         }
     }
 
@@ -68,10 +68,10 @@ public:
     }
 
     [[nodiscard]] bool isEmpty() const {
-        return emptyCount == size * size * size;
+        return countVoxels() == 0;
     }
 
-    [[nodiscard]] uint32_t getVertexCount() const {
+    [[nodiscard]] uint32_t countVoxels() const {
         if constexpr (depth == 0) {
             return size * size * size - emptyCount;
         } else {
@@ -80,7 +80,7 @@ public:
                 for (uint32_t y = 0; y < size; y++) {
                     for (uint32_t z = 0; z < size; z++) {
                         if (children[x][y][z] != nullptr)
-                            count += children[x][y][z]->getVertexCount();
+                            count += children[x][y][z]->countVoxels();
                     }
                 }
             }
@@ -91,7 +91,7 @@ public:
     [[nodiscard]] std::vector<VertexData> getVertices(const int32_t levelOfDetail = depth) const {
         assert(levelOfDetail >= 0 && levelOfDetail <= depth);
         std::vector<VertexData> vertices;
-        vertices.reserve(getVertexCount());
+        vertices.reserve(countVoxels());
         getVertices(vertices, levelOfDetail);
         return vertices;
     }

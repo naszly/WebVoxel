@@ -15,33 +15,25 @@ public:
     static constexpr size_t SIZE = Utils::pow(NODE_SIZE, DEPTH);
 
     explicit Chunk(const int x, const int y, const int z) : m_Position(x, y, z) {}
-    ~Chunk() = default;
-
-    void generate(int x, int y, int z) {
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                for (int k = 0; k < SIZE; k++) {
-
-                    VoxelData data{};
-                    data.r = random() % 255;
-                    data.g = random() % 255;
-                    data.b = random() % 255;
-                    data.a = 255;
-
-                    m_Data.set(i, j, k, data);
-
-                }
-            }
-        }
+    ~Chunk() {
+        deleteVertexBuffer();
     }
 
+    void generate(int x, int y, int z);
+
     void createVertexBuffer(int x, int y, int z);
+
+    void deleteVertexBuffer();
 
     [[nodiscard]] glm::ivec3 getPosition() const {
         return m_Position;
     }
 
-    [[nodiscard]] const VoxelData& get(const int x, const int y, const int z) const {
+    [[nodiscard]] bool isEmpty() const {
+        return m_Data.isEmpty();
+    }
+
+    [[nodiscard]] const VoxelData& getVoxel(const int x, const int y, const int z) const {
         assert(x >= 0 && x < SIZE);
         assert(y >= 0 && y < SIZE);
         assert(z >= 0 && z < SIZE);
@@ -49,7 +41,7 @@ public:
         return m_Data.get(x, y, z);
     }
 
-    void set(const VoxelData& voxel, const int x, const int y, const int z) {
+    void setVoxel(const VoxelData& voxel, const int x, const int y, const int z) {
         assert(x >= 0 && x < SIZE);
         assert(y >= 0 && y < SIZE);
         assert(z >= 0 && z < SIZE);
@@ -59,8 +51,8 @@ public:
     }
 
     struct VertexBuffer {
-        WGPUBuffer buffer;
-        size_t vertexCount;
+        WGPUBuffer buffer{nullptr};
+        size_t vertexCount{0};
     };
 
     [[nodiscard]] VertexBuffer getVertexBuffer() {

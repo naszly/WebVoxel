@@ -1,11 +1,11 @@
 #pragma once
-#include <cassert>
-#include <optional>
+
+#include <glm/gtx/hash.hpp>
+#include <unordered_map>
 
 #include "WorldCoordinate.h"
 #include "../Log.h"
 
-template <int SIZE_X, int SIZE_Y, int SIZE_Z>
 class ChunkMap {
 public:
     ChunkMap() = default;
@@ -16,82 +16,75 @@ public:
     ChunkMap& operator=(const ChunkMap&) = delete;
     ChunkMap& operator=(ChunkMap&&) = delete;
 
-    Chunk& get(const int x, const int y, const int z) {
-        assert(x >= 0 && x < SIZE_X);
-        assert(y >= 0 && y < SIZE_Y);
-        assert(z >= 0 && z < SIZE_Z);
+    Chunk& getChunk(const int x, const int y, const int z) {
+        const auto key = glm::ivec3(x, y, z);
+        const Chunk chunk(x, y, z);
 
-        if (!m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].has_value()) {
-            create(x, y, z);
+        auto [it, inserted] = m_Chunks.try_emplace(key, x, y, z);
+
+        if (inserted) {
+            LogApp::info("Created chunk at ({}, {}, {})", x, y, z);
         }
 
-        return m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].value();
+        return it->second;
     }
 
-    [[nodiscard]] auto begin() {
-        return m_Chunks;
+    [[nodiscard]] Chunk* tryGetChunk(const int x, const int y, const int z) {
+        const auto key = glm::ivec3(x, y, z);
+
+        if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
+            return &it->second;
+        }
+
+        return nullptr;
     }
 
-    [[nodiscard]] auto end() {
-        return m_Chunks + MAP_SIZE;
+    std::vector<std::pair<glm::ivec3, Chunk &>> getChunks() {
+        std::vector<std::pair<glm::ivec3, Chunk&>> chunks;
+        for (auto it = m_Chunks.begin(); it != m_Chunks.end(); ) {
+            auto &[key, chunk] = *it;
+            if (chunk.isEmpty()) {
+                it = m_Chunks.erase(it);
+                LogApp::info("Removed chunk at ({}, {}, {})", key.x, key.y, key.z);
+            } else {
+                chunks.emplace_back(key, chunk);
+                ++it;
+            }
+        }
+        return chunks;
     }
 
     VoxelData getVoxel(const WorldCoordinate &coord) {
-        const auto pos = coord.worldPosition();
         const auto cPos = coord.chunkPosition();
         const auto lPos = coord.localPosition();
 
-        LogApp::info("ChunkMap::getVoxel: Pos: ({}, {}, {}) cPos: ({}, {}, {}), lPos: ({}, {}, {})",
-            pos.x, pos.y, pos.z, cPos.x, cPos.y, cPos.z, lPos.x, lPos.y, lPos.z);
-
-        if (cPos.x < 0 || cPos.x >= SIZE_X || cPos.y < 0 || cPos.y >= SIZE_Y || cPos.z < 0 || cPos.z >= SIZE_Z) {
-            return VoxelData{};
-        }
-
-        if (const auto &chunk = m_Chunks[cPos.x + SIZE_X * (cPos.y + SIZE_Y * cPos.z)]) {
-            return chunk->get(lPos.x, lPos.y, lPos.z);
+        if (const auto chunk = tryGetChunk(cPos.x, cPos.y, cPos.z)) {
+            return chunk->getVoxel(lPos.x, lPos.y, lPos.z);
         }
 
         return VoxelData{};
     }
 
     void setVoxel(const WorldCoordinate &coord, const VoxelData &voxel) {
-        const auto pos = coord.worldPosition();
+        if (voxel.isEmpty()) {
+            removeVoxel(coord);
+        } else {
+            const auto cPos = coord.chunkPosition();
+            const auto lPos = coord.localPosition();
+
+            getChunk(cPos.x, cPos.y, cPos.z).setVoxel(voxel, lPos.x, lPos.y, lPos.z);
+        }
+    }
+
+    void removeVoxel(const WorldCoordinate &coord) {
         const auto cPos = coord.chunkPosition();
         const auto lPos = coord.localPosition();
 
-        LogApp::info("ChunkMap::setVoxel: Pos: ({}, {}, {}) cPos: ({}, {}, {}), lPos: ({}, {}, {})",
-            pos.x, pos.y, pos.z, cPos.x, cPos.y, cPos.z, lPos.x, lPos.y, lPos.z);
-
-        if (cPos.x < 0 || cPos.x >= SIZE_X || cPos.y < 0 || cPos.y >= SIZE_Y || cPos.z < 0 || cPos.z >= SIZE_Z) {
-            LogApp::info("ChunkMap::setVoxel: Chunk out of bounds");
-            return;
+        if (const auto chunk = tryGetChunk(cPos.x, cPos.y, cPos.z)) {
+            chunk->setVoxel(VoxelData{}, lPos.x, lPos.y, lPos.z);
         }
-
-        auto &chunk = get(cPos.x, cPos.y, cPos.z);
-
-        chunk.set(voxel, lPos.x, lPos.y, lPos.z);
     }
 
 private:
-    static constexpr size_t MAP_SIZE = SIZE_X * SIZE_Y * SIZE_Z;
-    std::optional<Chunk> m_Chunks[MAP_SIZE];
-
-    void create(const int x, const int y, const int z) {
-        assert(x >= 0 && x < SIZE_X);
-        assert(y >= 0 && y < SIZE_Y);
-        assert(z >= 0 && z < SIZE_Z);
-
-        assert(!m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].has_value());
-
-        m_Chunks[x + SIZE_X * (y + SIZE_Y * z)].emplace(x, y, z);
-    }
-
-    void remove(const int x, const int y, const int z) {
-        assert(x >= 0 && x < SIZE_X);
-        assert(y >= 0 && y < SIZE_Y);
-        assert(z >= 0 && z < SIZE_Z);
-
-        m_Chunks[x + SIZE_X * (y + SIZE_Y * z)] = std::nullopt;
-    }
+    std::unordered_map<glm::ivec3, Chunk> m_Chunks;
 };

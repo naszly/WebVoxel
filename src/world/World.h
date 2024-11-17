@@ -36,5 +36,5 @@ public:
     }
 
 private:
-    ChunkMap<CHUNKS, CHUNKS, CHUNKS> m_Chunks;
+    ChunkMap m_Chunks;
 };
