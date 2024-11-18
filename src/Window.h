@@ -46,6 +46,10 @@ public:
         return *m_Input;
     }
 
+    [[nodiscard]] GLFWwindow* getGLFWWindow() const {
+        return m_Window;
+    }
+
 private:
     GLFWwindow* m_Window;
     std::shared_ptr<WebGPUContext> m_WebGPUContext;

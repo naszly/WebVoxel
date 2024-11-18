@@ -15,7 +15,7 @@ public:
 
     virtual ~System() = default;
     virtual void initialize() = 0;
-    virtual void render() = 0;
+    virtual void render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) = 0;
     virtual void update(float dt) = 0;
     virtual void onEvent(Event& event) = 0;
 
@@ -25,4 +25,5 @@ protected:
     static World& GetWorld();
     static const WebGPUContext& GetWebGPUContext();
     static const WebGPUSurface& GetWebGPUSurface();
+    static GLFWwindow* GetGLFWWindow();
 };

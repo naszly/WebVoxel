@@ -28,8 +28,6 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
     m_WebGPUContext = std::make_shared<WebGPUContext>();
     m_WebGPUSurface = std::make_unique<WebGPUSurface>(m_Window, *m_WebGPUContext);
 
-    glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
     glfwSetKeyCallback(m_Window, [](GLFWwindow *glfwWindow, const int key, const int scancode, const int action, const int mods) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 

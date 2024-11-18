@@ -54,21 +54,95 @@ void Application::onEvent(Event &event) {
     }
 }
 
+void Application::update(float deltaTime) {
+    m_Window->pollEvents();
+
+    for (const auto& layer : m_Layers) {
+        layer->update(deltaTime);
+    }
+}
+
+WGPUTextureView Application::getNextSurfaceTextureView() const {
+    const auto surface = getWebGPUSurface().getSurface();
+    // Get the surface texture
+    WGPUSurfaceTexture surfaceTexture;
+    wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+        LogCore::error("Failed to get current surface texture: status {0}", static_cast<int>(surfaceTexture.status));
+        return nullptr;
+    }
+
+    // Create a view for this surface texture
+    WGPUTextureViewDescriptor viewDescriptor = {};
+    viewDescriptor.nextInChain = nullptr;
+    viewDescriptor.label = "Surface texture view";
+    viewDescriptor.format = wgpuTextureGetFormat(surfaceTexture.texture);
+    viewDescriptor.dimension = WGPUTextureViewDimension_2D;
+    viewDescriptor.baseMipLevel = 0;
+    viewDescriptor.mipLevelCount = 1;
+    viewDescriptor.baseArrayLayer = 0;
+    viewDescriptor.arrayLayerCount = 1;
+    viewDescriptor.aspect = WGPUTextureAspect_All;
+    WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture.texture, &viewDescriptor);
+
+    if (!targetView) {
+        LogCore::error("Failed to create texture view for surface texture");
+    }
+
+    return targetView;
+}
+
+void Application::render() {
+    auto device = getWebGPUContext()->getDevice();
+    const auto surface = getWebGPUSurface().getSurface();
+    const auto queue = wgpuDeviceGetQueue(device);
+
+    // Create a command encoder for the draw call
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.nextInChain = nullptr;
+    encoderDesc.label = "My command encoder";
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+
+    // Get the next target texture view
+    WGPUTextureView targetView = getNextSurfaceTextureView();
+    if (!targetView) return;
+
+    for (const auto& layer : m_Layers) {
+        layer->render(encoder, targetView);
+    }
+
+    // Encode and submit the render pass
+    WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
+    cmdBufferDescriptor.nextInChain = nullptr;
+    cmdBufferDescriptor.label = "Command buffer";
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
+    wgpuCommandEncoderRelease(encoder);
+
+    wgpuQueueSubmit(queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+
+    // At the end of the frame
+    wgpuTextureViewRelease(targetView);
+#ifndef __EMSCRIPTEN__
+    wgpuSurfacePresent(surface);
+#endif
+
+#if defined(WEBGPU_BACKEND_DAWN)
+    wgpuDeviceTick(device);
+#elif defined(WEBGPU_BACKEND_WGPU)
+    wgpuDevicePoll(device, false, nullptr);
+#endif
+}
+
 void Application::mainLoop() {
     const auto now = std::chrono::high_resolution_clock::now();
     static auto lastTime = now;
 
     const float deltaTime = std::chrono::duration<float>(now - lastTime).count();
 
-    m_Window->pollEvents();
+    update(deltaTime);
 
-    for (const auto& layer : m_Layers) {
-        layer->update(deltaTime);
-    }
-
-    for (const auto& layer : m_Layers) {
-        layer->render();
-    }
+    render();
 
     lastTime = now;
 }

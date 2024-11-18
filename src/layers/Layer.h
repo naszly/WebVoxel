@@ -23,9 +23,9 @@ public:
         }
     }
 
-    void render() {
+    void render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) {
         for (const auto& system : m_Systems) {
-            system->render();
+            system->render(encoder, targetView);
         }
     }
 

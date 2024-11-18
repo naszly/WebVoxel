@@ -23,39 +23,7 @@ void RendererSystem::initialize() {
     createRenderPipeline();
 }
 
-WGPUTextureView RendererSystem::GetNextSurfaceTextureView() {
-	const auto surface = GetWebGPUSurface().getSurface();
-	// Get the surface texture
-	WGPUSurfaceTexture surfaceTexture;
-	wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
-	if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
-		LogCore::error("Failed to get current surface texture: status {0}", (int)surfaceTexture.status);
-		return nullptr;
-	}
-
-	// Create a view for this surface texture
-	WGPUTextureViewDescriptor viewDescriptor = {};
-	viewDescriptor.nextInChain = nullptr;
-	viewDescriptor.label = "Surface texture view";
-	viewDescriptor.format = wgpuTextureGetFormat(surfaceTexture.texture);
-	viewDescriptor.dimension = WGPUTextureViewDimension_2D;
-	viewDescriptor.baseMipLevel = 0;
-	viewDescriptor.mipLevelCount = 1;
-	viewDescriptor.baseArrayLayer = 0;
-	viewDescriptor.arrayLayerCount = 1;
-	viewDescriptor.aspect = WGPUTextureAspect_All;
-	WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture.texture, &viewDescriptor);
-
-	if (!targetView) {
-		LogCore::error("Failed to create texture view for surface texture");
-	}
-
-	return targetView;
-}
-
-void RendererSystem::render() {
-    auto device = GetWebGPUContext().getDevice();
-    const auto surface = GetWebGPUSurface().getSurface();
+void RendererSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) {
     const Camera& camera = Application::GetInstance().getCamera();
 
 	uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
@@ -68,16 +36,6 @@ void RendererSystem::render() {
 
 	// Update uniform buffer data
 	wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));
-
-	// Get the next target texture view
-	WGPUTextureView targetView = GetNextSurfaceTextureView();
-	if (!targetView) return;
-
-	// Create a command encoder for the draw call
-	WGPUCommandEncoderDescriptor encoderDesc = {};
-	encoderDesc.nextInChain = nullptr;
-	encoderDesc.label = "My command encoder";
-	WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
 
 	// Create the render pass that clears the screen with our color
 	WGPURenderPassDescriptor renderPassDesc = {};
@@ -144,27 +102,6 @@ void RendererSystem::render() {
 	wgpuRenderPassEncoderEnd(renderPass);
 	wgpuRenderPassEncoderRelease(renderPass);
 
-	// Encode and submit the render pass
-	WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
-	cmdBufferDescriptor.nextInChain = nullptr;
-	cmdBufferDescriptor.label = "Command buffer";
-	WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-	wgpuCommandEncoderRelease(encoder);
-
-	wgpuQueueSubmit(m_Queue, 1, &command);
-	wgpuCommandBufferRelease(command);
-
-	// At the end of the frame
-	wgpuTextureViewRelease(targetView);
-#ifndef __EMSCRIPTEN__
-	wgpuSurfacePresent(surface);
-#endif
-
-#if defined(WEBGPU_BACKEND_DAWN)
-	wgpuDeviceTick(device);
-#elif defined(WEBGPU_BACKEND_WGPU)
-	wgpuDevicePoll(device, false, nullptr);
-#endif
 }
 
 void RendererSystem::update(float dt) {

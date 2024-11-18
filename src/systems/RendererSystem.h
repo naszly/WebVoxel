@@ -7,7 +7,7 @@
 class RendererSystem : public System {
 public:
     void initialize() override;
-    void render() override;
+    void render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) override;
     void update(float dt) override;
     void onEvent(Event& event) override;
 
@@ -48,7 +48,6 @@ private:
 
     void createRenderPipeline();
     void createDepthTexture();
-    WGPUTextureView GetNextSurfaceTextureView();
     static std::string LoadShader(const char* filename);
     void InitializeBuffers();
 };

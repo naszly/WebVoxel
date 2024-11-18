@@ -1,26 +1,31 @@
-#include <iostream>
-
 #include "Log.h"
 #include "Application.h"
 #include "systems/ControllerSystem.h"
+#include "systems/GuiSystem.h"
 #include "systems/RendererSystem.h"
 
 int main() {
     LogCore::info("Hello, World!");
 
-    printf("Hello, World!\n");
-    std::cout << "Hello, World!" << std::endl;
+    Application& app = Application::GetInstance();
 
-    auto layer = std::make_shared<Layer>();
+    const auto layer = std::make_shared<Layer>();
 
-    auto rendererSystem = std::make_shared<RendererSystem>();
-    auto controllerSystem = std::make_shared<ControllerSystem>();
+    const auto rendererSystem = std::make_shared<RendererSystem>();
+    const auto controllerSystem = std::make_shared<ControllerSystem>();
 
     layer->pushSystem(rendererSystem);
     layer->pushSystem(controllerSystem);
 
-    Application& app = Application::GetInstance();
     app.pushLayer(layer);
+
+    const auto guiLayer = std::make_shared<Layer>();
+    const auto guiSystem = std::make_shared<GuiSystem>();
+
+    guiLayer->pushSystem(guiSystem);
+
+    app.pushLayer(guiLayer);
+
     app.start();
 
     return 0;

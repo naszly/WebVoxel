@@ -20,3 +20,7 @@ const WebGPUContext& System::GetWebGPUContext() {
 const WebGPUSurface& System::GetWebGPUSurface() {
     return Application::GetInstance().getWebGPUSurface();
 }
+
+GLFWwindow * System::GetGLFWWindow() {
+    return Application::GetInstance().getGLFWWindow();
+}

@@ -66,13 +66,27 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
+# ImGUI
+FetchContent_Populate(
+        imgui
+        URL https://github.com/ocornut/imgui/archive/refs/heads/docking.zip
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+)
+file(GLOB IMGUI_SOURCES
+        ${imgui_SOURCE_DIR}/*.cpp
+        ${imgui_SOURCE_DIR}/*.h
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp)
+
+
 file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} glm::glm webgpu glfw glfw3webgpu spdlog::spdlog magic_enum::magic_enum)
 target_include_directories(${PROJECT_NAME} PRIVATE ${webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${glfw3webgpu_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 
 target_compile_definitions(
     ${PROJECT_NAME} PRIVATE
@@ -87,20 +101,33 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     S_DEBUGGER_ENVIRONMENT "DAWN_DEBUG_BREAK_ON_ERROR=1"
 )
 
+if (EMSCRIPTEN)
+   set(ASSET_DIR ${CMAKE_BINARY_DIR}/asset_dir)
+else()
+    set(ASSET_DIR ${CMAKE_BINARY_DIR})
+endif()
+
+file(GLOB_RECURSE SHADERS_FILES ${CMAKE_SOURCE_DIR}/shaders/*)
+foreach(SHADER_FILE ${SHADERS_FILES})
+    get_filename_component(SHADER_NAME ${SHADER_FILE} NAME)
+    configure_file(${SHADER_FILE} ${ASSET_DIR}/shaders/${SHADER_NAME} COPYONLY)
+endforeach()
+
+file(GLOB_RECURSE FONT_FILES ${CMAKE_SOURCE_DIR}/external/imgui/misc/fonts/*.ttf)
+foreach(FONT_FILE ${FONT_FILES})
+    get_filename_component(FONT_NAME ${FONT_FILE} NAME)
+    configure_file(${FONT_FILE} ${ASSET_DIR}/fonts/${FONT_NAME} COPYONLY)
+endforeach()
+
 if(EMSCRIPTEN)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html" OUTPUT_NAME "index")
     target_link_options(${PROJECT_NAME} PRIVATE -sASSERTIONS=2 -sSTACK_OVERFLOW_CHECK=2 -sUSE_GLFW=3 -sUSE_WEBGPU=1 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sEXIT_RUNTIME)
 
-    file(GLOB_RECURSE SHADERS_FILES ${CMAKE_SOURCE_DIR}/shaders/*)
-    foreach(SHADER_FILE ${SHADERS_FILES})
-        get_filename_component(SHADER_NAME ${SHADER_FILE} NAME)
-        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${SHADER_FILE}@/shaders/${SHADER_NAME} --shell-file ${CMAKE_SOURCE_DIR}/shell.html")
-        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_DEPENDS ${SHADER_FILE})
-    endforeach()
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${CMAKE_SOURCE_DIR}/shell.html")
 else()
-    file(GLOB_RECURSE SHADERS_FILES ${CMAKE_SOURCE_DIR}/shaders/*)
-    foreach(SHADER_FILE ${SHADERS_FILES})
-        get_filename_component(SHADER_NAME ${SHADER_FILE} NAME)
-        configure_file(${SHADER_FILE} ${CMAKE_BINARY_DIR}/shaders/${SHADER_NAME} COPYONLY)
-    endforeach()
+    if(WEBGPU_BACKEND_U STREQUAL "DAWN")
+        target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
+    else() # WGPU
+        target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
+    endif()
 endif()

@@ -2,7 +2,11 @@
 #include "ControllerSystem.h"
 
 #include "../Application.h"
+#include "../KeyEvent.h"
 #include "../MouseEvent.h"
+
+typedef std::function<bool(glm::i64vec3, glm::i64vec3)> RayHitCallbackFn;
+void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);
 
 void ControllerSystem::initialize() {
     Camera& camera = GetCamera();
@@ -11,31 +15,38 @@ void ControllerSystem::initialize() {
     camera.setPosition({0,0,-5});
 }
 
-void ControllerSystem::render() {
+void ControllerSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) {
 
 }
 
 void ControllerSystem::update(const float dt) {
     const Input& input = GetInput();
     Camera& camera = GetCamera();
-    World& world = GetWorld();
 
-    updateCamera(dt, input, camera);
-    updateWorld(dt, input, camera, world);
+    if (isMouseCaptured) {
+        updateCamera(dt, input, camera);
+    }
 }
 
 void ControllerSystem::onEvent(Event &event) {
+    Camera& camera = GetCamera();
+    World& world = GetWorld();
+    const Input& input = GetInput();
+
     EventDispatcher dispatcher(event);
 
     dispatcher.dispatch<MouseMovedEvent>([&](const MouseMovedEvent &mouseEvent) {
-        auto &camera = GetCamera();
-
         const auto xPos = mouseEvent.getX();
         const auto yPos = mouseEvent.getY();
 
         static double lastX = xPos;
         static double lastY = yPos;
         static bool firstMouse = true;
+
+        if (!isMouseCaptured) {
+            firstMouse = true;
+            return false;
+        }
 
         if (firstMouse) {
             lastX = xPos;
@@ -71,6 +82,64 @@ void ControllerSystem::onEvent(Event &event) {
         camera.setDirection(glm::normalize(front));
         return true;
     });
+
+    dispatcher.dispatch<MouseButtonPressedEvent>([&](const MouseButtonPressedEvent &mouseEvent) {
+        const auto button = mouseEvent.getMouseButton();
+        const auto cameraPos = camera.getPosition();
+        const auto cameraDir = glm::normalize(camera.getDirection());
+        constexpr float reach = 100.0f;
+
+        if (button == MouseCode::ButtonLeft && !isMouseCaptured) {
+            isMouseCaptured = true;
+            input.setCursorMode(Disabled);
+            return true;
+        }
+
+        if (button == MouseCode::ButtonLeft && isMouseCaptured) {
+            castRay(cameraPos, cameraDir, reach, [&](const auto &pos, const auto &prevPos) {
+                const auto worldPos = WorldCoordinate(pos);
+
+                if (!world.hasVoxel(worldPos)) {
+                    return false;
+                }
+
+                world.removeVoxel(worldPos, 10);
+
+                return true;
+            });
+
+            return true;
+        }
+
+        if (button == MouseCode::ButtonRight && isMouseCaptured) {
+            castRay(cameraPos, cameraDir, reach, [&](const auto &pos, const auto &prevPos) {
+                const auto worldPos = WorldCoordinate(pos);
+                const auto prevWorldPos = WorldCoordinate(prevPos);
+
+                if (!world.hasVoxel(worldPos)) {
+                    return false;
+                }
+
+                world.setVoxel(prevWorldPos, VoxelData(200, 30, 40), 10);
+                return true;
+            });
+
+            return true;
+        }
+
+        return false;
+    });
+
+    dispatcher.dispatch<KeyPressedEvent>([&](const KeyPressedEvent &keyEvent) {
+        const auto keyCode = keyEvent.getKeyCode();
+        if ((keyCode == KeyCode::Escape || keyCode == KeyCode::C) && isMouseCaptured) {
+            isMouseCaptured = false;
+            input.setCursorMode(Normal);
+            return true;
+        }
+
+        return false;
+    });
 }
 
 void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &camera) {
@@ -100,8 +169,6 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
     camera.setPosition(position);
 }
 
-typedef std::function<bool(glm::i64vec3, glm::i64vec3)> RayHitCallbackFn;
-
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback) {
     glm::i64vec3 current = glm::floor(position);
     glm::i64vec3 end = glm::i64vec3(glm::floor(position + direction * length));
@@ -129,52 +196,5 @@ void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHit
             current.z += sign.z;
             tMax.z += tDelta.z;
         }
-    }
-}
-
-void ControllerSystem::updateWorld(float dt, const Input &input, const Camera &camera, World &world) {
-    static bool leftMousePressed = false;
-    static bool rightMousePressed = false;
-
-    const auto cameraPos = camera.getPosition();
-    const auto cameraDir = glm::normalize(camera.getDirection());
-    constexpr float reach = 100.0f;
-
-    if (input.isMouseLeftButtonPressed()) {
-        if (!leftMousePressed) {
-            leftMousePressed = true;
-            castRay(cameraPos, cameraDir, reach, [&](const auto &pos, const auto &prevPos) {
-                const auto worldPos = WorldCoordinate(pos);
-
-                if (!world.hasVoxel(worldPos)) {
-                    return false;
-                }
-
-                world.removeVoxel(worldPos, 10);
-
-                return true;
-            });
-        }
-    } else {
-        leftMousePressed = false;
-    }
-
-    if (input.isMouseRightButtonPressed()) {
-        if (!rightMousePressed) {
-            rightMousePressed = true;
-            castRay(cameraPos, cameraDir, reach, [&](const auto &pos, const auto &prevPos) {
-                const auto worldPos = WorldCoordinate(pos);
-                const auto prevWorldPos = WorldCoordinate(prevPos);
-
-                if (!world.hasVoxel(worldPos)) {
-                    return false;
-                }
-
-                world.setVoxel(prevWorldPos, VoxelData(200, 30, 40), 10);
-                return true;
-            });
-        }
-    } else {
-        rightMousePressed = false;
     }
 }

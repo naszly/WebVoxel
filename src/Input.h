@@ -7,6 +7,12 @@
 
 struct GLFWwindow;
 
+enum CursorMode {
+    Normal = 0,
+    Hidden = 1,
+    Disabled = 2
+};
+
 class Input {
 public:
     explicit Input(GLFWwindow *window) : glfwWindow(window) {};
@@ -28,6 +34,8 @@ public:
     [[nodiscard]] bool isMouseRightButtonPressed() const;
 
     [[nodiscard]] std::pair<float, float> getCursorPosition() const;
+
+    void setCursorMode(CursorMode mode) const;
 
 private:
     GLFWwindow *glfwWindow;

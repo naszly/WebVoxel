@@ -30,6 +30,10 @@ public:
         return m_Window->getInput();
     }
 
+    [[nodiscard]] GLFWwindow* getGLFWWindow() const {
+        return m_Window->getGLFWWindow();
+    }
+
     [[nodiscard]] World& getWorld() {
         return m_World;
     }
@@ -47,6 +51,12 @@ private:
     Camera m_camera;
 
     void onEvent(Event &event);
+
+    void update(float deltaTime);
+
+    WGPUTextureView getNextSurfaceTextureView() const;
+
+    void render();
 
     void mainLoop();
 
