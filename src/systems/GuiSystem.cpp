@@ -76,7 +76,17 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::End();
 
-    ImGui::ShowDemoWindow();
+    ApplicationData &appData = Application::GetInstance().getApplicationData();
+
+    ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
+
+    ImGui::Begin("Voxel Placement");
+    ImGui::ColorEdit3("Color", glm::value_ptr(appData.placedVoxelColor));
+    ImGui::SliderInt("Radius", &appData.placedVoxelRadius, 0, 64);
+    ImGui::Checkbox("Is Sphere", &appData.placedVoxelShapeIsSphere);
+    ImGui::End();
 
     ImGui::Render();
 

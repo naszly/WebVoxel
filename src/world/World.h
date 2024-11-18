@@ -25,11 +25,11 @@ public:
 
     void setVoxel(const WorldCoordinate &coord, VoxelData voxel);
 
-    void setVoxel(const WorldCoordinate &coord, VoxelData voxel, int64_t radius);
+    void setVoxel(const WorldCoordinate &coord, VoxelData voxel, int64_t radius, bool isSphere = true);
 
     void removeVoxel(const WorldCoordinate &coord);
 
-    void removeVoxel(const WorldCoordinate &coord, int64_t radius);
+    void removeVoxel(const WorldCoordinate &coord, int64_t radius, bool isSphere = true);
 
 private:
     ChunkMap m_Chunks;

@@ -32,6 +32,7 @@ void ControllerSystem::onEvent(Event &event) {
     Camera& camera = GetCamera();
     World& world = GetWorld();
     const Input& input = GetInput();
+    const ApplicationData &appData = Application::GetInstance().getApplicationData();
 
     EventDispatcher dispatcher(event);
 
@@ -87,7 +88,7 @@ void ControllerSystem::onEvent(Event &event) {
         const auto button = mouseEvent.getMouseButton();
         const auto cameraPos = camera.getPosition();
         const auto cameraDir = glm::normalize(camera.getDirection());
-        constexpr float reach = 100.0f;
+        constexpr float reach = 256.0f;
 
         if (button == MouseCode::ButtonLeft && !isMouseCaptured) {
             isMouseCaptured = true;
@@ -103,7 +104,7 @@ void ControllerSystem::onEvent(Event &event) {
                     return false;
                 }
 
-                world.removeVoxel(worldPos, 10);
+                world.removeVoxel(worldPos, appData.placedVoxelRadius, appData.placedVoxelShapeIsSphere);
 
                 return true;
             });
@@ -120,7 +121,11 @@ void ControllerSystem::onEvent(Event &event) {
                     return false;
                 }
 
-                world.setVoxel(prevWorldPos, VoxelData(200, 30, 40), 10);
+                world.setVoxel(prevWorldPos,
+                    VoxelData(appData.placedVoxelColor),
+                    appData.placedVoxelRadius,
+                    appData.placedVoxelShapeIsSphere);
+
                 return true;
             });
 

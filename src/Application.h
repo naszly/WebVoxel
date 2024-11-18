@@ -8,6 +8,12 @@
 #include "world/World.h"
 #include "Camera.h"
 
+struct ApplicationData {
+    glm::vec4 placedVoxelColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    int placedVoxelRadius = 0;
+    bool placedVoxelShapeIsSphere = true;
+};
+
 class Application {
 public:
     static Application& GetInstance();
@@ -42,6 +48,10 @@ public:
         return m_camera;
     }
 
+    ApplicationData& getApplicationData() {
+        return m_ApplicationData;
+    }
+
 private:
     Application() = default;
 
@@ -49,6 +59,8 @@ private:
     std::unique_ptr<Window> m_Window;
     World m_World;
     Camera m_camera;
+
+    ApplicationData m_ApplicationData;
 
     void onEvent(Event &event);
 
