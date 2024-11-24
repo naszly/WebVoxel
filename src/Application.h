@@ -45,7 +45,7 @@ public:
     }
 
     Camera& getCamera() {
-        return m_camera;
+        return m_Camera;
     }
 
     ApplicationData& getApplicationData() {
@@ -58,7 +58,7 @@ private:
     std::vector<std::shared_ptr<Layer>> m_Layers;
     std::unique_ptr<Window> m_Window;
     World m_World;
-    Camera m_camera;
+    Camera m_Camera;
 
     ApplicationData m_ApplicationData;
 

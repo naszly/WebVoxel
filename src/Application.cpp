@@ -27,8 +27,6 @@ void Application::start() {
         layer->initialize();
     }
 
-    m_World.generate();
-
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(Application::emscriptenMainLoop, this, 0, true);
 #else
@@ -54,8 +52,10 @@ void Application::onEvent(Event &event) {
     }
 }
 
-void Application::update(float deltaTime) {
+void Application::update(const float deltaTime) {
     m_Window->pollEvents();
+
+    m_World.update(m_Camera.getPosition());
 
     for (const auto& layer : m_Layers) {
         layer->update(deltaTime);

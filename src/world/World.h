@@ -5,8 +5,6 @@
 
 class World {
 public:
-    constexpr static int CHUNKS = 2;
-
     World() = default;
     ~World() = default;
 
@@ -15,7 +13,7 @@ public:
     World& operator=(const World&) = delete;
     World& operator=(World&&) = delete;
 
-    void generate();
+    void update(glm::vec3 playerPosition);
 
     [[nodiscard]] std::vector<ChunkVertexBuffer> getChunkVertexBuffers();
 
