@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 23
     CXX_EXTENSIONS OFF
     COMPILE_WARNING_AS_ERROR ON)
 
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+
 include(FetchContent)
 
 # GLM
@@ -121,7 +124,17 @@ endforeach()
 
 if(EMSCRIPTEN)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html" OUTPUT_NAME "index")
-    target_link_options(${PROJECT_NAME} PRIVATE -sASSERTIONS=2 -sSTACK_OVERFLOW_CHECK=2 -sUSE_GLFW=3 -sUSE_WEBGPU=1 -sASYNCIFY -sALLOW_MEMORY_GROWTH -sEXIT_RUNTIME)
+    target_link_options(${PROJECT_NAME} PRIVATE
+            -sASSERTIONS=2
+            -sSTACK_OVERFLOW_CHECK=2
+            -sUSE_GLFW=3
+            -sUSE_WEBGPU=1
+            -sASYNCIFY
+            -sSTACK_SIZE=5242880 # 5MB
+            -sINITIAL_HEAP=268435456 # 256MB
+            -sALLOW_MEMORY_GROWTH
+            -sEXIT_RUNTIME
+    )
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${CMAKE_SOURCE_DIR}/shell.html")
 else()

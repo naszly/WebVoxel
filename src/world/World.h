@@ -17,7 +17,7 @@ public:
 
     void generate();
 
-    [[nodiscard]] std::vector<std::pair<glm::ivec3, Chunk&>> getChunks();
+    [[nodiscard]] std::vector<ChunkVertexBuffer> getChunkVertexBuffers();
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord);
 
@@ -33,4 +33,6 @@ public:
 
 private:
     ChunkMap m_Chunks;
+
+    ChunkNeighbours getChunkNeighbours(const glm::ivec3 &chunkPos);
 };

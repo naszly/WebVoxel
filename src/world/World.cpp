@@ -5,15 +5,29 @@ void World::generate() {
         for (int j = 0; j < CHUNKS; j++) {
             for (int k = 0; k < CHUNKS; k++) {
                 if ((i + j) % 2 == 0 && (j + k) % 2 == 0 && (i + k) % 2 == 0) {
-                    m_Chunks.getChunk(i, j, k).generate(i, j, k);
+                    m_Chunks.getChunk(glm::ivec3(i, j, k)).generate();
                 }
             }
         }
     }
 }
 
-std::vector<std::pair<glm::ivec3, Chunk &>> World::getChunks() {
-    return m_Chunks.getChunks();
+std::vector<ChunkVertexBuffer> World::getChunkVertexBuffers() {
+    Timer timer("World::getChunkVertexBuffers");
+    auto chunks = m_Chunks.getChunks();
+
+    std::vector<ChunkVertexBuffer> buffers(chunks.size());
+
+    std::ranges::transform(chunks, buffers.begin(), [&](Chunk &chunk) {
+        const auto chunkPos = chunk.getPosition();
+        auto getChunkNeighbours = [&] {
+            return this->getChunkNeighbours(chunkPos);
+        };
+
+        return chunk.getVertexBuffer(getChunkNeighbours);
+    });
+
+    return buffers;
 }
 
 VoxelData World::getVoxel(const WorldCoordinate &coord) {
@@ -56,4 +70,15 @@ void World::removeVoxel(const WorldCoordinate &coord, const int64_t radius, cons
             }
         }
     }
+}
+
+ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) {
+    return ChunkNeighbours{
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1))
+    };
 }

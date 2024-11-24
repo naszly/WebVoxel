@@ -83,9 +83,11 @@ void RendererSystem::render(const WGPUCommandEncoder& encoder, const WGPUTexture
 	// Set index buffer
 	wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(indexBuffer));
 
-	for (auto&[position, chunk] : world.getChunks()) {
+	for (auto&[buffer, vertexCount] : world.getChunkVertexBuffers()) {
 
-		auto [buffer, vertexCount] = chunk.getVertexBuffer();
+		if (vertexCount == 0) {
+			continue;
+		}
 
 		// Update uniform buffer data
 		wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));

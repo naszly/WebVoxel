@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ranges>
 #include <glm/gtx/hash.hpp>
 #include <unordered_map>
 
@@ -16,22 +17,15 @@ public:
     ChunkMap& operator=(const ChunkMap&) = delete;
     ChunkMap& operator=(ChunkMap&&) = delete;
 
-    Chunk& getChunk(const int x, const int y, const int z) {
-        const auto key = glm::ivec3(x, y, z);
-        const Chunk chunk(x, y, z);
-
-        auto [it, inserted] = m_Chunks.try_emplace(key, x, y, z);
-
-        if (inserted) {
-            LogApp::info("Created chunk at ({}, {}, {})", x, y, z);
+    [[nodiscard]] Chunk& getChunk(const glm::ivec3 key) {
+        if (const auto chunk = tryGetChunk(key)) {
+            return *chunk;
         }
 
-        return it->second;
+        return createChunk(key);
     }
 
-    [[nodiscard]] Chunk* tryGetChunk(const int x, const int y, const int z) {
-        const auto key = glm::ivec3(x, y, z);
-
+    [[nodiscard]] Chunk* tryGetChunk(const glm::ivec3 key) {
         if (const auto it = m_Chunks.find(key); it != m_Chunks.end()) {
             return &it->second;
         }
@@ -39,26 +33,19 @@ public:
         return nullptr;
     }
 
-    std::vector<std::pair<glm::ivec3, Chunk &>> getChunks() {
-        std::vector<std::pair<glm::ivec3, Chunk&>> chunks;
-        for (auto it = m_Chunks.begin(); it != m_Chunks.end(); ) {
-            auto &[key, chunk] = *it;
-            if (chunk.isEmpty()) {
-                it = m_Chunks.erase(it);
-                LogApp::info("Removed chunk at ({}, {}, {})", key.x, key.y, key.z);
-            } else {
-                chunks.emplace_back(key, chunk);
-                ++it;
-            }
-        }
-        return chunks;
+    [[nodiscard]] bool hasChunk(const glm::ivec3 key) const {
+        return m_Chunks.contains(key);
+    }
+
+    auto getChunks() {
+        return m_Chunks | std::ranges::views::values;
     }
 
     VoxelData getVoxel(const WorldCoordinate &coord) {
         const auto cPos = coord.chunkPosition();
         const auto lPos = coord.localPosition();
 
-        if (const auto chunk = tryGetChunk(cPos.x, cPos.y, cPos.z)) {
+        if (const auto chunk = tryGetChunk(cPos)) {
             return chunk->getVoxel(lPos.x, lPos.y, lPos.z);
         }
 
@@ -66,25 +53,75 @@ public:
     }
 
     void setVoxel(const WorldCoordinate &coord, const VoxelData &voxel) {
-        if (voxel.isEmpty()) {
-            removeVoxel(coord);
-        } else {
-            const auto cPos = coord.chunkPosition();
-            const auto lPos = coord.localPosition();
+        const auto cPos = coord.chunkPosition();
+        const auto lPos = coord.localPosition();
 
-            getChunk(cPos.x, cPos.y, cPos.z).setVoxel(voxel, lPos.x, lPos.y, lPos.z);
-        }
+        getChunk(cPos).setVoxel(voxel, lPos.x, lPos.y, lPos.z);
+
+        setNeighboursDirtyIfEdge(cPos, lPos);
     }
 
     void removeVoxel(const WorldCoordinate &coord) {
         const auto cPos = coord.chunkPosition();
         const auto lPos = coord.localPosition();
 
-        if (const auto chunk = tryGetChunk(cPos.x, cPos.y, cPos.z)) {
+        if (const auto chunk = tryGetChunk(cPos)) {
             chunk->setVoxel(VoxelData{}, lPos.x, lPos.y, lPos.z);
+
+            setNeighboursDirtyIfEdge(cPos, lPos);
         }
     }
 
 private:
     std::unordered_map<glm::ivec3, Chunk> m_Chunks;
+
+    Chunk& createChunk(const glm::ivec3 &key) {
+        auto [it, success] = m_Chunks.try_emplace(key, key);
+
+        if (success) {
+            LogApp::info("Created chunk at ({}, {}, {})", key.x, key.y, key.z);
+
+            setNeighboursDirty(key);
+        } else {
+            LogApp::error("Failed to create chunk at ({}, {}, {})", key.x, key.y, key.z);
+        }
+
+        return it->second;
+    }
+
+    void setChunkDirty(const glm::ivec3& key) {
+        if (const auto neighbor = tryGetChunk(key)) {
+            neighbor->setDirty();
+        }
+    }
+
+    void setNeighboursDirty(const glm::ivec3& key) {
+        setChunkDirty(key + glm::ivec3(-1, 0, 0));
+        setChunkDirty(key + glm::ivec3(1, 0, 0));
+        setChunkDirty(key + glm::ivec3(0, -1, 0));
+        setChunkDirty(key + glm::ivec3(0, 1, 0));
+        setChunkDirty(key + glm::ivec3(0, 0, -1));
+        setChunkDirty(key + glm::ivec3(0, 0, 1));
+    }
+
+    void setNeighboursDirtyIfEdge(const glm::ivec3& key, const glm::ivec3& pos) {
+        if (pos.x == 0) {
+            setChunkDirty(key + glm::ivec3(-1, 0, 0));
+        }
+        if (pos.x == Chunk::SIZE - 1) {
+            setChunkDirty(key + glm::ivec3(1, 0, 0));
+        }
+        if (pos.y == 0) {
+            setChunkDirty(key + glm::ivec3(0, -1, 0));
+        }
+        if (pos.y == Chunk::SIZE - 1) {
+            setChunkDirty(key + glm::ivec3(0, 1, 0));
+        }
+        if (pos.z == 0) {
+            setChunkDirty(key + glm::ivec3(0, 0, -1));
+        }
+        if (pos.z == Chunk::SIZE - 1) {
+            setChunkDirty(key + glm::ivec3(0, 0, 1));
+        }
+    }
 };

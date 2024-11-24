@@ -1,213 +1,253 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <vector>
 
-#include "ChunkData.h"
+#include "VoxelData.h"
+#include "../Log.h"
 #include "../Utils.h"
+#include "../Timer.h"
 
-// depth: depth of the tree
-// size: size of the matrix of nodes
-template<uint32_t depth, uint32_t size>
-class SparseVoxelTree {
-    static constexpr VoxelData EMPTY_VOXEL{};
-public:
-    SparseVoxelTree() {
-        if constexpr (depth == 0) {
-            std::fill_n(&children[0][0][0], size * size * size, EMPTY_VOXEL);
-        } else {
-            std::fill_n(&children[0][0][0], size * size * size, nullptr);
-        }
-    }
-
-    ~SparseVoxelTree() {
-        if constexpr (depth != 0) {
-            for (uint32_t x = 0; x < size; x++) {
-                for (uint32_t y = 0; y < size; y++) {
-                    for (uint32_t z = 0; z < size; z++) {
-                        if (children[x][y][z] != nullptr)
-                            delete children[x][y][z];
-                    }
-                }
+namespace internal {
+    template<uint32_t DEPTH, uint32_t NODE_SIZE>
+    class SparseVoxelTree {
+        friend class SparseVoxelTree<DEPTH + 1, NODE_SIZE>;
+    public:
+        SparseVoxelTree(const SparseVoxelTree&) = delete;
+        SparseVoxelTree& operator=(const SparseVoxelTree&) = delete;
+        SparseVoxelTree(SparseVoxelTree&&) = delete;
+        SparseVoxelTree& operator=(SparseVoxelTree&&) = delete;
+    protected:
+        SparseVoxelTree() {
+            if constexpr (IS_LEAF) {
+                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
+            } else {
+                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
             }
         }
-    }
 
-    SparseVoxelTree(const SparseVoxelTree&) = delete;
-    SparseVoxelTree& operator=(const SparseVoxelTree&) = delete;
-    SparseVoxelTree(SparseVoxelTree&&) = delete;
-    SparseVoxelTree& operator=(SparseVoxelTree&&) = delete;
-
-    [[nodiscard]] const VoxelData& get(uint32_t x, uint32_t y, uint32_t z) const {
-        if constexpr (depth == 0) {
-            return children[x][y][z];
-        } else {
-            constexpr uint32_t s = Utils::pow(size, depth);
-            if (children[x / s][y / s][z / s] == nullptr)
-                return EMPTY_VOXEL;
-            return children[x / s][y / s][z / s]->get(x % s, y % s, z % s);
-        }
-    }
-
-    void set(uint32_t x, uint32_t y, uint32_t z, const VoxelData &voxel) {
-        if constexpr (depth == 0) {
-            assert(x < size && y < size && z < size);
-            emptyCount += (voxel.isEmpty()) - (children[x][y][z].isEmpty());
-            children[x][y][z] = voxel;
-        } else {
-            constexpr uint32_t s = Utils::pow(size, depth);
-            assert(x / s < size && y / s < size && z / s < size);
-            if (children[x / s][y / s][z / s] == nullptr) {
-                if (voxel.isEmpty())
-                    return;
-                children[x / s][y / s][z / s] = new SparseVoxelTree<depth - 1, size>();
-            }
-            children[x / s][y / s][z / s]->set(x % s, y % s, z % s, voxel);
-        }
-    }
-
-    [[nodiscard]] bool isEmpty() const {
-        return countVoxels() == 0;
-    }
-
-    [[nodiscard]] uint32_t countVoxels() const {
-        if constexpr (depth == 0) {
-            return size * size * size - emptyCount;
-        } else {
-            uint32_t count = 0;
-            for (uint32_t x = 0; x < size; x++) {
-                for (uint32_t y = 0; y < size; y++) {
-                    for (uint32_t z = 0; z < size; z++) {
-                        if (children[x][y][z] != nullptr)
-                            count += children[x][y][z]->countVoxels();
-                    }
-                }
-            }
-            return count;
-        }
-    }
-
-    [[nodiscard]] std::vector<VertexData> getVertices(const int32_t levelOfDetail = depth) const {
-        assert(levelOfDetail >= 0 && levelOfDetail <= depth);
-        std::vector<VertexData> vertices;
-        vertices.reserve(countVoxels());
-        getVertices(vertices, levelOfDetail);
-        return vertices;
-    }
-
-private:
-    std::conditional_t<depth == 0, VoxelData, SparseVoxelTree<depth - 1, size> *> children[size][size][size];
-
-    uint32_t emptyCount{size * size * size};
-
-    friend class SparseVoxelTree<depth + 1, size>;
-
-    static void iterateOverChildren(const std::function<void(uint32_t, uint32_t, uint32_t)>& func) {
-        for (uint32_t x = 0; x < size; ++x) {
-            for (uint32_t y = 0; y < size; ++y) {
-                for (uint32_t z = 0; z < size; ++z) {
-                    func(x, y, z);
-                }
-            }
-        }
-    }
-
-    [[nodiscard]] VoxelData getAverage() const {
-        if constexpr (depth == 0) {
-            if (isEmpty())
-                return EMPTY_VOXEL;
-
-            VoxelData average{};
-
-            for (uint32_t x = 0; x < size; x++) {
-                for (uint32_t y = 0; y < size; y++) {
-                    for (uint32_t z = 0; z < size; z++) {
-                        average.r += children[x][y][z].r;
-                        average.g += children[x][y][z].g;
-                        average.b += children[x][y][z].b;
-                        average.a += children[x][y][z].a;
-                    }
-                }
-            }
-
-            average.r /= size * size * size - emptyCount;
-            average.g /= size * size * size - emptyCount;
-            average.b /= size * size * size - emptyCount;
-            average.a /= size * size * size - emptyCount;
-
-            return average;
-        } else {
-            VoxelData average{};
-            uint32_t count = 0;
-
-            for (uint32_t x = 0; x < size; x++) {
-                for (uint32_t y = 0; y < size; y++) {
-                    for (uint32_t z = 0; z < size; z++) {
-                        if (children[x][y][z] != nullptr) {
-                            const VoxelData childAverage = children[x][y][z]->getAverage();
-                            average.r += childAverage.r;
-                            average.g += childAverage.g;
-                            average.b += childAverage.b;
-                            average.a += childAverage.a;
-                            count++;
+        ~SparseVoxelTree() {
+            if constexpr (!IS_LEAF) {
+                for (uint32_t x = 0; x < NODE_SIZE; x++) {
+                    for (uint32_t y = 0; y < NODE_SIZE; y++) {
+                        for (uint32_t z = 0; z < NODE_SIZE; z++) {
+                            if (nodes[x][y][z] != nullptr)
+                                delete nodes[x][y][z];
                         }
                     }
                 }
             }
+        }
 
-            if (count == 0)
-                return EMPTY_VOXEL;
+        [[nodiscard]] const VoxelData& get(uint32_t x, uint32_t y, uint32_t z) const {
+            if constexpr (IS_LEAF) {
+                assert(x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE);
+                [[assume( x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE)]];
+                return nodes[x][y][z];
+            } else {
+                const uint32_t nodeX = x / TREE_SIZE;
+                const uint32_t nodeY = y / TREE_SIZE;
+                const uint32_t nodeZ = z / TREE_SIZE;
 
-            average.r /= count;
-            average.g /= count;
-            average.b /= count;
-            average.a /= count;
+                assert(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE);
+                [[assume(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE)]];
+                const auto& child = nodes[nodeX][nodeY][nodeZ];
 
-            return average;
+                if (child == nullptr) {
+                    return EMPTY_VOXEL;
+                }
+
+                return child->get(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE);
+            }
+        }
+
+        void set(uint32_t x, uint32_t y, uint32_t z, const VoxelData &voxel) {
+            if constexpr (IS_LEAF) {
+                assert(x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE);
+                [[assume( x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE)]];
+                nodes[x][y][z] = voxel;
+            } else {
+                const uint32_t nodeX = x / TREE_SIZE;
+                const uint32_t nodeY = y / TREE_SIZE;
+                const uint32_t nodeZ = z / TREE_SIZE;
+
+                assert(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE);
+                [[assume(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE)]];
+                auto& child = nodes[nodeX][nodeY][nodeZ];
+
+                if (child == nullptr) {
+                    if (!voxel.isEmpty()) {
+                        child = new ChildTree();
+                    } else {
+                        return;
+                    }
+                }
+
+                child->set(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE, voxel);
+            }
+        }
+
+    private:
+        static constexpr VoxelData EMPTY_VOXEL{};
+        static constexpr bool IS_LEAF = DEPTH == 0;
+        static constexpr uint32_t TREE_SIZE = Utils::pow(NODE_SIZE, DEPTH);
+
+        using ChildTree = SparseVoxelTree<DEPTH - 1, NODE_SIZE>;
+
+        using NodeType = std::conditional_t<IS_LEAF, VoxelData, ChildTree*>;
+
+        NodeType nodes[NODE_SIZE][NODE_SIZE][NODE_SIZE];
+    };
+
+    template<uint32_t SIZE>
+    class BitMap {
+    public:
+        BitMap() {
+            std::fill_n(&data[0], SIZE / sizeof(data_t), 0);
+        }
+
+        void set(const uint32_t i) {
+            assert(i < SIZE); [[assume(i < SIZE)]];
+            data[i / sizeof(data_t)] |= 1 << (i % sizeof(data_t));
+        }
+
+        void clear(const uint32_t i) {
+            assert(i < SIZE); [[assume(i < SIZE)]];
+            data[i / sizeof(data_t)] &= ~(1 << (i % sizeof(data_t)));
+        }
+
+        [[nodiscard]] bool test(const uint32_t i) const {
+            assert(i < SIZE); [[assume(i < SIZE)]];
+            return data[i / sizeof(data_t)] & (1 << (i % sizeof(data_t)));
+        }
+
+    private:
+        using data_t = uint8_t;
+        data_t data[SIZE / sizeof(data_t)]{};
+    };
+}
+
+// depth: depth of the tree
+// size: size of the matrix of nodes
+template<uint32_t depth, uint32_t base_size>
+class SparseVoxelTree : public internal::SparseVoxelTree<depth, base_size> {
+    using BaseSparseVoxelTree = internal::SparseVoxelTree<depth, base_size>;
+    constexpr static uint32_t size = Utils::pow(base_size, depth);
+public:
+
+    [[nodiscard]] const VoxelData& get(const uint32_t x, const uint32_t y, const uint32_t z) const {
+        return BaseSparseVoxelTree::get(x, y, z);
+    }
+
+    void set(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
+        BaseSparseVoxelTree::set(x, y, z, voxel);
+        uint32_t i = calculateIndex(x+1, y+1, z+1, bitmap_size);
+        if (!voxel.isEmpty()) {
+            m_bitmap.set(i);
+        } else {
+            m_bitmap.clear(i);
         }
     }
 
-    void getVertices(std::vector<VertexData> &vector, const int32_t levelOfDetail = depth, uint32_t ox = 0, uint32_t oy = 0, uint32_t oz = 0) const {
-        if constexpr (depth == 0) {
-            if (levelOfDetail < 0) {
-                VertexData vertex;
-                vertex.x = ox;
-                vertex.y = oy;
-                vertex.z = oz;
-                vertex.w = size;
-                vertex.voxel = getAverage();
-                vector.push_back(vertex);
-            } else {
-                iterateOverChildren([&](uint32_t x, uint32_t y, uint32_t z) {
-                    if (!children[x][y][z].isEmpty()) {
-                        VertexData vertex;
-                        vertex.x = x + ox;
-                        vertex.y = y + oy;
-                        vertex.z = z + oz;
-                        vertex.w = 1;
-                        vertex.voxel = children[x][y][z];
-                        vector.push_back(vertex);
-                    }
-                });
-            }
-        } else {
-            constexpr uint32_t s = Utils::pow(size, depth);
-            if (levelOfDetail < 0) {
-                VertexData vertex;
-                vertex.x = ox;
-                vertex.y = oy;
-                vertex.z = oz;
-                vertex.w = s * size;
-                vertex.voxel = getAverage();
-                vector.push_back(vertex);
-            } else {
-                iterateOverChildren([&](uint32_t x, uint32_t y, uint32_t z) {
-                   if (children[x][y][z] != nullptr) {
-                       children[x][y][z]->getVertices(vector, levelOfDetail - 1, ox + x * s, oy + y * s, oz + z * s);
-                   }
-               });
+    [[nodiscard]] bool isEmpty(const uint32_t x, const uint32_t y, const uint32_t z) const {
+        uint32_t i = calculateIndex(x+1, y+1, z+1, bitmap_size);
+        return !m_bitmap.test(i);
+    }
+
+    [[nodiscard]] uint32_t countVoxels() const {
+        return m_bitmap.count();
+    }
+
+    struct Neighbours {
+        const SparseVoxelTree* xMinus{nullptr};
+        const SparseVoxelTree* xPlus{nullptr};
+        const SparseVoxelTree* yMinus{nullptr};
+        const SparseVoxelTree* yPlus{nullptr};
+        const SparseVoxelTree* zMinus{nullptr};
+        const SparseVoxelTree* zPlus{nullptr};
+    };
+
+    [[nodiscard]] std::vector<VertexData> getVertices(const Neighbours &neighbours) const {
+        BitMap bitmap = m_bitmap;
+
+        for (uint32_t y = 1; y < bitmap_size - 1; y++) {
+            for (uint32_t z = 1; z < bitmap_size - 1; z++) {
+                if (neighbours.xPlus == nullptr || !neighbours.xPlus->isEmpty(0, y-1, z-1)) {
+                    const uint32_t i = calculateIndex(bitmap_size-1, y, z, bitmap_size);
+                    bitmap.set(i);
+                }
+                if (neighbours.xMinus == nullptr || !neighbours.xMinus->isEmpty(size-1, y-1, z-1)) {
+                    const uint32_t i = calculateIndex(0, y, z, bitmap_size);
+                    bitmap.set(i);
+                }
             }
         }
+
+        for (uint32_t x = 1; x < bitmap_size - 1; x++) {
+            for (uint32_t z = 1; z < bitmap_size - 1; z++) {
+                if (neighbours.yPlus == nullptr || !neighbours.yPlus->isEmpty(x-1, 0, z-1)) {
+                    const uint32_t i = calculateIndex(x, bitmap_size-1, z, bitmap_size);
+                    bitmap.set(i);
+                }
+                if (neighbours.yMinus == nullptr || !neighbours.yMinus->isEmpty(x-1, size-1, z-1)) {
+                    const uint32_t i = calculateIndex(x, 0, z, bitmap_size);
+                    bitmap.set(i);
+                }
+            }
+        }
+
+        for (uint32_t x = 1; x < bitmap_size - 1; x++) {
+            for (uint32_t y = 1; y < bitmap_size - 1; y++) {
+                if (neighbours.zPlus == nullptr || !neighbours.zPlus->isEmpty(x-1, y-1, 0)) {
+                    const uint32_t i = calculateIndex(x, y, bitmap_size-1, bitmap_size);
+                    bitmap.set(i);
+                }
+                if (neighbours.zMinus == nullptr || !neighbours.zMinus->isEmpty(x-1, y-1, size-1)) {
+                    const uint32_t i = calculateIndex(x, y, 0, bitmap_size);
+                    bitmap.set(i);
+                }
+            }
+        }
+
+        return getVertices(bitmap);
+    }
+
+private:
+    static constexpr uint32_t bitmap_size = size + 2;
+    using BitMap = internal::BitMap<bitmap_size * bitmap_size * bitmap_size>;
+    BitMap m_bitmap{};
+
+    static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t bitmap_size) {
+        return x * bitmap_size * bitmap_size + y * bitmap_size + z;
+    }
+
+    [[nodiscard]] std::vector<VertexData> getVertices(const BitMap& bitmap) const {
+        std::vector<VertexData> vertices;
+
+        for (uint32_t x = 1; x < bitmap_size - 1; x++) {
+            for (uint32_t y = 1; y < bitmap_size - 1; y++) {
+                for (uint32_t z = 1; z < bitmap_size - 1; z++) {
+                    const uint32_t i = calculateIndex(x, y, z, bitmap_size);
+
+                    if (!bitmap.test(i)) {
+                        continue;
+                    }
+
+                    const bool isVisible =
+                        !(bitmap.test(i-1) && bitmap.test(i+1) &&
+                          bitmap.test(i-bitmap_size) && bitmap.test(i+bitmap_size) &&
+                          bitmap.test(i-bitmap_size*bitmap_size) && bitmap.test(i+bitmap_size*bitmap_size));
+
+                    if (isVisible) {
+                        const auto& voxel = get(x-1, y-1, z-1);
+                        vertices.emplace_back(x-1, y-1, z-1, 1, voxel);
+                    }
+                }
+            }
+        }
+
+        return vertices;
     }
 };

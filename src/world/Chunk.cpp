@@ -1,32 +1,48 @@
 #include "Chunk.h"
 
 #include "../Application.h"
+#include "../Timer.h"
 
-void Chunk::generate(int x, int y, int z) {
+void Chunk::generate() {
+    const Timer timer("Chunk::generate");
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             for (int k = 0; k < SIZE; k++) {
-                VoxelData data{};
-                data.r = random() % 255;
-                data.g = random() % 255;
-                data.b = random() % 255;
-                data.a = 255;
-
-                m_Data.set(i, j, k, data);
+                const uint32_t randomValue = random();
+                VoxelData voxel(
+                    randomValue & 0xFF,
+                    (randomValue >> 8) & 0xFF,
+                    (randomValue >> 16) & 0xFF
+                );
+                m_Data.set(i, j, k, voxel);
             }
         }
     }
 }
 
-void Chunk::createVertexBuffer(const int x, const int y, const int z) {
+void Chunk::createVertexBuffer(const ChunkNeighbours &chunkNeighbours) {
     const auto context = Application::GetInstance().getWebGPUContext();
     const auto device = context->getDevice();
 
-    const std::vector<VertexData> points = m_Data.getVertices();
-    const auto chunkPosition = glm::vec4(x, y, z, 0.0f);
+    const auto neighbours = getNeighbours(chunkNeighbours);
+
+    const std::vector<VertexData> points = m_Data.getVertices(neighbours);
+
+    const auto queue = wgpuDeviceGetQueue(device);
+
+    if (m_VertexBuffer.buffer != nullptr) {
+        if (m_VertexBuffer.vertexCount == points.size()) {
+            wgpuQueueWriteBuffer(queue, m_VertexBuffer.buffer, 0, points.data(), points.size() * sizeof(VertexData));
+            return;
+        }
+    }
+
+    const auto chunkPosition = glm::vec4(m_Position, 0.0f);
+
+    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
 
     WGPUBufferDescriptor descriptor{};
-    descriptor.size = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
+    descriptor.size = bufferSize;
     descriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     descriptor.mappedAtCreation = false;
 
@@ -35,10 +51,11 @@ void Chunk::createVertexBuffer(const int x, const int y, const int z) {
     m_VertexBuffer.buffer = wgpuDeviceCreateBuffer(device, &descriptor);
     m_VertexBuffer.vertexCount = points.size();
 
-    const auto queue = wgpuDeviceGetQueue(device);
+    std::vector<uint8_t> data(bufferSize);
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
+    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
 
-    wgpuQueueWriteBuffer(queue, m_VertexBuffer.buffer, 0, points.data(), points.size() * sizeof(VertexData));
-    wgpuQueueWriteBuffer(queue, m_VertexBuffer.buffer, points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
+    wgpuQueueWriteBuffer(queue, m_VertexBuffer.buffer, 0, data.data(), data.size());
 }
 
 void Chunk::deleteVertexBuffer() {
@@ -46,4 +63,15 @@ void Chunk::deleteVertexBuffer() {
         wgpuBufferDestroy(m_VertexBuffer.buffer);
         m_VertexBuffer.buffer = nullptr;
     }
+}
+
+Chunk::SparseVoxelOctTree::Neighbours Chunk::getNeighbours(const ChunkNeighbours &chunkNeighbours) {
+    return {
+        chunkNeighbours.xMinus != nullptr ? &chunkNeighbours.xMinus->m_Data : nullptr,
+        chunkNeighbours.xPlus != nullptr ? &chunkNeighbours.xPlus->m_Data : nullptr,
+        chunkNeighbours.yMinus != nullptr ? &chunkNeighbours.yMinus->m_Data : nullptr,
+        chunkNeighbours.yPlus != nullptr ? &chunkNeighbours.yPlus->m_Data : nullptr,
+        chunkNeighbours.zMinus != nullptr ? &chunkNeighbours.zMinus->m_Data : nullptr,
+        chunkNeighbours.zPlus != nullptr ? &chunkNeighbours.zPlus->m_Data : nullptr
+    };
 }
