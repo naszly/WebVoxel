@@ -17,9 +17,9 @@ public:
 
     [[nodiscard]] std::vector<ChunkVertexBuffer> getChunkVertexBuffers();
 
-    [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord);
+    [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 
-    bool hasVoxel(const WorldCoordinate &coord);
+    [[nodiscard]] bool hasVoxel(const WorldCoordinate &coord) const;
 
     void setVoxel(const WorldCoordinate &coord, VoxelData voxel);
 

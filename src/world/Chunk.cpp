@@ -14,7 +14,7 @@ void Chunk::generate() {
                     (randomValue >> 8) & 0xFF,
                     (randomValue >> 16) & 0xFF
                 );
-                m_Data.set(i, j, k, voxel);
+                m_Data.setVoxel(i, j, k, voxel);
             }
         }
     }
@@ -67,11 +67,11 @@ void Chunk::deleteVertexBuffer() {
 
 Chunk::SparseVoxelOctTree::Neighbours Chunk::getNeighbours(const ChunkNeighbours &chunkNeighbours) {
     return {
-        chunkNeighbours.xMinus != nullptr ? &chunkNeighbours.xMinus->m_Data : nullptr,
-        chunkNeighbours.xPlus != nullptr ? &chunkNeighbours.xPlus->m_Data : nullptr,
-        chunkNeighbours.yMinus != nullptr ? &chunkNeighbours.yMinus->m_Data : nullptr,
-        chunkNeighbours.yPlus != nullptr ? &chunkNeighbours.yPlus->m_Data : nullptr,
-        chunkNeighbours.zMinus != nullptr ? &chunkNeighbours.zMinus->m_Data : nullptr,
-        chunkNeighbours.zPlus != nullptr ? &chunkNeighbours.zPlus->m_Data : nullptr
+        .xMinus = chunkNeighbours.xMinus ? &chunkNeighbours.xMinus->m_Data : nullptr,
+        .xPlus = chunkNeighbours.xPlus ? &chunkNeighbours.xPlus->m_Data : nullptr,
+        .yMinus = chunkNeighbours.yMinus ? &chunkNeighbours.yMinus->m_Data : nullptr,
+        .yPlus = chunkNeighbours.yPlus ? &chunkNeighbours.yPlus->m_Data : nullptr,
+        .zMinus = chunkNeighbours.zMinus ? &chunkNeighbours.zMinus->m_Data : nullptr,
+        .zPlus = chunkNeighbours.zPlus ? &chunkNeighbours.zPlus->m_Data : nullptr
     };
 }

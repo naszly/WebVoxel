@@ -137,11 +137,11 @@ class SparseVoxelTree : public internal::SparseVoxelTree<depth, base_size> {
     constexpr static uint32_t size = Utils::pow(base_size, depth);
 public:
 
-    [[nodiscard]] const VoxelData& get(const uint32_t x, const uint32_t y, const uint32_t z) const {
+    [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         return BaseSparseVoxelTree::get(x, y, z);
     }
 
-    void set(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
+    void setVoxel(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
         BaseSparseVoxelTree::set(x, y, z, voxel);
         uint32_t i = calculateIndex(x+1, y+1, z+1, bitmap_size);
         if (!voxel.isEmpty()) {
@@ -151,13 +151,9 @@ public:
         }
     }
 
-    [[nodiscard]] bool isEmpty(const uint32_t x, const uint32_t y, const uint32_t z) const {
+    [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         uint32_t i = calculateIndex(x+1, y+1, z+1, bitmap_size);
-        return !m_bitmap.test(i);
-    }
-
-    [[nodiscard]] uint32_t countVoxels() const {
-        return m_bitmap.count();
+        return m_bitmap.test(i);
     }
 
     struct Neighbours {
@@ -174,11 +170,11 @@ public:
 
         for (uint32_t y = 1; y < bitmap_size - 1; y++) {
             for (uint32_t z = 1; z < bitmap_size - 1; z++) {
-                if (neighbours.xPlus == nullptr || !neighbours.xPlus->isEmpty(0, y-1, z-1)) {
+                if (neighbours.xPlus == nullptr || neighbours.xPlus->hasVoxel(0, y-1, z-1)) {
                     const uint32_t i = calculateIndex(bitmap_size-1, y, z, bitmap_size);
                     bitmap.set(i);
                 }
-                if (neighbours.xMinus == nullptr || !neighbours.xMinus->isEmpty(size-1, y-1, z-1)) {
+                if (neighbours.xMinus == nullptr || neighbours.xMinus->hasVoxel(size-1, y-1, z-1)) {
                     const uint32_t i = calculateIndex(0, y, z, bitmap_size);
                     bitmap.set(i);
                 }
@@ -187,11 +183,11 @@ public:
 
         for (uint32_t x = 1; x < bitmap_size - 1; x++) {
             for (uint32_t z = 1; z < bitmap_size - 1; z++) {
-                if (neighbours.yPlus == nullptr || !neighbours.yPlus->isEmpty(x-1, 0, z-1)) {
+                if (neighbours.yPlus == nullptr || neighbours.yPlus->hasVoxel(x-1, 0, z-1)) {
                     const uint32_t i = calculateIndex(x, bitmap_size-1, z, bitmap_size);
                     bitmap.set(i);
                 }
-                if (neighbours.yMinus == nullptr || !neighbours.yMinus->isEmpty(x-1, size-1, z-1)) {
+                if (neighbours.yMinus == nullptr || neighbours.yMinus->hasVoxel(x-1, size-1, z-1)) {
                     const uint32_t i = calculateIndex(x, 0, z, bitmap_size);
                     bitmap.set(i);
                 }
@@ -200,11 +196,11 @@ public:
 
         for (uint32_t x = 1; x < bitmap_size - 1; x++) {
             for (uint32_t y = 1; y < bitmap_size - 1; y++) {
-                if (neighbours.zPlus == nullptr || !neighbours.zPlus->isEmpty(x-1, y-1, 0)) {
+                if (neighbours.zPlus == nullptr || neighbours.zPlus->hasVoxel(x-1, y-1, 0)) {
                     const uint32_t i = calculateIndex(x, y, bitmap_size-1, bitmap_size);
                     bitmap.set(i);
                 }
-                if (neighbours.zMinus == nullptr || !neighbours.zMinus->isEmpty(x-1, y-1, size-1)) {
+                if (neighbours.zMinus == nullptr || neighbours.zMinus->hasVoxel(x-1, y-1, size-1)) {
                     const uint32_t i = calculateIndex(x, y, 0, bitmap_size);
                     bitmap.set(i);
                 }
@@ -241,7 +237,7 @@ private:
                           bitmap.test(i-bitmap_size*bitmap_size) && bitmap.test(i+bitmap_size*bitmap_size));
 
                     if (isVisible) {
-                        const auto& voxel = get(x-1, y-1, z-1);
+                        const auto& voxel = getVoxel(x-1, y-1, z-1);
                         vertices.emplace_back(x-1, y-1, z-1, 1, voxel);
                     }
                 }

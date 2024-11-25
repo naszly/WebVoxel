@@ -52,12 +52,12 @@ std::vector<ChunkVertexBuffer> World::getChunkVertexBuffers() {
     return buffers;
 }
 
-VoxelData World::getVoxel(const WorldCoordinate &coord) {
+VoxelData World::getVoxel(const WorldCoordinate &coord) const {
     return m_Chunks.getVoxel(coord);
 }
 
-bool World::hasVoxel(const WorldCoordinate &coord) {
-    return !m_Chunks.getVoxel(coord).isEmpty();
+bool World::hasVoxel(const WorldCoordinate &coord) const {
+    return m_Chunks.hasVoxel(coord);
 }
 
 void World::setVoxel(const WorldCoordinate &coord, const VoxelData voxel) {
@@ -96,11 +96,11 @@ void World::removeVoxel(const WorldCoordinate &coord, const int64_t radius, cons
 
 ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) {
     return ChunkNeighbours{
-        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
-        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
-        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
-        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
-        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
-        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1))
+        .xMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
+        .xPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
+        .yMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
+        .yPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
+        .zMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
+        .zPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
     };
 }

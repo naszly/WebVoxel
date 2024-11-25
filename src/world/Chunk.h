@@ -50,11 +50,15 @@ public:
     }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        return m_Data.get(x, y, z);
+        return m_Data.getVoxel(x, y, z);
+    }
+
+    [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
+        return m_Data.hasVoxel(x, y, z);
     }
 
     void setVoxel(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
-        m_Data.set(x, y, z, voxel);
+        m_Data.setVoxel(x, y, z, voxel);
         m_Dirty = true;
     }
 
