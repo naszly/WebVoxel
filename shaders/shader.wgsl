@@ -1,3 +1,5 @@
+override CHUNK_SIZE: f32 = 64.0;
+
 struct Uniforms {
     projectionView : mat4x4<f32>,
     inverseProjectionViewMatrix : mat4x4<f32>,
@@ -38,10 +40,6 @@ struct Billboard {
     pos : vec2f,
     size : vec2f,
 }
-
-const CHUNK_SIZE : f32 = 64.0f;
-
-const VOXEL_SIZE : f32 = 1.0f;
 
 fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x4<f32>) -> Billboard {
     let quadricMat: vec4f = vec4f(1.0, 1.0, 1.0, -1.0);

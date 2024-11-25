@@ -235,12 +235,19 @@ void RendererSystem::createRenderPipeline() {
 
     WGPUVertexBufferLayout bufferLayouts[] = { billboardVertexBufferLayout, voxelVertexBufferLayout, chunkVertexBufferLayout };
 
+	WGPUConstantEntry pipelineConstant[] {
+		{
+			.key = "CHUNK_SIZE",
+			.value = Chunk::SIZE,
+		}
+	};
+
     pipelineDesc.vertex.bufferCount = sizeof(bufferLayouts) / sizeof(WGPUVertexBufferLayout);
     pipelineDesc.vertex.buffers = bufferLayouts;
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
-    pipelineDesc.vertex.constantCount = 0;
-    pipelineDesc.vertex.constants = nullptr;
+    pipelineDesc.vertex.constantCount = sizeof(pipelineConstant) / sizeof(WGPUConstantEntry);
+	pipelineDesc.vertex.constants = pipelineConstant;
 
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;

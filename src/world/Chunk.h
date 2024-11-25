@@ -31,6 +31,7 @@ class Chunk {
     using SparseVoxelOctTree = SparseVoxelTree<DEPTH, NODE_SIZE>;
 public:
     static constexpr size_t SIZE = Utils::pow(NODE_SIZE, DEPTH);
+    static_assert(SIZE >= 16 && SIZE <= 256, "SIZE must be between 16 and 256");
 
     explicit Chunk(const glm::ivec3 position) : m_Position(position) {}
     explicit Chunk(const int x, const int y, const int z) : m_Position(x, y, z) {}
