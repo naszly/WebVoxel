@@ -33,8 +33,8 @@ private:
 
     void createInstance();
     void requestAdapter();
-    void logAdapterLimits();
-    void logAdapterFeatures();
-    void logAdapterProperties();
+    void logAdapterLimits() const;
+    void logAdapterFeatures() const;
+    void logAdapterProperties() const;
     void requestDevice();
 };

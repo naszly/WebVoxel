@@ -24,11 +24,14 @@ WebGPUSurface::WebGPUSurface(GLFWwindow *window, const WebGPUContext& context) {
     WGPUSurfaceConfiguration config = {};
     config.nextInChain = nullptr;
 
+    WGPUSurfaceCapabilities capabilities = {};
+    wgpuSurfaceGetCapabilities(m_Surface, context.getAdapter(), &capabilities);
+
     // Configuration of the textures created for the underlying swap chain
     config.width = width;
     config.height = height;
     config.usage = WGPUTextureUsage_RenderAttachment;
-    m_SurfaceFormat = wgpuSurfaceGetPreferredFormat(m_Surface, context.getAdapter());
+    m_SurfaceFormat = capabilities.formats[0];
     config.format = m_SurfaceFormat;
 
     // And we do not need any particular view format:

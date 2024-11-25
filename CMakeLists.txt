@@ -20,25 +20,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+# GLFW
+if (NOT EMSCRIPTEN)
+    FetchContent_Declare(
+            glfw
+            GIT_REPOSITORY https://github.com/glfw/glfw
+            GIT_TAG 3.4
+            GIT_SHALLOW ON
+    )
+    FetchContent_MakeAvailable(glfw)
+endif()
+
 # WebGPU
 FetchContent_Declare(
     webgpu
     GIT_REPOSITORY https://github.com/eliemichel/WebGPU-distribution
-    GIT_TAG main
+    GIT_TAG dawn
     GIT_SHALLOW ON
 )
 FetchContent_MakeAvailable(webgpu)
-
-# GLFW
-if (NOT EMSCRIPTEN)
-    FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw
-        GIT_TAG 3.4
-        GIT_SHALLOW ON
-    )
-    FetchContent_MakeAvailable(glfw)
-endif()
 
 FetchContent_Declare(
     glfw3webgpu
@@ -72,7 +72,7 @@ FetchContent_MakeAvailable(magic_enum)
 # ImGUI
 FetchContent_Populate(
         imgui
-        URL https://github.com/ocornut/imgui/archive/refs/heads/docking.zip
+        URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.2-docking.zip
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
 )
 file(GLOB IMGUI_SOURCES
@@ -138,9 +138,5 @@ if(EMSCRIPTEN)
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${CMAKE_SOURCE_DIR}/shell.html")
 else()
-    if(WEBGPU_BACKEND_U STREQUAL "DAWN")
-        target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
-    else() # WGPU
-        target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
-    endif()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
 endif()

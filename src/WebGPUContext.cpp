@@ -70,7 +70,7 @@ void WebGPUContext::requestAdapter() {
     LogCore::info("WebGPU adapter requested: {0}", (size_t)m_Adapter);
 }
 
-void WebGPUContext::logAdapterLimits() {
+void WebGPUContext::logAdapterLimits() const {
 
 #ifndef __EMSCRIPTEN__
     WGPUSupportedLimits supportedLimits = {};
@@ -124,7 +124,7 @@ void WebGPUContext::logAdapterLimits() {
 #endif // NOT __EMSCRIPTEN__
 }
 
-void WebGPUContext::logAdapterFeatures() {
+void WebGPUContext::logAdapterFeatures() const {
 #ifndef __EMSCRIPTEN__
     std::vector<WGPUFeatureName> features;
     size_t featureCount = wgpuAdapterEnumerateFeatures(m_Adapter, nullptr);
@@ -141,8 +141,8 @@ void WebGPUContext::logAdapterFeatures() {
 #endif // NOT __EMSCRIPTEN__
 }
 
-void WebGPUContext::logAdapterProperties() {
-#ifndef __EMSCRIPTEN__
+void WebGPUContext::logAdapterProperties() const {
+#ifdef WEBGPU_BACKEND_WGPU
     WGPUAdapterProperties properties = {};
     wgpuAdapterGetProperties(m_Adapter, &properties);
 
@@ -155,7 +155,20 @@ void WebGPUContext::logAdapterProperties() {
     LogCore::info("  driverDescription: {0}", properties.driverDescription ? properties.driverDescription : "null");
     LogCore::info("  adapterType: {0:#010x}", (uint64_t)properties.adapterType);
     LogCore::info("  backendType: {0:#010x}", (uint64_t)properties.backendType);
-#endif // NOT __EMSCRIPTEN__
+#else
+    WGPUAdapterInfo info = {};
+    wgpuAdapterGetInfo(m_Adapter, &info);
+
+    LogCore::info("WebGPU adapter info:");
+    LogCore::info("  vendor: {0}", info.vendor);
+    LogCore::info("  architecture: {0}", info.architecture);
+    LogCore::info("  device: {0}", info.device);
+    LogCore::info("  description: {0}", info.description);
+    LogCore::info("  backendType: {0:#010x}", (uint64_t)info.backendType);
+    LogCore::info("  adapterType: {0:#010x}", (uint64_t)info.adapterType);
+    LogCore::info("  vendorID: {0}", info.vendorID);
+    LogCore::info("  deviceID: {0}", info.deviceID);
+#endif
 }
 
 void WebGPUContext::requestDevice() {
@@ -177,20 +190,49 @@ void WebGPUContext::requestDevice() {
         data->requestEnded = true;
     };
 
+#ifdef WEBGPU_BACKEND_DAWN
+    WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
+    deviceLostCallbackInfo.nextInChain = nullptr;
+    deviceLostCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+    deviceLostCallbackInfo.callback = [](const WGPUDevice* device, const WGPUDeviceLostReason reason, char const* message, void* userData) {
+        LogCore::error("WebGPU device lost: {0:#010x}", static_cast<uint64_t>(reason));
+        if (message) {
+            LogCore::error(" ({0})", message);
+        }
+    };
+
+    WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo = {};
+    uncapturedErrorCallbackInfo.nextInChain = nullptr;
+    uncapturedErrorCallbackInfo.callback = [](WGPUErrorType type, char const* message, void* userData) {
+        LogCore::error("Uncaptured device error: type {0:#010x}", (uint64_t)type);
+        if (message) {
+            LogCore::error(" ({0})", message);
+        }
+        // TODO: use proper error handling
+        exit(1);
+    };
+
+#endif
+
     WGPUDeviceDescriptor descriptor = {};
     descriptor.nextInChain = nullptr;
     descriptor.label = "WebGPU Device";
-    //descriptor.requiredFeaturesCount = 0;
+    descriptor.requiredFeatureCount = 0;
     descriptor.requiredFeatures = nullptr;
     descriptor.requiredLimits = nullptr;
     descriptor.defaultQueue.nextInChain = nullptr;
     descriptor.defaultQueue.label = "WebGPU Queue";
+#ifdef WEBGPU_BACKEND_DAWN
+    descriptor.deviceLostCallbackInfo = deviceLostCallbackInfo;
+    descriptor.uncapturedErrorCallbackInfo = uncapturedErrorCallbackInfo;
+#else
     descriptor.deviceLostCallback = [](WGPUDeviceLostReason reason, char const* message, void* userData) {
         LogCore::error("Device lost: reason {0:#010x}", (uint64_t)reason);
         if (message) {
             LogCore::error(" ({0})", message);
         }
     };
+#endif
 
     wgpuAdapterRequestDevice(m_Adapter, &descriptor, onDeviceRequestEnded, &userData);
 
@@ -205,6 +247,7 @@ void WebGPUContext::requestDevice() {
     m_Device = userData.device;
     LogCore::info("WebGPU device requested: {0}", (size_t)m_Device);
 
+#if defined(__EMSCRIPTEN__) || defined(WEBGPU_BACKEND_WGPU)
     auto onDeviceError = [](WGPUErrorType type, char const* message, void* userData) {
         LogCore::error("Uncaptured device error: type {0:#010x}", (uint64_t)type);
         if (message) {
@@ -218,4 +261,5 @@ void WebGPUContext::requestDevice() {
 #endif
     };
     wgpuDeviceSetUncapturedErrorCallback(m_Device, onDeviceError, nullptr);
+#endif
 }
