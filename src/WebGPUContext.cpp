@@ -1,5 +1,7 @@
 #include "WebGPUContext.h"
 
+#include <magic_enum.hpp>
+
 #include "Log.h"
 
 WebGPUContext::WebGPUContext() {
@@ -12,9 +14,9 @@ WebGPUContext::WebGPUContext() {
 }
 
 WebGPUContext::~WebGPUContext() {
-    wgpuInstanceRelease(m_Instance);
-    wgpuAdapterRelease(m_Adapter);
     wgpuDeviceRelease(m_Device);
+    wgpuAdapterRelease(m_Adapter);
+    wgpuInstanceRelease(m_Instance);
 }
 
 void WebGPUContext::createInstance() {
@@ -190,28 +192,27 @@ void WebGPUContext::requestDevice() {
         data->requestEnded = true;
     };
 
+    auto onDeviceError = [](WGPUErrorType type, char const* message, void* userData) {
+        LogCore::error("Uncaptured device error: type {0} ({1})", magic_enum::enum_name(type), message);
+        // TODO: use proper error handling
+#ifdef __EMSCRIPTEN__
+        emscripten_force_exit(1);
+#else
+        exit(1);
+#endif
+    };
+
 #ifdef WEBGPU_BACKEND_DAWN
     WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
     deviceLostCallbackInfo.nextInChain = nullptr;
     deviceLostCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     deviceLostCallbackInfo.callback = [](const WGPUDevice* device, const WGPUDeviceLostReason reason, char const* message, void* userData) {
-        LogCore::error("WebGPU device lost: {0:#010x}", static_cast<uint64_t>(reason));
-        if (message) {
-            LogCore::error(" ({0})", message);
-        }
+        LogCore::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message);
     };
 
     WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo = {};
     uncapturedErrorCallbackInfo.nextInChain = nullptr;
-    uncapturedErrorCallbackInfo.callback = [](WGPUErrorType type, char const* message, void* userData) {
-        LogCore::error("Uncaptured device error: type {0:#010x}", (uint64_t)type);
-        if (message) {
-            LogCore::error(" ({0})", message);
-        }
-        // TODO: use proper error handling
-        exit(1);
-    };
-
+    uncapturedErrorCallbackInfo.callback = onDeviceError;
 #endif
 
     WGPUDeviceDescriptor descriptor = {};
@@ -227,10 +228,7 @@ void WebGPUContext::requestDevice() {
     descriptor.uncapturedErrorCallbackInfo = uncapturedErrorCallbackInfo;
 #else
     descriptor.deviceLostCallback = [](WGPUDeviceLostReason reason, char const* message, void* userData) {
-        LogCore::error("Device lost: reason {0:#010x}", (uint64_t)reason);
-        if (message) {
-            LogCore::error(" ({0})", message);
-        }
+        LogCore::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message);
     };
 #endif
 
@@ -247,19 +245,7 @@ void WebGPUContext::requestDevice() {
     m_Device = userData.device;
     LogCore::info("WebGPU device requested: {0}", (size_t)m_Device);
 
-#if defined(__EMSCRIPTEN__) || defined(WEBGPU_BACKEND_WGPU)
-    auto onDeviceError = [](WGPUErrorType type, char const* message, void* userData) {
-        LogCore::error("Uncaptured device error: type {0:#010x}", (uint64_t)type);
-        if (message) {
-            LogCore::error(" ({0})", message);
-        }
-        // TODO: use proper error handling
-#ifdef __EMSCRIPTEN__
-        emscripten_force_exit(1);
-#else
-        exit(1);
-#endif
-    };
+#ifndef WEBGPU_BACKEND_DAWN
     wgpuDeviceSetUncapturedErrorCallback(m_Device, onDeviceError, nullptr);
 #endif
 }
