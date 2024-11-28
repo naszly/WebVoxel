@@ -1,39 +1,5 @@
 #include "World.h"
 
-void World::update(const glm::vec3 playerPosition) {
-    static constexpr int64_t maxRadius = 4;
-    static int64_t currentRadius = 0;
-
-    auto closestMissingChunk = WorldCoordinate(glm::i64vec3(0));
-    bool foundMissingChunk = false;
-    for (int64_t x = -currentRadius; x <= currentRadius; x++) {
-        for (int64_t y = -currentRadius; y <= currentRadius; y++) {
-            for (int64_t z = -currentRadius; z <= currentRadius; z++) {
-                const auto pos = WorldCoordinate(glm::i64vec3(playerPosition) + glm::i64vec3(x * Chunk::SIZE, y * Chunk::SIZE, z * Chunk::SIZE));
-
-                if (!m_Chunks.hasChunk(pos.chunkPosition())) {
-                    if (!foundMissingChunk
-                        || Utils::distance(pos.worldPosition(), playerPosition) < Utils::distance(closestMissingChunk.worldPosition(), playerPosition)) {
-                        closestMissingChunk = pos;
-                        foundMissingChunk = true;
-                    }
-                }
-            }
-        }
-    }
-
-    if (foundMissingChunk) {
-        Chunk& chunk = m_Chunks.getChunk(closestMissingChunk.chunkPosition());
-        if (chunk.getPosition().y < 0) {
-            chunk.generate();
-        }
-    }
-
-    if (currentRadius < maxRadius) {
-        currentRadius++;
-    }
-}
-
 std::vector<ChunkVertexBuffer> World::getChunkVertexBuffers() {
     Timer timer("World::getChunkVertexBuffers");
     auto chunks = m_Chunks.getChunks();
@@ -50,6 +16,18 @@ std::vector<ChunkVertexBuffer> World::getChunkVertexBuffers() {
     });
 
     return buffers;
+}
+
+bool World::hasChunk(const glm::ivec3 &chunkPos) const {
+    return m_Chunks.hasChunk(chunkPos);
+}
+
+void World::setChunk(const Chunk &chunk) {
+    m_Chunks.setChunk(chunk);
+}
+
+void World::removeChunk(const glm::ivec3 &chunkPos) {
+    m_Chunks.removeChunk(chunkPos);
 }
 
 VoxelData World::getVoxel(const WorldCoordinate &coord) const {

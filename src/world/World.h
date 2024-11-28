@@ -13,9 +13,15 @@ public:
     World& operator=(const World&) = delete;
     World& operator=(World&&) = delete;
 
-    void update(glm::vec3 playerPosition);
-
     [[nodiscard]] std::vector<ChunkVertexBuffer> getChunkVertexBuffers();
+
+    [[nodiscard]] auto getChunks() { return m_Chunks.getChunks(); }
+
+    [[nodiscard]] bool hasChunk(const glm::ivec3 &chunkPos) const;
+
+    void setChunk(const Chunk &chunk);
+
+    void removeChunk(const glm::ivec3 &chunkPos);
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 

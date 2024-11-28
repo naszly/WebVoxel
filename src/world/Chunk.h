@@ -18,6 +18,17 @@ struct ChunkNeighbours {
     const Chunk* yPlus{nullptr};
     const Chunk* zMinus{nullptr};
     const Chunk* zPlus{nullptr};
+
+    [[nodiscard]] size_t count() const {
+        size_t count = 0;
+        if (xMinus) count++;
+        if (xPlus) count++;
+        if (yMinus) count++;
+        if (yPlus) count++;
+        if (zMinus) count++;
+        if (zPlus) count++;
+        return count;
+    }
 };
 
 struct ChunkVertexBuffer {
@@ -65,8 +76,10 @@ public:
     [[nodiscard]] ChunkVertexBuffer getVertexBuffer(const std::function<ChunkNeighbours()>& getChunkNeighbours) {
         if (m_Dirty) {
             const auto neighbours = getChunkNeighbours();
-            createVertexBuffer(neighbours);
-            m_Dirty = false;
+            if (neighbours.count() >= 6) {
+                createVertexBuffer(neighbours);
+                m_Dirty = false;
+            }
         }
         return m_VertexBuffer;
     }

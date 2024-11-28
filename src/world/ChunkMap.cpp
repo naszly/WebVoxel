@@ -24,6 +24,15 @@ bool ChunkMap::hasChunk(const glm::ivec3 key) const {
     return m_Chunks.contains(key);
 }
 
+void ChunkMap::setChunk(const Chunk &chunk) {
+    m_Chunks.try_emplace(chunk.getPosition(), chunk);
+    setNeighboursDirty(chunk.getPosition());
+}
+
+void ChunkMap::removeChunk(const glm::ivec3 key) {
+    m_Chunks.erase(key);
+}
+
 VoxelData ChunkMap::getVoxel(const WorldCoordinate &coord) const {
     const auto cPos = coord.chunkPosition();
     const auto lPos = coord.localPosition();

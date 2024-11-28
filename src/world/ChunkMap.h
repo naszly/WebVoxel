@@ -25,6 +25,10 @@ public:
 
     [[nodiscard]] bool hasChunk(glm::ivec3 key) const;
 
+    void setChunk(const Chunk &chunk);
+
+    void removeChunk(glm::ivec3 key);
+
     [[nodiscard]] auto getChunks() { return m_Chunks | std::ranges::views::values; }
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;

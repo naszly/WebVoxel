@@ -15,30 +15,33 @@ namespace internal {
     class SparseVoxelTree {
         friend class SparseVoxelTree<DEPTH + 1, NODE_SIZE>;
     public:
-        SparseVoxelTree(const SparseVoxelTree&) = delete;
-        SparseVoxelTree& operator=(const SparseVoxelTree&) = delete;
-        SparseVoxelTree(SparseVoxelTree&&) = delete;
-        SparseVoxelTree& operator=(SparseVoxelTree&&) = delete;
-    protected:
-        SparseVoxelTree() {
-            if constexpr (IS_LEAF) {
-                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
-            } else {
-                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+        SparseVoxelTree(const SparseVoxelTree& other) noexcept {
+            copyFrom(other);
+        }
+
+        SparseVoxelTree& operator=(SparseVoxelTree other) noexcept {
+            swap(*this, other);
+            return *this;
+        }
+
+        SparseVoxelTree(SparseVoxelTree&& other) noexcept {
+            moveFrom(std::move(other));
+        }
+
+        SparseVoxelTree& operator=(SparseVoxelTree&& other) noexcept {
+            if (this != &other) {
+                clear();
+                moveFrom(std::move(other));
             }
+            return *this;
         }
 
         ~SparseVoxelTree() {
-            if constexpr (!IS_LEAF) {
-                for (uint32_t x = 0; x < NODE_SIZE; x++) {
-                    for (uint32_t y = 0; y < NODE_SIZE; y++) {
-                        for (uint32_t z = 0; z < NODE_SIZE; z++) {
-                            if (nodes[x][y][z] != nullptr)
-                                delete nodes[x][y][z];
-                        }
-                    }
-                }
-            }
+            clear();
+        }
+    protected:
+        SparseVoxelTree() {
+            initialize();
         }
 
         [[nodiscard]] const VoxelData& get(uint32_t x, uint32_t y, uint32_t z) const {
@@ -99,6 +102,59 @@ namespace internal {
         using NodeType = std::conditional_t<IS_LEAF, VoxelData, ChildTree*>;
 
         NodeType nodes[NODE_SIZE][NODE_SIZE][NODE_SIZE];
+
+
+        void initialize() {
+            if constexpr (IS_LEAF) {
+                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
+            } else {
+                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+            }
+        }
+
+        void clear() {
+            if constexpr (!IS_LEAF) {
+                for (uint32_t x = 0; x < NODE_SIZE; x++) {
+                    for (uint32_t y = 0; y < NODE_SIZE; y++) {
+                        for (uint32_t z = 0; z < NODE_SIZE; z++) {
+                            delete nodes[x][y][z];
+                        }
+                    }
+                }
+            }
+        }
+
+        void copyFrom(const SparseVoxelTree& other) {
+            if constexpr (!IS_LEAF) {
+                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+                for (uint32_t x = 0; x < NODE_SIZE; x++) {
+                    for (uint32_t y = 0; y < NODE_SIZE; y++) {
+                        for (uint32_t z = 0; z < NODE_SIZE; z++) {
+                            if (other.nodes[x][y][z] != nullptr) {
+                                nodes[x][y][z] = new ChildTree(*other.nodes[x][y][z]);
+                            }
+                        }
+                    }
+                }
+            } else {
+                std::copy_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &nodes[0][0][0]);
+            }
+        }
+
+        void moveFrom(SparseVoxelTree&& other) {
+            if constexpr (!IS_LEAF) {
+                std::copy_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &nodes[0][0][0]);
+                std::fill_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+            } else {
+                std::copy_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &nodes[0][0][0]);
+                std::fill_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
+            }
+        }
+
+        friend void swap(SparseVoxelTree& first, SparseVoxelTree& second) noexcept {
+            using std::swap;
+            swap(first.nodes, second.nodes);
+        }
     };
 
     template<uint32_t SIZE>

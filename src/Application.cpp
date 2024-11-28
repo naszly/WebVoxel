@@ -55,8 +55,6 @@ void Application::onEvent(Event &event) {
 void Application::update(const float deltaTime) {
     m_Window->pollEvents();
 
-    m_World.update(m_Camera.getPosition());
-
     for (const auto& layer : m_Layers) {
         layer->update(deltaTime);
     }
