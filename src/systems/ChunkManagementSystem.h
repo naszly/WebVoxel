@@ -1,6 +1,7 @@
 #pragma once
 
 #include "System.h"
+#include "../Thread.h"
 
 class ChunkManagementSystem final : public System {
 public:
@@ -14,7 +15,6 @@ public:
 
     ~ChunkManagementSystem() override {
         m_ShouldExit = true;
-        m_LoadThread.join();
     }
 
 private:
@@ -24,9 +24,9 @@ private:
 
     std::vector<glm::ivec3> m_LoadQueue;
     std::vector<Chunk> m_LoadedChunks;
-    std::mutex m_Mutex;
 
-    std::thread m_LoadThread;
+    Threading::Worker m_LoadChunksWorker;
+    Threading::Lock m_Lock;
     bool m_ShouldExit = false;
 
     void loadChunks(const Camera &camera, World &world);
@@ -37,4 +37,5 @@ private:
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
+    static void worker(void *system);
 };

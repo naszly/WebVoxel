@@ -1,35 +1,7 @@
 #include "ChunkManagementSystem.h"
 
 void ChunkManagementSystem::initialize() {
-    m_LoadThread = std::thread([this] {
-        std::optional<glm::ivec3> chunkToLoad = std::nullopt;
-        while (!m_ShouldExit) {
-            {
-                std::lock_guard lock(m_Mutex);
-                if (!m_LoadQueue.empty()) {
-                    chunkToLoad = m_LoadQueue.front();
-                }
-            }
-
-            if (!chunkToLoad.has_value()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            } else {
-                const auto chunkPos = chunkToLoad.value();
-                Chunk chunk(chunkPos);
-                if (chunkPos.y < 0) {
-                    chunk.generate();
-                }
-
-                chunkToLoad = std::nullopt;
-
-                std::lock_guard lock(m_Mutex);
-                m_LoadedChunks.push_back(chunk);
-                if (auto it = std::ranges::find(m_LoadQueue, chunkPos); it != m_LoadQueue.end()) {
-                    m_LoadQueue.erase(it);
-                }
-            }
-        }
-    });
+    m_LoadChunksWorker.start(worker, this);
 }
 
 void ChunkManagementSystem::update(float dt) {
@@ -42,7 +14,7 @@ void ChunkManagementSystem::update(float dt) {
 }
 
 void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
-    std::lock_guard lock(m_Mutex);
+    Threading::ScopedLock lock(&m_Lock);
 
     for (auto& chunk : m_LoadedChunks) {
         world.setChunk(chunk);
@@ -96,4 +68,35 @@ void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
 
 float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, const glm::ivec3 chunkPos) {
     return glm::distance(glm::vec3(chunkPos), glm::vec3(WorldCoordinate(playerPosition).chunkPosition()));
+}
+
+void ChunkManagementSystem::worker(void *arg) {
+    const auto system = static_cast<ChunkManagementSystem*>(arg);
+    std::optional<glm::ivec3> chunkToLoad = std::nullopt;
+    while (!system->m_ShouldExit) {
+        {
+            Threading::ScopedLock lock(&system->m_Lock);
+            if (!system->m_LoadQueue.empty()) {
+                chunkToLoad = system->m_LoadQueue.front();
+            }
+        }
+
+        if (!chunkToLoad.has_value()) {
+            Threading::Sleep(100);
+        } else {
+            const auto chunkPos = chunkToLoad.value();
+            Chunk chunk(chunkPos);
+            if (chunkPos.y < 0) {
+                chunk.generate();
+            }
+            chunkToLoad = std::nullopt;
+
+            Threading::ScopedLock lock(&system->m_Lock);
+
+            system->m_LoadedChunks.push_back(chunk);
+            if (auto it = std::ranges::find(system->m_LoadQueue, chunkPos); it != system->m_LoadQueue.end()) {
+                system->m_LoadQueue.erase(it);
+            }
+        }
+    }
 }

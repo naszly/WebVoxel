@@ -9,6 +9,11 @@ set(CMAKE_CXX_STANDARD 23
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
+if (EMSCRIPTEN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -matomics -mbulk-memory")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -matomics -mbulk-memory")
+endif()
+
 include(FetchContent)
 
 # GLM
@@ -131,9 +136,10 @@ if(EMSCRIPTEN)
             -sUSE_WEBGPU=1
             -sASYNCIFY
             -sSTACK_SIZE=5242880 # 5MB
-            -sINITIAL_HEAP=268435456 # 256MB
+            #-sINITIAL_HEAP=268435456 # 256MB
             -sALLOW_MEMORY_GROWTH
             -sEXIT_RUNTIME
+            -sWASM_WORKERS
     )
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${CMAKE_SOURCE_DIR}/shell.html")
