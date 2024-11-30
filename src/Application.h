@@ -12,6 +12,9 @@ struct ApplicationData {
     glm::vec4 placedVoxelColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
     int placedVoxelRadius = 0;
     bool placedVoxelShapeIsSphere = true;
+
+    size_t renderedChunks = 0;
+    size_t renderedVoxels = 0;
 };
 
 class Application {

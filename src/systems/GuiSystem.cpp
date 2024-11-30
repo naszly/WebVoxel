@@ -80,7 +80,22 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 120), ImGuiCond_FirstUseEver);
+
+    ImGui::Begin("Debug Info");
+    static double lastTime = 0.0f;
+    const double currentTime = ImGui::GetTime();
+    const double frameTime = currentTime - lastTime;
+    lastTime = currentTime;
+    ImGui::Text("Frame Time: %.3f ms", frameTime * 1000.0f);
+    ImGui::Text("Chunks: %zu", GetWorld().countChunks());
+    ImGui::Text("Rendered Chunks: %zu", appData.renderedChunks);
+    ImGui::Text("Rendered Voxels: %zu", appData.renderedVoxels);
+    ImGui::End();
+
+    ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 120), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
     ImGui::ColorEdit3("Color", glm::value_ptr(appData.placedVoxelColor));

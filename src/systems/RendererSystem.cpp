@@ -68,6 +68,8 @@ void RendererSystem::render(const WGPUCommandEncoder& encoder, const WGPUTexture
 
     Application& app = Application::GetInstance();
 	auto& world = app.getWorld();
+	auto& appData = app.getApplicationData();
+
 
 	WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
@@ -83,11 +85,16 @@ void RendererSystem::render(const WGPUCommandEncoder& encoder, const WGPUTexture
 	// Set index buffer
 	wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(indexBuffer));
 
+	appData.renderedChunks = 0;
+	appData.renderedVoxels = 0;
 	for (auto&[buffer, vertexCount] : world.getChunkVertexBuffers()) {
 
 		if (vertexCount == 0) {
 			continue;
 		}
+
+		appData.renderedChunks++;
+		appData.renderedVoxels += vertexCount;
 
 		// Update uniform buffer data
 		wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));

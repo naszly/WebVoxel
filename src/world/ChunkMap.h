@@ -31,6 +31,8 @@ public:
 
     [[nodiscard]] auto getChunks() { return m_Chunks | std::ranges::views::values; }
 
+    [[nodiscard]] size_t countChunks() const { return m_Chunks.size(); }
+
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 
     [[nodiscard]] bool hasVoxel(const WorldCoordinate &coord) const;

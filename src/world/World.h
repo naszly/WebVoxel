@@ -17,6 +17,8 @@ public:
 
     [[nodiscard]] auto getChunks() { return m_Chunks.getChunks(); }
 
+    [[nodiscard]] auto countChunks() const { return m_Chunks.countChunks(); }
+
     [[nodiscard]] bool hasChunk(const glm::ivec3 &chunkPos) const;
 
     void setChunk(const Chunk &chunk);
