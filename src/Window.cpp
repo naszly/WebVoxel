@@ -26,7 +26,7 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
     glfwSetWindowUserPointer(m_Window, this);
 
     m_WebGPUContext = std::make_shared<WebGPUContext>();
-    m_WebGPUSurface = std::make_unique<WebGPUSurface>(m_Window, *m_WebGPUContext);
+    m_WebGPUSurface = std::make_unique<WebGPUSurface>(m_Window, m_WebGPUContext);
 
     glfwSetKeyCallback(m_Window, [](GLFWwindow *glfwWindow, const int key, const int scancode, const int action, const int mods) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
@@ -92,7 +92,7 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
     glfwSetWindowSizeCallback(m_Window, [](GLFWwindow *glfwWindow, const int width, const int height) {
         Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
-        window->m_WebGPUSurface = std::make_unique<WebGPUSurface>(glfwWindow, *window->m_WebGPUContext);
+        window->m_WebGPUSurface->resize();
 
         WindowResizedEvent event(width, height);
         window->eventCallback(event);

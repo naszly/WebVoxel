@@ -1,7 +1,3 @@
-//
-// Created by kornel on 21/10/24.
-//
-
 #include "WebGPUSurface.h"
 
 #include "Log.h"
@@ -9,45 +5,45 @@
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
 
-WebGPUSurface::WebGPUSurface(GLFWwindow *window, const WebGPUContext& context) {
+WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUContext>& context) : m_Context(context), m_Window(window) {
 
-    m_Surface = glfwCreateWindowWGPUSurface(context.getInstance(), window);
+    m_Surface = glfwCreateWindowWGPUSurface(context->getInstance(), window);
 
     if (!m_Surface) {
         LogCore::critical("Failed to create WebGPU surface");
         return;
     }
 
-    glfwGetFramebufferSize(window, &width, &height);
-
-    // Configure the surface
-    WGPUSurfaceConfiguration config = {};
-    config.nextInChain = nullptr;
-
     WGPUSurfaceCapabilities capabilities = {};
-    wgpuSurfaceGetCapabilities(m_Surface, context.getAdapter(), &capabilities);
+    wgpuSurfaceGetCapabilities(m_Surface, context->getAdapter(), &capabilities);
 
-    // Configuration of the textures created for the underlying swap chain
-    config.width = width;
-    config.height = height;
-    config.usage = WGPUTextureUsage_RenderAttachment;
     m_SurfaceFormat = capabilities.formats[0];
-    config.format = m_SurfaceFormat;
 
-    // And we do not need any particular view format:
-    config.viewFormatCount = 0;
-    config.viewFormats = nullptr;
-    config.device = context.getDevice();
-    config.presentMode = WGPUPresentMode_Fifo;
-    config.alphaMode = WGPUCompositeAlphaMode_Auto;
-
-    wgpuSurfaceConfigure(m_Surface, &config);
+    configureSurface();
 
     LogCore::info("WebGPU surface created: {0}", reinterpret_cast<size_t>(m_Surface));
 }
 
 WebGPUSurface::~WebGPUSurface() {
-    size_t surface = reinterpret_cast<size_t>(m_Surface);
+    auto surface = reinterpret_cast<size_t>(m_Surface);
     wgpuSurfaceRelease(m_Surface);
     LogCore::info("WebGPU surface released: {0}", surface);
+}
+
+void WebGPUSurface::configureSurface() {
+    glfwGetFramebufferSize(m_Window, &m_Width, &m_Height);
+
+    WGPUSurfaceConfiguration config = {};
+    config.nextInChain = nullptr;
+    config.device = m_Context->getDevice();
+    config.format = m_SurfaceFormat;
+    config.usage = WGPUTextureUsage_RenderAttachment;
+    config.viewFormatCount = 0;
+    config.viewFormats = nullptr;
+    config.alphaMode = WGPUCompositeAlphaMode_Auto;
+    config.width = m_Width;
+    config.height = m_Height;
+    config.presentMode = WGPUPresentMode_Fifo;
+
+    wgpuSurfaceConfigure(m_Surface, &config);
 }
