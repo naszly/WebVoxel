@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "VoxelData.h"
+#include "Bitmap.h"
 #include "../Log.h"
 #include "../Utils.h"
 #include "../Timer.h"
@@ -156,33 +157,6 @@ namespace internal {
             swap(first.nodes, second.nodes);
         }
     };
-
-    template<uint32_t SIZE>
-    class BitMap {
-    public:
-        BitMap() {
-            std::fill_n(&data[0], SIZE / sizeof(data_t), 0);
-        }
-
-        void set(const uint32_t i) {
-            assert(i < SIZE); [[assume(i < SIZE)]];
-            data[i / sizeof(data_t)] |= 1 << (i % sizeof(data_t));
-        }
-
-        void clear(const uint32_t i) {
-            assert(i < SIZE); [[assume(i < SIZE)]];
-            data[i / sizeof(data_t)] &= ~(1 << (i % sizeof(data_t)));
-        }
-
-        [[nodiscard]] bool test(const uint32_t i) const {
-            assert(i < SIZE); [[assume(i < SIZE)]];
-            return data[i / sizeof(data_t)] & (1 << (i % sizeof(data_t)));
-        }
-
-    private:
-        using data_t = uint8_t;
-        data_t data[SIZE / sizeof(data_t)]{};
-    };
 }
 
 // depth: depth of the tree
@@ -191,6 +165,7 @@ template<uint32_t depth, uint32_t base_size>
 class SparseVoxelTree : public internal::SparseVoxelTree<depth, base_size> {
     using BaseSparseVoxelTree = internal::SparseVoxelTree<depth, base_size>;
     constexpr static uint32_t size = Utils::pow(base_size, depth);
+    static constexpr uint32_t bitmap_size = size + 2;
 public:
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
@@ -221,8 +196,8 @@ public:
         const SparseVoxelTree* zPlus{nullptr};
     };
 
-    [[nodiscard]] std::vector<VertexData> getVertices(const Neighbours &neighbours) const {
-        BitMap bitmap = m_bitmap;
+    [[nodiscard]] auto getBitmap(const Neighbours &neighbours) const {
+        auto bitmap = m_bitmap;
 
         for (uint32_t y = 1; y < bitmap_size - 1; y++) {
             for (uint32_t z = 1; z < bitmap_size - 1; z++) {
@@ -263,43 +238,13 @@ public:
             }
         }
 
-        return getVertices(bitmap);
+        return bitmap;
     }
 
 private:
-    static constexpr uint32_t bitmap_size = size + 2;
-    using BitMap = internal::BitMap<bitmap_size * bitmap_size * bitmap_size>;
-    BitMap m_bitmap{};
+    Bitmap<bitmap_size * bitmap_size * bitmap_size> m_bitmap{};
 
     static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t bitmap_size) {
         return x * bitmap_size * bitmap_size + y * bitmap_size + z;
-    }
-
-    [[nodiscard]] std::vector<VertexData> getVertices(const BitMap& bitmap) const {
-        std::vector<VertexData> vertices;
-
-        for (uint32_t x = 1; x < bitmap_size - 1; x++) {
-            for (uint32_t y = 1; y < bitmap_size - 1; y++) {
-                for (uint32_t z = 1; z < bitmap_size - 1; z++) {
-                    const uint32_t i = calculateIndex(x, y, z, bitmap_size);
-
-                    if (!bitmap.test(i)) {
-                        continue;
-                    }
-
-                    const bool isVisible =
-                        !(bitmap.test(i-1) && bitmap.test(i+1) &&
-                          bitmap.test(i-bitmap_size) && bitmap.test(i+bitmap_size) &&
-                          bitmap.test(i-bitmap_size*bitmap_size) && bitmap.test(i+bitmap_size*bitmap_size));
-
-                    if (isVisible) {
-                        const auto& voxel = getVoxel(x-1, y-1, z-1);
-                        vertices.emplace_back(x-1, y-1, z-1, 1, voxel);
-                    }
-                }
-            }
-        }
-
-        return vertices;
     }
 };

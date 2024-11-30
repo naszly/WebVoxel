@@ -1,21 +1,14 @@
 #include "World.h"
 
-std::vector<ChunkVertexBuffer> World::getChunkVertexBuffers() {
-    Timer timer("World::getChunkVertexBuffers");
-    auto chunks = m_Chunks.getChunks();
-
-    std::vector<ChunkVertexBuffer> buffers(chunks.size());
-
-    std::ranges::transform(chunks, buffers.begin(), [&](Chunk &chunk) {
-        const auto chunkPos = chunk.getPosition();
-        auto getChunkNeighbours = [&] {
-            return this->getChunkNeighbours(chunkPos);
-        };
-
-        return chunk.getVertexBuffer(getChunkNeighbours);
-    });
-
-    return buffers;
+ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) const {
+    return ChunkNeighbours{
+        .xMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
+        .xPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
+        .yMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
+        .yPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
+        .zMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
+        .zPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
+    };
 }
 
 bool World::hasChunk(const glm::ivec3 &chunkPos) const {
@@ -70,15 +63,4 @@ void World::removeVoxel(const WorldCoordinate &coord, const int64_t radius, cons
             }
         }
     }
-}
-
-ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) {
-    return ChunkNeighbours{
-        .xMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
-        .xPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
-        .yMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
-        .yPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
-        .zMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
-        .zPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
-    };
 }

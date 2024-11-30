@@ -87,7 +87,7 @@ void RendererSystem::render(const WGPUCommandEncoder& encoder, const WGPUTexture
 
 	appData.renderedChunks = 0;
 	appData.renderedVoxels = 0;
-	for (auto&[buffer, vertexCount] : world.getChunkVertexBuffers()) {
+	for (auto&[buffer, vertexCount] : m_ChunkVertexBuffers | std::views::values) {
 
 		if (vertexCount == 0) {
 			continue;
@@ -114,6 +114,36 @@ void RendererSystem::render(const WGPUCommandEncoder& encoder, const WGPUTexture
 }
 
 void RendererSystem::update(float dt) {
+	World &world = GetWorld();
+
+	auto chunks = world.getChunks();
+
+	for (auto &chunk : chunks) {
+		if (chunk.isDirty()) {
+			auto position = chunk.getPosition();
+			auto neighbours = world.getChunkNeighbours(position);
+
+			if (neighbours.count() < 6) {
+				continue;
+			}
+
+			auto bitmap = chunk.getBitmap(neighbours);
+
+			auto buffer = createChunkVertexBuffer<Chunk::SIZE+2>(position, bitmap, [&](uint32_t x, uint32_t y, uint32_t z) {
+				return chunk.getVoxel(x, y, z);
+			});
+
+			auto it = m_ChunkVertexBuffers.find(position);
+			if (it != m_ChunkVertexBuffers.end()) {
+				wgpuBufferRelease(it->second.buffer);
+				it->second = buffer;
+			} else {
+				m_ChunkVertexBuffers.insert({position, buffer});
+			}
+
+			chunk.resetDirty();
+		}
+	}
 }
 
 void RendererSystem::onEvent(Event& event) {

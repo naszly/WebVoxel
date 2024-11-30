@@ -13,9 +13,9 @@ public:
     World& operator=(const World&) = delete;
     World& operator=(World&&) = delete;
 
-    [[nodiscard]] std::vector<ChunkVertexBuffer> getChunkVertexBuffers();
-
     [[nodiscard]] auto getChunks() { return m_Chunks.getChunks(); }
+
+    ChunkNeighbours getChunkNeighbours(const glm::ivec3 &chunkPos) const;
 
     [[nodiscard]] auto countChunks() const { return m_Chunks.countChunks(); }
 
@@ -39,6 +39,4 @@ public:
 
 private:
     ChunkMap m_Chunks;
-
-    ChunkNeighbours getChunkNeighbours(const glm::ivec3 &chunkPos);
 };

@@ -31,11 +31,6 @@ struct ChunkNeighbours {
     }
 };
 
-struct ChunkVertexBuffer {
-    WGPUBuffer buffer{nullptr};
-    size_t vertexCount{0};
-};
-
 class Chunk {
     static constexpr size_t DEPTH = 6;
     static constexpr size_t NODE_SIZE = 2;
@@ -46,15 +41,9 @@ public:
 
     explicit Chunk(const glm::ivec3 position) : m_Position(position) {}
     explicit Chunk(const int x, const int y, const int z) : m_Position(x, y, z) {}
-    ~Chunk() {
-        deleteVertexBuffer();
-    }
+    ~Chunk() = default;
 
     void generate();
-
-    void createVertexBuffer(const ChunkNeighbours& chunkNeighbours);
-
-    void deleteVertexBuffer();
 
     [[nodiscard]] glm::ivec3 getPosition() const {
         return m_Position;
@@ -73,25 +62,26 @@ public:
         m_Dirty = true;
     }
 
-    [[nodiscard]] ChunkVertexBuffer getVertexBuffer(const std::function<ChunkNeighbours()>& getChunkNeighbours) {
-        if (m_Dirty) {
-            const auto neighbours = getChunkNeighbours();
-            if (neighbours.count() >= 6) {
-                createVertexBuffer(neighbours);
-                m_Dirty = false;
-            }
-        }
-        return m_VertexBuffer;
+    [[nodiscard]] bool isDirty() const {
+        return m_Dirty;
     }
 
     void setDirty() {
         m_Dirty = true;
     }
 
+    void resetDirty() {
+        m_Dirty = false;
+    }
+
+    [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
+        return m_Data.getBitmap(getNeighbours(chunkNeighbours));
+    }
+
+
 private:
     glm::ivec3 m_Position{};
     SparseVoxelOctTree m_Data{};
-    ChunkVertexBuffer m_VertexBuffer{};
     bool m_Dirty{true};
 
     static SparseVoxelOctTree::Neighbours getNeighbours(const ChunkNeighbours &chunkNeighbours);
