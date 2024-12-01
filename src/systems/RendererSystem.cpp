@@ -129,7 +129,7 @@ void RendererSystem::update(float dt) {
 
 			auto bitmap = chunk.getBitmap(neighbours);
 
-			auto buffer = createChunkVertexBuffer<Chunk::SIZE+2>(position, bitmap, [&](uint32_t x, uint32_t y, uint32_t z) {
+			auto buffer = createChunkVertexBuffer(position, bitmap, [&](uint32_t x, uint32_t y, uint32_t z) {
 				return chunk.getVoxel(x, y, z);
 			});
 

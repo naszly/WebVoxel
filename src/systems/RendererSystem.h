@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-class RendererSystem : public System {
+class RendererSystem final : public System {
 public:
     void initialize() override;
     void render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) override;
@@ -58,11 +58,16 @@ private:
     static std::string LoadShader(const char* filename);
     void InitializeBuffers();
 
-    template<uint32_t SIZE>
-    ChunkVertexBuffer createChunkVertexBuffer(const glm::ivec3 position, const Bitmap<SIZE*SIZE*SIZE>& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel) {
+    static constexpr uint32_t BITMAP_SIZE = Chunk::SIZE + 2;
+    using ChunkBitmap = Bitmap<BITMAP_SIZE*BITMAP_SIZE*BITMAP_SIZE>;
+
+    static ChunkVertexBuffer createChunkVertexBuffer(const glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel) {
         ChunkVertexBuffer vertexBuffer;
 
-        const std::vector<VertexData> points = getVertices<SIZE>(bitmap, getVoxel);
+        static std::vector<VertexData> points;
+        points.clear();
+
+        getVertices(bitmap, getVoxel, points);
 
         const auto device = GetWebGPUContext().getDevice();
         const auto queue = wgpuDeviceGetQueue(device);
@@ -80,23 +85,25 @@ private:
         vertexBuffer.buffer = wgpuDeviceCreateBuffer(device, &descriptor);
         vertexBuffer.vertexCount = points.size();
 
-        std::vector<uint8_t> data(bufferSize);
+        static std::vector<uint8_t> data;
+        if (data.size() < bufferSize) {
+            data.resize(bufferSize);
+        }
+
         memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
         memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
 
-        wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), data.size());
+        wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
         return vertexBuffer;
     }
 
-    template<uint32_t SIZE>
-    std::vector<VertexData> getVertices(const Bitmap<SIZE*SIZE*SIZE>& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel) {
-        std::vector<VertexData> vertices;
+    static void getVertices(const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel, std::vector<VertexData>& vertices) {
 
-        for (uint32_t x = 1; x < SIZE - 1; x++) {
-            for (uint32_t y = 1; y < SIZE - 1; y++) {
-                for (uint32_t z = 1; z < SIZE - 1; z++) {
-                    const uint32_t i = x * SIZE * SIZE + y * SIZE + z;
+        for (uint32_t x = 1; x < BITMAP_SIZE - 1; x++) {
+            for (uint32_t y = 1; y < BITMAP_SIZE - 1; y++) {
+                for (uint32_t z = 1; z < BITMAP_SIZE - 1; z++) {
+                    const uint32_t i = x * BITMAP_SIZE * BITMAP_SIZE + y * BITMAP_SIZE + z;
 
                     if (!bitmap.test(i)) {
                         continue;
@@ -104,8 +111,8 @@ private:
 
                     const bool isVisible =
                         !(bitmap.test(i-1) && bitmap.test(i+1) &&
-                          bitmap.test(i-SIZE) && bitmap.test(i+SIZE) &&
-                          bitmap.test(i-SIZE*SIZE) && bitmap.test(i+SIZE*SIZE));
+                          bitmap.test(i-BITMAP_SIZE) && bitmap.test(i+BITMAP_SIZE) &&
+                          bitmap.test(i-BITMAP_SIZE*BITMAP_SIZE) && bitmap.test(i+BITMAP_SIZE*BITMAP_SIZE));
 
                     if (isVisible) {
                         const auto& voxel = getVoxel(x-1, y-1, z-1);
@@ -114,7 +121,5 @@ private:
                 }
             }
         }
-
-        return vertices;
     }
 };
