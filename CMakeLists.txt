@@ -14,6 +14,8 @@ if (EMSCRIPTEN)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -matomics -mbulk-memory")
 endif()
 
+set(DAWN_USE_WAYLAND ON)
+
 include(FetchContent)
 
 # GLM
@@ -136,8 +138,8 @@ if(EMSCRIPTEN)
             -sUSE_WEBGPU=1
             -sASYNCIFY
             -sSTACK_SIZE=5242880 # 5MB
-            #-sINITIAL_HEAP=268435456 # 256MB
             -sALLOW_MEMORY_GROWTH
+            -sMAXIMUM_MEMORY=4294967296 # 4GB
             -sEXIT_RUNTIME
             -sWASM_WORKERS
     )

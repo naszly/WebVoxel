@@ -18,8 +18,8 @@ public:
     }
 
 private:
-    static constexpr int m_LoadRadius = 6;
-    static constexpr int m_UnloadRadius = 8;
+    static constexpr int m_LoadRadius = 8;
+    static constexpr int m_UnloadRadius = 10;
     static_assert(m_LoadRadius < m_UnloadRadius, "Load radius must be less than unload radius");
 
     std::vector<glm::ivec3> m_LoadQueue;
