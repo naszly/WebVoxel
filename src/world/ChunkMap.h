@@ -25,7 +25,7 @@ public:
 
     [[nodiscard]] bool hasChunk(glm::ivec3 key) const;
 
-    void setChunk(const Chunk &chunk);
+    void moveChunk(Chunk &chunk);
 
     void removeChunk(glm::ivec3 key);
 

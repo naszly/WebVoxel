@@ -15,8 +15,8 @@ bool World::hasChunk(const glm::ivec3 &chunkPos) const {
     return m_Chunks.hasChunk(chunkPos);
 }
 
-void World::setChunk(const Chunk &chunk) {
-    m_Chunks.setChunk(chunk);
+void World::moveChunk(Chunk &chunk) {
+    m_Chunks.moveChunk(chunk);
 }
 
 void World::removeChunk(const glm::ivec3 &chunkPos) {

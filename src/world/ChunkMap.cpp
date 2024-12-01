@@ -24,9 +24,10 @@ bool ChunkMap::hasChunk(const glm::ivec3 key) const {
     return m_Chunks.contains(key);
 }
 
-void ChunkMap::setChunk(const Chunk &chunk) {
-    m_Chunks.try_emplace(chunk.getPosition(), chunk);
-    setNeighboursDirty(chunk.getPosition());
+void ChunkMap::moveChunk(Chunk &chunk) {
+    const auto key = chunk.getPosition();
+    m_Chunks.try_emplace(key, std::move(chunk));
+    setNeighboursDirty(key);
 }
 
 void ChunkMap::removeChunk(const glm::ivec3 key) {

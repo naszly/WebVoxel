@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <vector>
 
 #include "VoxelData.h"
 #include "Bitmap.h"
@@ -20,8 +19,11 @@ namespace internal {
             copyFrom(other);
         }
 
-        SparseVoxelTree& operator=(SparseVoxelTree other) noexcept {
-            swap(*this, other);
+        SparseVoxelTree& operator=(const SparseVoxelTree& other) noexcept {
+            if (this != &other) {
+                clear();
+                copyFrom(other);
+            }
             return *this;
         }
 
@@ -118,7 +120,9 @@ namespace internal {
                 for (uint32_t x = 0; x < NODE_SIZE; x++) {
                     for (uint32_t y = 0; y < NODE_SIZE; y++) {
                         for (uint32_t z = 0; z < NODE_SIZE; z++) {
-                            delete nodes[x][y][z];
+                            if (nodes[x][y][z] != nullptr) {
+                                delete nodes[x][y][z];
+                            }
                         }
                     }
                 }
@@ -151,11 +155,6 @@ namespace internal {
                 std::fill_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
             }
         }
-
-        friend void swap(SparseVoxelTree& first, SparseVoxelTree& second) noexcept {
-            using std::swap;
-            swap(first.nodes, second.nodes);
-        }
     };
 }
 
@@ -167,6 +166,19 @@ class SparseVoxelTree : public internal::SparseVoxelTree<depth, base_size> {
     constexpr static uint32_t size = Utils::pow(base_size, depth);
     static constexpr uint32_t bitmap_size = size + 2;
 public:
+    SparseVoxelTree() : BaseSparseVoxelTree() {}
+
+    SparseVoxelTree(SparseVoxelTree&& other) noexcept : BaseSparseVoxelTree(std::move(other)) {
+        m_bitmap = std::move(other.m_bitmap);
+    }
+
+    SparseVoxelTree& operator=(SparseVoxelTree&& other) noexcept {
+        if (this != &other) {
+            BaseSparseVoxelTree::operator=(std::move(other));
+            m_bitmap = std::move(other.m_bitmap);
+        }
+        return *this;
+    }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         return BaseSparseVoxelTree::get(x, y, z);

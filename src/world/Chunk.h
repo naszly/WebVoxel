@@ -41,7 +41,27 @@ public:
 
     explicit Chunk(const glm::ivec3 position) : m_Position(position) {}
     explicit Chunk(const int x, const int y, const int z) : m_Position(x, y, z) {}
+
     ~Chunk() = default;
+
+    Chunk(const Chunk&) = delete;
+
+    Chunk& operator=(const Chunk&) = delete;
+
+    Chunk(Chunk&& other) noexcept {
+        m_Position = other.m_Position;
+        m_Data = std::move(other.m_Data);
+        m_Dirty = other.m_Dirty;
+    }
+
+    Chunk& operator=(Chunk&& other) noexcept {
+        if (this != &other) {
+            m_Position = other.m_Position;
+            m_Data = std::move(other.m_Data);
+            m_Dirty = other.m_Dirty;
+        }
+        return *this;
+    }
 
     void generate();
 

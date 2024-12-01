@@ -17,7 +17,7 @@ void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
     Threading::ScopedLock lock(&m_Lock);
 
     for (auto& chunk : m_LoadedChunks) {
-        world.setChunk(chunk);
+        world.moveChunk(chunk);
     }
     m_LoadedChunks.clear();
 
@@ -93,7 +93,7 @@ void ChunkManagementSystem::worker(void *arg) {
 
             Threading::ScopedLock lock(&system->m_Lock);
 
-            system->m_LoadedChunks.push_back(chunk);
+            system->m_LoadedChunks.emplace_back(std::move(chunk));
             if (auto it = std::ranges::find(system->m_LoadQueue, chunkPos); it != system->m_LoadQueue.end()) {
                 system->m_LoadQueue.erase(it);
             }

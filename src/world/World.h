@@ -21,7 +21,7 @@ public:
 
     [[nodiscard]] bool hasChunk(const glm::ivec3 &chunkPos) const;
 
-    void setChunk(const Chunk &chunk);
+    void moveChunk(Chunk &chunk);
 
     void removeChunk(const glm::ivec3 &chunkPos);
 
