@@ -53,10 +53,12 @@ void Input::setCursorMode(const CursorMode mode) const {
 
     glfwSetInputMode(glfwWindow, GLFW_CURSOR, value);
 
-    ImGuiIO& io = ImGui::GetIO();
-    if (mode == Disabled) {
-        io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
-    } else {
-        io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+    if (ImGui::GetCurrentContext() != nullptr) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (mode == Disabled) {
+            io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+        } else {
+            io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+        }
     }
 }
