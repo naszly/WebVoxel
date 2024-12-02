@@ -32,6 +32,8 @@ private:
 
     WGPUTexture depthTexture{};
     WGPUTextureView depthTextureView{};
+    WGPUTexture multisampleColorTexture{};
+    WGPUTextureView multisampleColorTextureView{};
     unsigned int  m_viewportWidth{}, m_viewportHeight{};
 
     WGPUQueue m_Queue{};

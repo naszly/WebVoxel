@@ -27,6 +27,7 @@ struct VertexOut {
 
 struct FragmentIn {
     @builtin(position) fragPos: vec4f,
+    @builtin(sample_index) sampleIndex: u32,
     @location(0) vColor: vec4f,
     @location(1) vPos: vec3f,
     @location(2) vSize: f32,
