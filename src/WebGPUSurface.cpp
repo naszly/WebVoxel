@@ -5,6 +5,9 @@
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
 
+#include <ranges>
+#include <algorithm>
+
 WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUContext>& context) : m_Context(context), m_Window(window) {
 
     m_Surface = glfwCreateWindowWGPUSurface(context->getInstance(), window);
@@ -17,7 +20,11 @@ WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUCon
     WGPUSurfaceCapabilities capabilities = {};
     wgpuSurfaceGetCapabilities(m_Surface, context->getAdapter(), &capabilities);
 
-    m_SurfaceFormat = capabilities.formats[0];
+    const auto preferredFormats = {
+        WGPUTextureFormat_BGRA8Unorm, WGPUTextureFormat_RGBA8Unorm
+    };
+
+    m_SurfaceFormat = getPreferredFormat(capabilities, preferredFormats);
 
     configureSurface();
 
@@ -46,4 +53,17 @@ void WebGPUSurface::configureSurface() {
     config.presentMode = WGPUPresentMode_Fifo;
 
     wgpuSurfaceConfigure(m_Surface, &config);
+}
+
+WGPUTextureFormat WebGPUSurface::getPreferredFormat(const WGPUSurfaceCapabilities &capabilities,
+                                                    const std::initializer_list<WGPUTextureFormat> preferredFormats) {
+    std::vector availableFormats(capabilities.formats, capabilities.formats + capabilities.formatCount);
+
+    auto it = std::ranges::find_first_of(availableFormats, preferredFormats);
+
+    if (it != availableFormats.end()) {
+        return *it;
+    }
+
+    return availableFormats[0];
 }

@@ -46,4 +46,7 @@ private:
     WGPUTextureFormat m_SurfaceFormat{};
 
     void configureSurface();
+
+    static WGPUTextureFormat getPreferredFormat(const WGPUSurfaceCapabilities& capabilities,
+                                                std::initializer_list<WGPUTextureFormat> preferredFormats);
 };
