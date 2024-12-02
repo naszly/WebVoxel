@@ -85,9 +85,19 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
-    for (auto &[buffer, vertexCount]: m_ChunkVertexBuffers | std::views::values) {
+    for (auto &[position, chunkVertexBuffer]: m_ChunkVertexBuffers) {
+
+        auto &[buffer, vertexCount] = chunkVertexBuffer;
 
         if (vertexCount == 0) {
+            continue;
+        }
+
+        auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::SIZE) + glm::vec3(Chunk::SIZE / 2);
+
+        auto chunkSphereRadius = glm::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
+
+        if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
             continue;
         }
 
