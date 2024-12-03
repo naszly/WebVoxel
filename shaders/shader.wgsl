@@ -217,9 +217,15 @@ fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
     let hit : Hit = intersectBox(box, ray);
 
     if (hit.isHit) {
-        let light : f32 = max(dot(hit.normal, lightDir), 0.0f);
-        out.color = in.vColor * light + in.vColor * 0.1f;
-        out.color.a = 1.0f;
+        let ambientLight : f32 = 0.3f;
+        let directionalLight : f32 = max(dot(hit.normal, lightDir), 0.0f) * 0.7f;
+
+        let light = ambientLight + directionalLight;
+
+        let fog : f32 = sqrt(clamp(hit.distance / u.farPlane, 0.0f, 1.0f)) * 0.3f;
+        let fogColor : vec3f = vec3f(0.41f, 0.42f, 0.5f);
+
+        out.color = vec4f(mix(in.vColor.rgb * light, fogColor, fog), 1.0f);
     } else {
         discard;
     }
