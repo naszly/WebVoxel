@@ -91,18 +91,22 @@ Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
 }
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {
-    if (const auto neighbor = tryGetChunk(key)) {
-        neighbor->setDirty();
+    if (const auto chunk = tryGetChunk(key)) {
+        chunk->setDirty();
     }
 }
 
 void ChunkMap::setNeighboursDirty(const glm::ivec3 &key) {
-    setChunkDirty(key + glm::ivec3(-1, 0, 0));
-    setChunkDirty(key + glm::ivec3(1, 0, 0));
-    setChunkDirty(key + glm::ivec3(0, -1, 0));
-    setChunkDirty(key + glm::ivec3(0, 1, 0));
-    setChunkDirty(key + glm::ivec3(0, 0, -1));
-    setChunkDirty(key + glm::ivec3(0, 0, 1));
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                if (x == 0 && y == 0 && z == 0) {
+                    continue;
+                }
+                setChunkDirty(key + glm::ivec3(x, y, z));
+            }
+        }
+    }
 }
 
 void ChunkMap::setNeighboursDirtyIfEdge(const glm::ivec3 &key, const glm::ivec3 &pos) {
@@ -123,5 +127,68 @@ void ChunkMap::setNeighboursDirtyIfEdge(const glm::ivec3 &key, const glm::ivec3 
     }
     if (pos.z == Chunk::SIZE - 1) {
         setChunkDirty(key + glm::ivec3(0, 0, 1));
+    }
+
+    if (pos.x == 0 && pos.y == 0) {
+        setChunkDirty(key + glm::ivec3(-1, -1, 0));
+    }
+    if (pos.x == 0 && pos.y == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(-1, 1, 0));
+    }
+    if (pos.x == 0 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(-1, 0, -1));
+    }
+    if (pos.x == 0 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(-1, 0, 1));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.y == 0) {
+        setChunkDirty(key + glm::ivec3(1, -1, 0));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.y == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(1, 1, 0));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(1, 0, -1));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(1, 0, 1));
+    }
+    if (pos.y == 0 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(0, -1, -1));
+    }
+    if (pos.y == 0 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(0, -1, 1));
+    }
+    if (pos.y == Chunk::SIZE - 1 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(0, 1, -1));
+    }
+    if (pos.y == Chunk::SIZE - 1 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(0, 1, 1));
+    }
+
+
+    if (pos.x == 0 && pos.y == 0 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(-1, -1, -1));
+    }
+    if (pos.x == 0 && pos.y == 0 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(-1, -1, 1));
+    }
+    if (pos.x == 0 && pos.y == Chunk::SIZE - 1 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(-1, 1, -1));
+    }
+    if (pos.x == 0 && pos.y == Chunk::SIZE - 1 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(-1, 1, 1));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.y == 0 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(1, -1, -1));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.y == 0 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(1, -1, 1));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.y == Chunk::SIZE - 1 && pos.z == 0) {
+        setChunkDirty(key + glm::ivec3(1, 1, -1));
+    }
+    if (pos.x == Chunk::SIZE - 1 && pos.y == Chunk::SIZE - 1 && pos.z == Chunk::SIZE - 1) {
+        setChunkDirty(key + glm::ivec3(1, 1, 1));
     }
 }

@@ -8,6 +8,28 @@ ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) const {
         .yPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
         .zMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
         .zPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
+
+        .xMinusYMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, 0)),
+        .xMinusYPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, 0)),
+        .xMinusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, -1)),
+        .xMinusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 1)),
+        .xPlusYMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, 0)),
+        .xPlusYPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, 0)),
+        .xPlusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, -1)),
+        .xPlusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 1)),
+        .yMinusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, -1)),
+        .yMinusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 1)),
+        .yPlusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, -1)),
+        .yPlusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 1)),
+
+        .xMinusYMinusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, -1)),
+        .xMinusYMinusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, 1)),
+        .xMinusYPlusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, -1)),
+        .xMinusYPlusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, 1)),
+        .xPlusYMinusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, -1)),
+        .xPlusYMinusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, 1)),
+        .xPlusYPlusZMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, -1)),
+        .xPlusYPlusZPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, 1))
     };
 }
 

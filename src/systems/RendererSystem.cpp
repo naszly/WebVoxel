@@ -130,7 +130,7 @@ void RendererSystem::update(float dt) {
             auto position = chunk.getPosition();
             auto neighbours = world.getChunkNeighbours(position);
 
-            if (neighbours.count() < 6) {
+            if (!neighbours.hasAllNeighbours()) {
                 continue;
             }
 
@@ -242,58 +242,62 @@ void RendererSystem::createRenderPipeline() {
 
     // Configure the instance buffer layout
     WGPUVertexBufferLayout voxelVertexBufferLayout{};
-    std::vector<WGPUVertexAttribute> voxelAttributes{};
-
-    // Position
-    voxelAttributes.push_back({
-        .format = WGPUVertexFormat_Uint32,
-        .offset = 0,
-        .shaderLocation = 1,
-    });
-
-    // Color
-    voxelAttributes.push_back({
-        .format = WGPUVertexFormat_Uint32,
-        .offset = 4 * sizeof(uint8_t),
-        .shaderLocation = 2,
-    });
+    std::array voxelAttributes{
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = 0,
+            .shaderLocation = 1,
+        },
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = sizeof(uint32_t),
+            .shaderLocation = 2,
+        },
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = 2 * sizeof(uint32_t),
+            .shaderLocation = 3,
+        },
+    };
 
     voxelVertexBufferLayout.attributeCount = voxelAttributes.size();
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
-    voxelVertexBufferLayout.arrayStride = 8 * sizeof(uint8_t);
+    voxelVertexBufferLayout.arrayStride = 3 * sizeof(uint32_t);
     voxelVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
     WGPUVertexBufferLayout chunkVertexBufferLayout{};
-    std::vector<WGPUVertexAttribute> chunkAttributes{};
-
-    chunkAttributes.push_back({
-        .format = WGPUVertexFormat_Float32x4,
-        .offset = 0,
-        .shaderLocation = 3,
-    });
+    std::array chunkAttributes{
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Float32x4,
+            .offset = 0,
+            .shaderLocation = 4,
+        }
+    };
 
     chunkVertexBufferLayout.attributeCount = chunkAttributes.size();
     chunkVertexBufferLayout.attributes = chunkAttributes.data();
     chunkVertexBufferLayout.arrayStride = 0;
     chunkVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
-    WGPUVertexBufferLayout bufferLayouts[] = {
-        billboardVertexBufferLayout, voxelVertexBufferLayout, chunkVertexBufferLayout
+    std::array bufferLayouts{
+        billboardVertexBufferLayout,
+        voxelVertexBufferLayout,
+        chunkVertexBufferLayout
     };
 
-    WGPUConstantEntry pipelineConstant[]{
-        {
+    std::array pipelineConstant{
+        WGPUConstantEntry{
             .key = "CHUNK_SIZE",
             .value = Chunk::SIZE,
         }
     };
 
-    pipelineDesc.vertex.bufferCount = sizeof(bufferLayouts) / sizeof(WGPUVertexBufferLayout);
-    pipelineDesc.vertex.buffers = bufferLayouts;
+    pipelineDesc.vertex.bufferCount = bufferLayouts.size();
+    pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
-    pipelineDesc.vertex.constantCount = sizeof(pipelineConstant) / sizeof(WGPUConstantEntry);
-    pipelineDesc.vertex.constants = pipelineConstant;
+    pipelineDesc.vertex.constantCount = pipelineConstant.size();
+    pipelineDesc.vertex.constants = pipelineConstant.data();
 
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
@@ -489,4 +493,142 @@ void RendererSystem::InitializeBuffers() {
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
     uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
+}
+
+RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const glm::ivec3 position,
+    const ChunkBitmap &bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel) {
+    ChunkVertexBuffer vertexBuffer;
+
+    static std::vector<VertexData> points;
+    points.clear();
+
+    getVertices(bitmap, getVoxel, points);
+
+    const auto device = GetWebGPUContext().getDevice();
+    const auto queue = wgpuDeviceGetQueue(device);
+
+    const auto chunkPosition = glm::vec4(position, 0.0f);
+
+    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
+
+    WGPUBufferDescriptor descriptor{};
+    descriptor.size = bufferSize;
+    descriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+    descriptor.mappedAtCreation = false;
+    descriptor.label = "Chunk Vertex Buffer";
+
+    vertexBuffer.buffer = wgpuDeviceCreateBuffer(device, &descriptor);
+    vertexBuffer.vertexCount = points.size();
+
+    static std::vector<uint8_t> data;
+    if (data.size() < bufferSize) {
+        data.resize(bufferSize);
+    }
+
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
+    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
+
+    wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
+
+    return vertexBuffer;
+}
+
+void RendererSystem::getVertices(const ChunkBitmap &bitmap,
+    const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel, std::vector<VertexData> &vertices) {
+
+    for (uint32_t x = 1; x < BITMAP_SIZE - 1; x++) {
+        for (uint32_t y = 1; y < BITMAP_SIZE - 1; y++) {
+            for (uint32_t z = 1; z < BITMAP_SIZE - 1; z++) {
+                const uint32_t i = x * BITMAP_SIZE * BITMAP_SIZE + y * BITMAP_SIZE + z;
+
+                if (!bitmap.test(i)) {
+                    continue;
+                }
+
+                const bool isVisible =
+                        !(bitmap.test(i-1) && bitmap.test(i+1) &&
+                          bitmap.test(i-BITMAP_SIZE) && bitmap.test(i+BITMAP_SIZE) &&
+                          bitmap.test(i-BITMAP_SIZE*BITMAP_SIZE) && bitmap.test(i+BITMAP_SIZE*BITMAP_SIZE));
+
+                if (isVisible) {
+                    const uint8_t vx = x-1;
+                    const uint8_t vy = y-1;
+                    const uint8_t vz = z-1;
+
+                    const auto& voxel = getVoxel(vx, vy, vz);
+
+                    auto ao = AmbientOcclusion::None;
+
+                    auto test = [&](const int dx, const int dy, const int dz) {
+                        return bitmap.test((x+dx) * BITMAP_SIZE * BITMAP_SIZE + (y+dy) * BITMAP_SIZE + (z+dz));
+                    };
+
+                    // check corners
+                    if (test(-1, -1, -1)) {
+                        ao |= AmbientOcclusion::CornerNxNyNz;
+                    }
+                    if (test(-1, -1, 1)) {
+                        ao |= AmbientOcclusion::CornerNxNyPz;
+                    }
+                    if (test(-1, 1, -1)) {
+                        ao |= AmbientOcclusion::CornerNxPyNz;
+                    }
+                    if (test(-1, 1, 1)) {
+                        ao |= AmbientOcclusion::CornerNxPyPz;
+                    }
+                    if (test(1, -1, -1)) {
+                        ao |= AmbientOcclusion::CornerPxNyNz;
+                    }
+                    if (test(1, -1, 1)) {
+                        ao |= AmbientOcclusion::CornerPxNyPz;
+                    }
+                    if (test(1, 1, -1)) {
+                        ao |= AmbientOcclusion::CornerPxPyNz;
+                    }
+                    if (test(1, 1, 1)) {
+                        ao |= AmbientOcclusion::CornerPxPyPz;
+                    }
+
+                    if (test(-1, -1, 0)) {
+                        ao |= AmbientOcclusion::EdgeNxNy;
+                    }
+                    if (test(-1, 1, 0)) {
+                        ao |= AmbientOcclusion::EdgeNxPy;
+                    }
+                    if (test(1, -1, 0)) {
+                        ao |= AmbientOcclusion::EdgePxNy;
+                    }
+                    if (test(1, 1, 0)) {
+                        ao |= AmbientOcclusion::EdgePxPy;
+                    }
+                    if (test(-1, 0, -1)) {
+                        ao |= AmbientOcclusion::EdgeNxNz;
+                    }
+                    if (test(-1, 0, 1)) {
+                        ao |= AmbientOcclusion::EdgeNxPz;
+                    }
+                    if (test(1, 0, -1)) {
+                        ao |= AmbientOcclusion::EdgePxNz;
+                    }
+                    if (test(1, 0, 1)) {
+                        ao |= AmbientOcclusion::EdgePxPz;
+                    }
+                    if (test(0, -1, -1)) {
+                        ao |= AmbientOcclusion::EdgeNyNz;
+                    }
+                    if (test(0, -1, 1)) {
+                        ao |= AmbientOcclusion::EdgeNyPz;
+                    }
+                    if (test(0, 1, -1)) {
+                        ao |= AmbientOcclusion::EdgePyNz;
+                    }
+                    if (test(0, 1, 1)) {
+                        ao |= AmbientOcclusion::EdgePyPz;
+                    }
+
+                    vertices.emplace_back(VertexData{vx, vy, vz, 1, voxel, ao});
+                }
+            }
+        }
+    }
 }

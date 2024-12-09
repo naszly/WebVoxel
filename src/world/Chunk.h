@@ -19,15 +19,35 @@ struct ChunkNeighbours {
     const Chunk* zMinus{nullptr};
     const Chunk* zPlus{nullptr};
 
-    [[nodiscard]] size_t count() const {
-        size_t count = 0;
-        if (xMinus) count++;
-        if (xPlus) count++;
-        if (yMinus) count++;
-        if (yPlus) count++;
-        if (zMinus) count++;
-        if (zPlus) count++;
-        return count;
+    const Chunk* xMinusYMinus{nullptr};
+    const Chunk* xMinusYPlus{nullptr};
+    const Chunk* xMinusZMinus{nullptr};
+    const Chunk* xMinusZPlus{nullptr};
+    const Chunk* xPlusYMinus{nullptr};
+    const Chunk* xPlusYPlus{nullptr};
+    const Chunk* xPlusZMinus{nullptr};
+    const Chunk* xPlusZPlus{nullptr};
+    const Chunk* yMinusZMinus{nullptr};
+    const Chunk* yMinusZPlus{nullptr};
+    const Chunk* yPlusZMinus{nullptr};
+    const Chunk* yPlusZPlus{nullptr};
+
+    const Chunk* xMinusYMinusZMinus{nullptr};
+    const Chunk* xMinusYMinusZPlus{nullptr};
+    const Chunk* xMinusYPlusZMinus{nullptr};
+    const Chunk* xMinusYPlusZPlus{nullptr};
+    const Chunk* xPlusYMinusZMinus{nullptr};
+    const Chunk* xPlusYMinusZPlus{nullptr};
+    const Chunk* xPlusYPlusZMinus{nullptr};
+    const Chunk* xPlusYPlusZPlus{nullptr};
+
+    [[nodiscard]] bool hasAllNeighbours() const {
+        return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus &&
+               xMinusYMinus && xMinusYPlus && xMinusZMinus && xMinusZPlus &&
+               xPlusYMinus && xPlusYPlus && xPlusZMinus && xPlusZPlus &&
+               yMinusZMinus && yMinusZPlus && yPlusZMinus && yPlusZPlus &&
+               xMinusYMinusZMinus && xMinusYMinusZPlus && xMinusYPlusZMinus && xMinusYPlusZPlus &&
+               xPlusYMinusZMinus && xPlusYMinusZPlus && xPlusYPlusZMinus && xPlusYPlusZPlus;
     }
 };
 
@@ -98,11 +118,10 @@ public:
         return m_Data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
-
 private:
     glm::ivec3 m_Position{};
     SparseVoxelOctTree m_Data{};
     bool m_Dirty{true};
 
-    static SparseVoxelOctTree::Neighbours getNeighbours(const ChunkNeighbours &chunkNeighbours);
+    static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChunkNeighbours &chunkNeighbours);
 };
