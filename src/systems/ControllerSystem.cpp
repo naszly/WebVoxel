@@ -1,6 +1,10 @@
 
 #include "ControllerSystem.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#endif
+
 #include "../Application.h"
 #include "../KeyEvent.h"
 #include "../MouseEvent.h"
@@ -43,6 +47,17 @@ void ControllerSystem::onEvent(Event &event) {
         static double lastX = xPos;
         static double lastY = yPos;
         static bool firstMouse = true;
+
+#ifdef __EMSCRIPTEN__
+        {
+            EmscriptenPointerlockChangeEvent pointerlockStatus;
+            emscripten_get_pointerlock_status(&pointerlockStatus);
+            if (isMouseCaptured != pointerlockStatus.isActive) {
+                isMouseCaptured = pointerlockStatus.isActive;
+                input.setCursorMode(isMouseCaptured ? Disabled : Normal);
+            }
+        }
+#endif
 
         if (!isMouseCaptured) {
             firstMouse = true;
