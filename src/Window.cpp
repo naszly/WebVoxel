@@ -9,7 +9,15 @@
 
 
 Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventCallback) {
-    glfwInit();
+
+    glfwSetErrorCallback([](const int error, const char* description) {
+        LogCore::error("GLFW Error ({0}): {1}", error, description);
+    });
+
+    if (!glfwInit()) {
+        LogCore::critical("Failed to initialize GLFW");
+        return;
+    }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -101,8 +109,8 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
 
 Window::~Window() {
     m_WebGPUSurface = nullptr;
-    glfwTerminate();
     glfwDestroyWindow(m_Window);
+    glfwTerminate();
 }
 
 bool Window::shouldClose() {
