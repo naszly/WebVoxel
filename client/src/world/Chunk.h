@@ -9,6 +9,8 @@
 #include "../Utils.h"
 #include "../WebGPUContext.h"
 
+#include <FastNoise/FastNoise.h>
+
 class Chunk;
 
 struct ChunkNeighbours {
@@ -63,7 +65,7 @@ public:
         return *this;
     }
 
-    void generate();
+    void generate(const FastNoise::SmartNode<> &fnGenerator);
 
     [[nodiscard]] glm::ivec3 getPosition() const {
         return m_Position;

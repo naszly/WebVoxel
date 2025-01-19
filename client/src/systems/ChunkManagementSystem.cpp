@@ -86,9 +86,9 @@ void ChunkManagementSystem::worker(void *arg) {
         } else {
             const auto chunkPos = chunkToLoad.value();
             Chunk chunk(chunkPos);
-            if (chunkPos.y < 0) {
-                chunk.generate();
-            }
+
+            chunk.generate(system->fnGenerator);
+
             chunkToLoad = std::nullopt;
 
             Threading::ScopedLock lock(&system->m_Lock);

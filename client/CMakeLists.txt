@@ -88,12 +88,20 @@ file(GLOB IMGUI_SOURCES
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp)
 
+# FastNoise2
+FetchContent_Declare(
+    FastNoise2
+    GIT_REPOSITORY https://github.com/uriel-4/FastNoise2
+    GIT_TAG master
+    GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable(FastNoise2)
 
 file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
 
-target_link_libraries(${PROJECT_NAME} glm::glm webgpu glfw glfw3webgpu spdlog::spdlog magic_enum::magic_enum)
+target_link_libraries(${PROJECT_NAME} glm::glm webgpu glfw glfw3webgpu spdlog::spdlog magic_enum::magic_enum FastNoise2)
 target_include_directories(${PROJECT_NAME} PRIVATE ${webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${glfw3webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)

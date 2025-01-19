@@ -3,6 +3,8 @@
 #include "System.h"
 #include "../Thread.h"
 
+#include <FastNoise/FastNoise.h>
+
 class ChunkManagementSystem final : public System {
 public:
     void initialize() override;
@@ -21,6 +23,8 @@ private:
     static constexpr int m_LoadRadius = 8;
     static constexpr int m_UnloadRadius = 10;
     static_assert(m_LoadRadius < m_UnloadRadius, "Load radius must be less than unload radius");
+
+    const FastNoise::SmartNode<> fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
 
     std::vector<glm::ivec3> m_LoadQueue;
     std::vector<Chunk> m_LoadedChunks;
