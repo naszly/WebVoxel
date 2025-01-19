@@ -73,8 +73,6 @@ void WebGPUContext::requestAdapter() {
 }
 
 void WebGPUContext::logAdapterLimits() const {
-
-#ifndef __EMSCRIPTEN__
     WGPUSupportedLimits supportedLimits = {};
     supportedLimits.nextInChain = nullptr;
 
@@ -122,8 +120,6 @@ void WebGPUContext::logAdapterLimits() const {
     LogCore::info("  maxComputeWorkgroupSizeY: {0}", supportedLimits.limits.maxComputeWorkgroupSizeY);
     LogCore::info("  maxComputeWorkgroupSizeZ: {0}", supportedLimits.limits.maxComputeWorkgroupSizeZ);
     LogCore::info("  maxComputeWorkgroupsPerDimension: {0}", supportedLimits.limits.maxComputeWorkgroupsPerDimension);
-
-#endif // NOT __EMSCRIPTEN__
 }
 
 void WebGPUContext::logAdapterFeatures() const {
