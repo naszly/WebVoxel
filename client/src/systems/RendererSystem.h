@@ -101,25 +101,27 @@ private:
     }
 
     static void getVertices(const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel, std::vector<VertexData>& vertices) {
+        constexpr uint32_t BITMAP_SIZE_SQUARED = BITMAP_SIZE * BITMAP_SIZE;
 
-        for (uint32_t x = 1; x < BITMAP_SIZE - 1; x++) {
-            for (uint32_t y = 1; y < BITMAP_SIZE - 1; y++) {
-                for (uint32_t z = 1; z < BITMAP_SIZE - 1; z++) {
-                    const uint32_t i = x * BITMAP_SIZE * BITMAP_SIZE + y * BITMAP_SIZE + z;
+        for (uint32_t i = BITMAP_SIZE_SQUARED; i < BITMAP_SIZE_SQUARED * (BITMAP_SIZE - 1); i++) {
+            if (i % ChunkBitmap::WORD_SIZE == 0 && !bitmap.testWord(i / ChunkBitmap::WORD_SIZE)) {
+                i += ChunkBitmap::WORD_SIZE - 1;
+                continue;
+            }
 
-                    if (!bitmap.test(i)) {
-                        continue;
-                    }
+            const bool isVisible = bitmap.test(i) &
+                !(bitmap.test(i-1) & bitmap.test(i+1) &
+                  bitmap.test(i-BITMAP_SIZE) & bitmap.test(i+BITMAP_SIZE) &
+                  bitmap.test(i-BITMAP_SIZE_SQUARED) & bitmap.test(i+BITMAP_SIZE_SQUARED));
 
-                    const bool isVisible =
-                        !(bitmap.test(i-1) && bitmap.test(i+1) &&
-                          bitmap.test(i-BITMAP_SIZE) && bitmap.test(i+BITMAP_SIZE) &&
-                          bitmap.test(i-BITMAP_SIZE*BITMAP_SIZE) && bitmap.test(i+BITMAP_SIZE*BITMAP_SIZE));
+            if (isVisible) {
+                const uint32_t x = (i / (BITMAP_SIZE_SQUARED)) - 1;
+                const uint32_t y = ((i % (BITMAP_SIZE_SQUARED)) / BITMAP_SIZE) - 1;
+                const uint32_t z = (i % BITMAP_SIZE) - 1;
 
-                    if (isVisible) {
-                        const auto& voxel = getVoxel(x-1, y-1, z-1);
-                        vertices.emplace_back(x-1, y-1, z-1, 1, voxel);
-                    }
+                if (x < Chunk::SIZE && y < Chunk::SIZE && z < Chunk::SIZE) {
+                    const auto& voxel = getVoxel(x, y, z);
+                    vertices.emplace_back(x, y, z, 1, voxel);
                 }
             }
         }

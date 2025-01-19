@@ -1,32 +1,40 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <cassert>
-#include <algorithm>
 
 template<uint32_t SIZE>
 class Bitmap {
+    using data_t = uint_fast32_t;
 public:
+    static constexpr uint32_t WORD_SIZE = sizeof(data_t);
+
     Bitmap() {
-        std::fill_n(&data[0], SIZE / sizeof(data_t), 0);
+        memset(data, 0, sizeof(data));
     }
 
     void set(const uint32_t i) {
         assert(i < SIZE); [[assume(i < SIZE)]];
-        data[i / sizeof(data_t)] |= 1 << (i % sizeof(data_t));
+        data[i / WORD_SIZE] |= 1u << (i % WORD_SIZE);
     }
 
     void clear(const uint32_t i) {
         assert(i < SIZE); [[assume(i < SIZE)]];
-        data[i / sizeof(data_t)] &= ~(1 << (i % sizeof(data_t)));
+        data[i / WORD_SIZE] &= ~(1u << (i % WORD_SIZE));
     }
 
     [[nodiscard]] bool test(const uint32_t i) const {
         assert(i < SIZE); [[assume(i < SIZE)]];
-        return data[i / sizeof(data_t)] & (1 << (i % sizeof(data_t)));
+        return (data[i / WORD_SIZE] >> (i % WORD_SIZE)) & 1u;
+    }
+
+    [[nodiscard]] bool testWord(const uint32_t i) const {
+        assert(i < DATA_SIZE); [[assume(i < DATA_SIZE)]];
+        return data[i];
     }
 
 private:
-    using data_t = uint8_t;
-    data_t data[SIZE / sizeof(data_t)]{};
+    static constexpr uint32_t DATA_SIZE = SIZE / WORD_SIZE + (SIZE % WORD_SIZE != 0);
+    data_t data[DATA_SIZE]{};
 };
