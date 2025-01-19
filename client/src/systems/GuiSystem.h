@@ -10,4 +10,7 @@ public:
     void onEvent(Event& event) override;
 
     GuiSystem() : System() {}
+
+private:
+    static void setImGuiDisplaySize();
 };

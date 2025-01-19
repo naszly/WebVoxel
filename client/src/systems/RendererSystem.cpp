@@ -65,6 +65,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
     renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
     renderPassDesc.timestampWrites = nullptr;
+    renderPassDesc.label = "RendererSystem RenderPass";
 
     Application &app = Application::GetInstance();
     auto &appData = app.getApplicationData();

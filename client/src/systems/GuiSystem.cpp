@@ -45,10 +45,22 @@ void GuiSystem::initialize() {
 
 }
 
+void GuiSystem::setImGuiDisplaySize() {
+    ImGuiIO& io = ImGui::GetIO();
+
+    const int surfaceWidth = GetWebGPUSurface().getWidth();
+    const int surfaceHeight = GetWebGPUSurface().getHeight();
+
+    io.DisplaySize = ImVec2(static_cast<float>(surfaceWidth), static_cast<float>(surfaceHeight));
+    io.DisplayFramebufferScale = ImVec2(1, 1);
+}
+
 void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) {
 
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplGlfw_NewFrame();
+
+    setImGuiDisplaySize();
 
     ImGui::NewFrame();
 
@@ -118,6 +130,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
     renderPassDesc.depthStencilAttachment = nullptr;
+    renderPassDesc.label = "GuiSystem RenderPass";
 
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
