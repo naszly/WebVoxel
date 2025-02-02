@@ -151,6 +151,8 @@ if(EMSCRIPTEN)
             -sEXIT_RUNTIME
             -sUSE_PTHREADS
             -sPTHREAD_POOL_SIZE=4
+            -sFORCE_FILESYSTEM=1
+            -lidbfs.js
     )
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${PROJECT_SOURCE_DIR}/shell.html")

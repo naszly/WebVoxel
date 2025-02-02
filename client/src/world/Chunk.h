@@ -100,6 +100,9 @@ public:
         return m_Data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
+    void save(const std::string &fileName) const;
+
+    void load(const std::string& fileName);
 
 private:
     glm::ivec3 m_Position{};

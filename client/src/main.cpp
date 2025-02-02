@@ -1,3 +1,7 @@
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+#endif
+
 #include "Log.h"
 #include "Application.h"
 #include "systems/ChunkManagementSystem.h"
@@ -6,6 +10,34 @@
 #include "systems/RendererSystem.h"
 
 int main() {
+
+#if defined(__EMSCRIPTEN__)
+    EM_ASM(
+        let pathInfo = FS.analyzePath("/workdir");
+
+        if (!pathInfo.exists) {
+            FS.mkdir('/workdir');
+            console.log("Created /workdir directory");
+        }
+
+        FS.mount(IDBFS, { autoPersist: true }, '/workdir');
+
+        FS.syncfs(true, function (err) {
+            console.log(FS.readdir('/workdir'));
+            if (err) {
+                console.error(err);
+            } else {
+                console.log("Synced file system");
+            }
+        });
+
+        // log files in /workdir
+        FS.readdir('/workdir').forEach(function (file) {
+            console.log(file);
+        });
+    );
+#endif
+
     LogCore::info("Hello, World!");
 
     Application& app = Application::GetInstance();
