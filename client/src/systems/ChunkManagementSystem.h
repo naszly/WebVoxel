@@ -41,5 +41,5 @@ private:
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
-    static void worker(void *system);
+    static void* worker(void *system);
 };

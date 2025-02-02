@@ -70,7 +70,7 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
     return glm::distance(glm::vec3(chunkPos), glm::vec3(WorldCoordinate(playerPosition).chunkPosition()));
 }
 
-void ChunkManagementSystem::worker(void *arg) {
+void* ChunkManagementSystem::worker(void *arg) {
     const auto system = static_cast<ChunkManagementSystem*>(arg);
     std::optional<glm::ivec3> chunkToLoad = std::nullopt;
     while (!system->m_ShouldExit) {
@@ -99,4 +99,6 @@ void ChunkManagementSystem::worker(void *arg) {
             }
         }
     }
+
+    return nullptr;
 }

@@ -10,8 +10,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
 if (EMSCRIPTEN)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -matomics -mbulk-memory")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -matomics -mbulk-memory")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -matomics -mbulk-memory -pthread")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -matomics -mbulk-memory -pthread")
 endif()
 
 set(DAWN_USE_WAYLAND ON)
@@ -149,7 +149,8 @@ if(EMSCRIPTEN)
             -sALLOW_MEMORY_GROWTH
             -sMAXIMUM_MEMORY=4294967296 # 4GB
             -sEXIT_RUNTIME
-            -sWASM_WORKERS
+            -sUSE_PTHREADS
+            -sPTHREAD_POOL_SIZE=4
     )
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${PROJECT_SOURCE_DIR}/shell.html")
