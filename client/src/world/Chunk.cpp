@@ -4,6 +4,8 @@
 #include "../Timer.h"
 #include "../FileSytem.h"
 
+#include <zlib.h>
+
 void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
     const Timer timer("Chunk::generate");
 
@@ -30,34 +32,65 @@ void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
     }
 }
 
+int compress_vector(const std::vector<char> &source, std::vector<char> &destination) {
+    const auto source_data = reinterpret_cast<const Bytef *>(source.data());
+    const unsigned long source_length = source.size();
+
+    uLongf destination_length = compressBound(source_length);
+    destination.resize(destination_length);
+    auto *destination_data = reinterpret_cast<Bytef *>(destination.data());
+
+    const int return_value = compress2(destination_data, &destination_length, source_data, source_length, Z_BEST_COMPRESSION);
+    return return_value;
+}
+
+int decompress_vector(const std::vector<char> &source, std::vector<char> &destination) {
+    const auto source_data = reinterpret_cast<const Bytef *>(source.data());
+    unsigned long source_length = source.size();
+
+    const auto destination_data = reinterpret_cast<Bytef *>(destination.data());
+    uLongf destination_length = destination.size();
+
+    const int return_value = uncompress2(destination_data, &destination_length, source_data, &source_length);
+    return return_value;
+}
+
 void Chunk::save(const std::string &fileName) const {
-    std::vector<VoxelData> data(SIZE * SIZE * SIZE);
+    std::vector<char> data(SIZE * SIZE * SIZE * sizeof(VoxelData));
+    const auto voxels = reinterpret_cast<VoxelData*>(data.data());
 
     for (uint32_t x = 0; x < SIZE; x++) {
         for (uint32_t y = 0; y < SIZE; y++) {
             for (uint32_t z = 0; z < SIZE; z++) {
-                data[x * SIZE * SIZE + y * SIZE + z] = getVoxel(x, y, z);
+                const auto index = x * SIZE * SIZE + y * SIZE + z;
+                voxels[index] = getVoxel(x, y, z);
             }
         }
     }
 
-    const auto buffer = reinterpret_cast<const char*>(data.data());
-    const size_t size = data.size() * sizeof(VoxelData);
+    std::vector<char> compressedBuffer;
 
-    FileSystem::WriteFile(fileName, buffer, size);
+    compress_vector(data, compressedBuffer);
+
+    FileSystem::WriteFile(fileName, compressedBuffer.data(), compressedBuffer.size());
 }
 
 void Chunk::load(const std::string &fileName) {
     Timer timer("Chunk::load");
 
-    const auto buffer = FileSystem::ReadFile(fileName);
+    const std::vector<char> compressedData = FileSystem::ReadFile(fileName);
 
-    const auto* voxels = reinterpret_cast<const VoxelData*>(buffer.data());
+    std::vector<char> data(SIZE * SIZE * SIZE * sizeof(VoxelData));
+
+    decompress_vector(compressedData, data);
+
+    const auto voxels = reinterpret_cast<const VoxelData*>(data.data());
 
     for (uint32_t x = 0; x < SIZE; x++) {
         for (uint32_t y = 0; y < SIZE; y++) {
             for (uint32_t z = 0; z < SIZE; z++) {
-                setVoxel(voxels[x * SIZE * SIZE + y * SIZE + z], x, y, z);
+                const auto index = x * SIZE * SIZE + y * SIZE + z;
+                setVoxel(voxels[index], x, y, z);
             }
         }
     }
