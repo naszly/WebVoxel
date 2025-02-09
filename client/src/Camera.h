@@ -14,7 +14,7 @@ public:
     Camera& operator=(const Camera&) = delete;
 
     constexpr static float NEAR = 0.01f;
-    constexpr static float FAR = 1000.0f;
+    constexpr static float FAR = 4000.0f;
 
     void setPerspective(const float fov, const float aspect) {
         m_projection = glm::perspective(fov, aspect, NEAR, FAR);
