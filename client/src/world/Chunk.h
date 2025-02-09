@@ -100,14 +100,20 @@ public:
         return m_Data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
-    void save(const std::string &fileName) const;
+    [[nodiscard]] bool fileExists() const;
 
-    void load(const std::string& fileName);
+    void save();
+
+    void load();
 
 private:
     glm::ivec3 m_Position{};
     SparseVoxelOctTree m_Data{};
     bool m_Dirty{true};
+
+    [[nodiscard]] std::string getFileName() const {
+        return std::to_string(m_Position.x) + "." + std::to_string(m_Position.y) + "." + std::to_string(m_Position.z) + ".chunk";
+    }
 
     static SparseVoxelOctTree::Neighbours getNeighbours(const ChunkNeighbours &chunkNeighbours);
 };

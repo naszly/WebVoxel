@@ -55,7 +55,15 @@ int decompress_vector(const std::vector<char> &source, std::vector<char> &destin
     return return_value;
 }
 
-void Chunk::save(const std::string &fileName) const {
+bool Chunk::fileExists() const {
+    const std::string &fileName = getFileName();
+
+    return FileSystem::FileExists(fileName);
+}
+
+void Chunk::save() {
+    const std::string &fileName = getFileName();
+
     std::vector<char> data(SIZE * SIZE * SIZE * sizeof(VoxelData));
     const auto voxels = reinterpret_cast<VoxelData*>(data.data());
 
@@ -75,8 +83,10 @@ void Chunk::save(const std::string &fileName) const {
     FileSystem::WriteFile(fileName, compressedBuffer.data(), compressedBuffer.size());
 }
 
-void Chunk::load(const std::string &fileName) {
+void Chunk::load() {
     Timer timer("Chunk::load");
+
+    const std::string &fileName = getFileName();
 
     const std::vector<char> compressedData = FileSystem::ReadFile(fileName);
 

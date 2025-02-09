@@ -1,7 +1,5 @@
 #include "ChunkManagementSystem.h"
 
-#include "../FileSytem.h"
-
 void ChunkManagementSystem::initialize() {
     m_LoadChunksWorker.start(worker, this);
 }
@@ -89,15 +87,13 @@ void* ChunkManagementSystem::worker(void *arg) {
             const auto chunkPos = chunkToLoad.value();
             Chunk chunk(chunkPos);
 
-            const auto fileName = std::to_string(chunkPos.x) + "." + std::to_string(chunkPos.y) + "." + std::to_string(chunkPos.z) + ".chunk";
-
-            const bool existingChunk = FileSystem::FileExists(fileName);
+            const bool existingChunk = chunk.fileExists();
 
             if (existingChunk) {
-                chunk.load(fileName);
+                chunk.load();
             } else {
                 chunk.generate(system->fnGenerator);
-                chunk.save(fileName);
+                chunk.save();
             }
 
             chunkToLoad = std::nullopt;
