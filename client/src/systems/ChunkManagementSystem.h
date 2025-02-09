@@ -20,8 +20,8 @@ public:
     }
 
 private:
-    static constexpr int m_LoadRadius = 8;
-    static constexpr int m_UnloadRadius = 10;
+    static constexpr int m_LoadRadius = 10;
+    static constexpr int m_UnloadRadius = 12;
     static_assert(m_LoadRadius < m_UnloadRadius, "Load radius must be less than unload radius");
 
     const FastNoise::SmartNode<> fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");

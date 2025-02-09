@@ -70,7 +70,9 @@ void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
 }
 
 float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, const glm::ivec3 chunkPos) {
-    return glm::distance(glm::vec3(chunkPos), glm::vec3(WorldCoordinate(playerPosition).chunkPosition()));
+    const auto transformedPlayerPosition = playerPosition * glm::vec3(1.0f, 1.33f, 1.0f);
+    const auto transformedChunkPos = glm::vec3(chunkPos) * glm::vec3(1.0f, 1.33f, 1.0f);
+    return glm::distance(glm::vec3(transformedChunkPos), glm::vec3(WorldCoordinate(transformedPlayerPosition).chunkPosition()));
 }
 
 void* ChunkManagementSystem::worker(void *arg) {
