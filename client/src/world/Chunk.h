@@ -21,15 +21,8 @@ struct ChunkNeighbours {
     const Chunk* zMinus{nullptr};
     const Chunk* zPlus{nullptr};
 
-    [[nodiscard]] size_t count() const {
-        size_t count = 0;
-        if (xMinus) count++;
-        if (xPlus) count++;
-        if (yMinus) count++;
-        if (yPlus) count++;
-        if (zMinus) count++;
-        if (zPlus) count++;
-        return count;
+    [[nodiscard]] bool hasAllNeighbours() const {
+        return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus;
     }
 };
 

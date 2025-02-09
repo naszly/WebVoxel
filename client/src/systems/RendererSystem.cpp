@@ -11,12 +11,12 @@ void RendererSystem::initialize() {
 
     m_Queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
 
-    m_viewportWidth = GetWebGPUSurface().getWidth();
-    m_viewportHeight = GetWebGPUSurface().getHeight();
+    m_ViewportWidth = GetWebGPUSurface().getWidth();
+    m_ViewportHeight = GetWebGPUSurface().getHeight();
 
     Camera &camera = Application::GetInstance().getCamera();
-    constexpr float fov = glm::radians(66.0);
-    camera.setPerspective(fov, (float) m_viewportWidth / (float) m_viewportHeight);
+
+    camera.setPerspective(FOV, static_cast<float>(m_ViewportWidth) / static_cast<float>(m_ViewportHeight));
 
     InitializeBuffers();
     createDepthTexture();
@@ -26,16 +26,16 @@ void RendererSystem::initialize() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     const Camera &camera = Application::GetInstance().getCamera();
 
-    uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
-    uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
-    uniformData.cameraPosition = camera.getPosition();
-    uniformData.fov = glm::radians(66.0);
-    uniformData.viewportSize = {m_viewportWidth, m_viewportHeight};
-    uniformData.nearPlane = Camera::NEAR;
-    uniformData.farPlane = Camera::FAR;
+    m_UniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
+    m_UniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
+    m_UniformData.cameraPosition = camera.getPosition();
+    m_UniformData.fov = FOV;
+    m_UniformData.viewportSize = {m_ViewportWidth, m_ViewportHeight};
+    m_UniformData.nearPlane = Camera::NEAR;
+    m_UniformData.farPlane = Camera::FAR;
 
     // Update uniform buffer data
-    wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));
+    wgpuQueueWriteBuffer(m_Queue, m_UniformBuffer, 0, &m_UniformData, sizeof(Uniforms));
 
     // Create the render pass that clears the screen with our color
     WGPURenderPassDescriptor renderPassDesc = {};
@@ -43,7 +43,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     // The attachment part of the render pass descriptor describes the target texture of the pass
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = multisampleColorTextureView;
+    renderPassColorAttachment.view = m_MultisampleColorTextureView;
     renderPassColorAttachment.resolveTarget = targetView; // Resolve to the target view
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
@@ -53,7 +53,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 #endif // NOT WEBGPU_BACKEND_WGPU
 
     WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
-    depthStencilAttachment.view = depthTextureView;
+    depthStencilAttachment.view = m_DepthTextureView;
     depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
     depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.depthClearValue = 1.0f;
@@ -70,19 +70,19 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     Application &app = Application::GetInstance();
     auto &appData = app.getApplicationData();
 
-    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
+    const WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
     // Select which render pipeline to use
     wgpuRenderPassEncoderSetPipeline(renderPass, m_RenderPipeline);
 
     // Set the bind group
-    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, uniformBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_UniformBindGroup, 0, nullptr);
 
     // Set vertex buffer while encoding the render pass
-    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, wgpuBufferGetSize(vertexBuffer));
+    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_BillboardVertexBuffer, 0, wgpuBufferGetSize(m_BillboardVertexBuffer));
 
     // Set index buffer
-    wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(indexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_BillboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_BillboardIndexBuffer));
 
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
@@ -94,9 +94,9 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
             continue;
         }
 
-        auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::SIZE) + glm::vec3(Chunk::SIZE / 2);
+        const auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::SIZE) + glm::vec3(Chunk::SIZE / 2.0f);
 
-        auto chunkSphereRadius = glm::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
+        const auto chunkSphereRadius = glm::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
 
         if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
             continue;
@@ -106,7 +106,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         appData.renderedVoxels += vertexCount;
 
         // Update uniform buffer data
-        wgpuQueueWriteBuffer(m_Queue, uniformBuffer, 0, &uniformData, sizeof(Uniforms));
+        wgpuQueueWriteBuffer(m_Queue, m_UniformBuffer, 0, &m_UniformData, sizeof(Uniforms));
 
         // Set voxel buffer
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, buffer, 0, wgpuBufferGetSize(buffer) - sizeof(glm::vec4));
@@ -115,7 +115,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, wgpuBufferGetSize(buffer) - sizeof(glm::vec4), sizeof(glm::vec4));
 
         // Use instanced drawing
-        wgpuRenderPassEncoderDrawIndexed(renderPass, indexCount, vertexCount, 0, 0, 0);
+        wgpuRenderPassEncoderDrawIndexed(renderPass, m_BillboardIndexCount, vertexCount, 0, 0, 0);
     }
     wgpuRenderPassEncoderEnd(renderPass);
     wgpuRenderPassEncoderRelease(renderPass);
@@ -124,20 +124,20 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 void RendererSystem::update(float dt) {
     World &world = GetWorld();
 
-    auto chunks = world.getChunks();
+    const auto chunks = world.getChunks();
 
     for (auto &chunk: chunks) {
         if (chunk.isDirty()) {
             auto position = chunk.getPosition();
             auto neighbours = world.getChunkNeighbours(position);
 
-            if (neighbours.count() < 6) {
+            if (!neighbours.hasAllNeighbours()) {
                 continue;
             }
 
             auto bitmap = chunk.getBitmap(neighbours);
 
-            auto buffer = createChunkVertexBuffer(position, bitmap, [&](uint32_t x, uint32_t y, uint32_t z) {
+            auto buffer = createChunkVertexBuffer(position, bitmap, [&](const uint32_t x, const uint32_t y, const uint32_t z) {
                 return chunk.getVoxel(x, y, z);
             });
 
@@ -160,14 +160,13 @@ void RendererSystem::onEvent(Event &event) {
     dispatcher.dispatch<WindowResizedEvent>([&](const WindowResizedEvent &windowResizedEvent) {
         LogApp::info("WindowResizedEvent: {0}, {1}", windowResizedEvent.getWidth(), windowResizedEvent.getHeight());
 
-        m_viewportWidth = windowResizedEvent.getWidth();
-        m_viewportHeight = windowResizedEvent.getHeight();
+        m_ViewportWidth = windowResizedEvent.getWidth();
+        m_ViewportHeight = windowResizedEvent.getHeight();
 
         createDepthTexture();
 
         Camera &camera = Application::GetInstance().getCamera();
-        constexpr float fov = glm::radians(66.0);
-        camera.setPerspective(fov, (float) m_viewportWidth / (float) m_viewportHeight);
+        camera.setPerspective(FOV, static_cast<float>(m_ViewportWidth) / static_cast<float>(m_ViewportHeight));
 
         return true;
     });
@@ -208,7 +207,7 @@ void RendererSystem::createRenderPipeline() {
     // Create the bind group
     WGPUBindGroupEntry bgEntry{};
     bgEntry.binding = 0;
-    bgEntry.buffer = uniformBuffer;
+    bgEntry.buffer = m_UniformBuffer;
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
@@ -216,7 +215,7 @@ void RendererSystem::createRenderPipeline() {
     bgDesc.layout = bindGroupLayout;
     bgDesc.entryCount = 1;
     bgDesc.entries = &bgEntry;
-    uniformBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
+    m_UniformBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
 
     // Create the pipeline layout
     WGPUPipelineLayoutDescriptor pipelineLayoutDesc{};
@@ -243,58 +242,59 @@ void RendererSystem::createRenderPipeline() {
 
     // Configure the instance buffer layout
     WGPUVertexBufferLayout voxelVertexBufferLayout{};
-    std::vector<WGPUVertexAttribute> voxelAttributes{};
-
-    // Position
-    voxelAttributes.push_back({
-        .format = WGPUVertexFormat_Uint32,
-        .offset = 0,
-        .shaderLocation = 1,
-    });
-
-    // Color
-    voxelAttributes.push_back({
-        .format = WGPUVertexFormat_Uint32,
-        .offset = 4 * sizeof(uint8_t),
-        .shaderLocation = 2,
-    });
+    constexpr std::array voxelAttributes{
+        // Position
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = 0,
+            .shaderLocation = 1,
+        },
+        // Color
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = 1 * sizeof(uint32_t),
+            .shaderLocation = 2,
+        }
+    };
 
     voxelVertexBufferLayout.attributeCount = voxelAttributes.size();
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
-    voxelVertexBufferLayout.arrayStride = 8 * sizeof(uint8_t);
+    voxelVertexBufferLayout.arrayStride = 2 * sizeof(uint32_t);
     voxelVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
     WGPUVertexBufferLayout chunkVertexBufferLayout{};
-    std::vector<WGPUVertexAttribute> chunkAttributes{};
-
-    chunkAttributes.push_back({
-        .format = WGPUVertexFormat_Float32x4,
-        .offset = 0,
-        .shaderLocation = 3,
-    });
+    constexpr std::array chunkAttributes{
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Float32x4,
+            .offset = 0,
+            .shaderLocation = 3,
+        }
+    };
 
     chunkVertexBufferLayout.attributeCount = chunkAttributes.size();
     chunkVertexBufferLayout.attributes = chunkAttributes.data();
     chunkVertexBufferLayout.arrayStride = 0;
     chunkVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
-    WGPUVertexBufferLayout bufferLayouts[] = {
-        billboardVertexBufferLayout, voxelVertexBufferLayout, chunkVertexBufferLayout
+    const std::array bufferLayouts{
+        billboardVertexBufferLayout,
+        voxelVertexBufferLayout,
+        chunkVertexBufferLayout
     };
 
-    WGPUConstantEntry pipelineConstant[]{
-        {
+    constexpr std::array pipelineConstants{
+        WGPUConstantEntry{
             .key = "CHUNK_SIZE",
             .value = Chunk::SIZE,
         }
     };
 
-    pipelineDesc.vertex.bufferCount = sizeof(bufferLayouts) / sizeof(WGPUVertexBufferLayout);
-    pipelineDesc.vertex.buffers = bufferLayouts;
+    pipelineDesc.vertex.bufferCount = bufferLayouts.size();
+    pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
-    pipelineDesc.vertex.constantCount = sizeof(pipelineConstant) / sizeof(WGPUConstantEntry);
-    pipelineDesc.vertex.constants = pipelineConstant;
+    pipelineDesc.vertex.constantCount = pipelineConstants.size();
+    pipelineDesc.vertex.constants = pipelineConstants.data();
 
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
@@ -354,20 +354,20 @@ void RendererSystem::createRenderPipeline() {
 void RendererSystem::createDepthTexture() {
     const auto device = GetWebGPUContext().getDevice();
 
-    if (depthTexture) {
-        wgpuTextureRelease(depthTexture);
-        wgpuTextureViewRelease(depthTextureView);
+    if (m_DepthTexture) {
+        wgpuTextureRelease(m_DepthTexture);
+        wgpuTextureViewRelease(m_DepthTextureView);
     }
 
-    if (multisampleColorTexture) {
-        wgpuTextureRelease(multisampleColorTexture);
-        wgpuTextureViewRelease(multisampleColorTextureView);
+    if (m_MultisampleColorTexture) {
+        wgpuTextureRelease(m_MultisampleColorTexture);
+        wgpuTextureViewRelease(m_MultisampleColorTextureView);
     }
 
     // Create the depth texture
     WGPUTextureDescriptor depthTextureDesc = {};
-    depthTextureDesc.size.width = m_viewportWidth;
-    depthTextureDesc.size.height = m_viewportHeight;
+    depthTextureDesc.size.width = m_ViewportWidth;
+    depthTextureDesc.size.height = m_ViewportHeight;
     depthTextureDesc.size.depthOrArrayLayers = 1;
     depthTextureDesc.mipLevelCount = 1;
     depthTextureDesc.sampleCount = 4; // Ensure this matches the color texture sample count
@@ -375,8 +375,8 @@ void RendererSystem::createDepthTexture() {
     depthTextureDesc.format = WGPUTextureFormat_Depth24PlusStencil8;
     depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
 
-    depthTexture = wgpuDeviceCreateTexture(device, &depthTextureDesc);
-    if (!depthTexture) {
+    m_DepthTexture = wgpuDeviceCreateTexture(device, &depthTextureDesc);
+    if (!m_DepthTexture) {
         LogCore::error("Failed to create depth texture");
         return;
     }
@@ -390,16 +390,16 @@ void RendererSystem::createDepthTexture() {
     depthViewDesc.arrayLayerCount = 1;
     depthViewDesc.aspect = WGPUTextureAspect_All;
 
-    depthTextureView = wgpuTextureCreateView(depthTexture, &depthViewDesc);
-    if (!depthTextureView) {
+    m_DepthTextureView = wgpuTextureCreateView(m_DepthTexture, &depthViewDesc);
+    if (!m_DepthTextureView) {
         LogCore::error("Failed to create depth texture view");
-        wgpuTextureRelease(depthTexture);
+        wgpuTextureRelease(m_DepthTexture);
     }
 
     // Create the color texture
     WGPUTextureDescriptor colorTextureDesc = {};
-    colorTextureDesc.size.width = m_viewportWidth;
-    colorTextureDesc.size.height = m_viewportHeight;
+    colorTextureDesc.size.width = m_ViewportWidth;
+    colorTextureDesc.size.height = m_ViewportHeight;
     colorTextureDesc.size.depthOrArrayLayers = 1;
     colorTextureDesc.mipLevelCount = 1;
     colorTextureDesc.sampleCount = 4; // Ensure this matches the depth texture sample count
@@ -407,8 +407,8 @@ void RendererSystem::createDepthTexture() {
     colorTextureDesc.format = GetWebGPUSurface().getSurfaceFormat();
     colorTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
 
-    multisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
-    if (!multisampleColorTexture) {
+    m_MultisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
+    if (!m_MultisampleColorTexture) {
         LogCore::error("Failed to create color texture");
         return;
     }
@@ -422,10 +422,10 @@ void RendererSystem::createDepthTexture() {
     colorViewDesc.arrayLayerCount = 1;
     colorViewDesc.aspect = WGPUTextureAspect_All;
 
-    multisampleColorTextureView = wgpuTextureCreateView(multisampleColorTexture, &colorViewDesc);
-    if (!multisampleColorTextureView) {
+    m_MultisampleColorTextureView = wgpuTextureCreateView(m_MultisampleColorTexture, &colorViewDesc);
+    if (!m_MultisampleColorTextureView) {
         LogCore::error("Failed to create color texture view");
-        wgpuTextureRelease(multisampleColorTexture);
+        wgpuTextureRelease(m_MultisampleColorTexture);
     }
 }
 
@@ -446,13 +446,12 @@ void RendererSystem::InitializeBuffers() {
     const auto device = GetWebGPUContext().getDevice();
 
     // Vertex buffer data
-    std::vector<float> vertexData = {
+    constexpr std::array vertexData{
         -1.0f, -1.0f,
         1.0f, -1.0f,
         1.0f, 1.0f,
         -1.0f, 1.0f,
     };
-    vertexCount = static_cast<uint32_t>(vertexData.size() / 2);
 
     // Create vertex buffer
     WGPUBufferDescriptor bufferDesc{};
@@ -460,17 +459,17 @@ void RendererSystem::InitializeBuffers() {
     bufferDesc.size = vertexData.size() * sizeof(float);
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex; // Vertex usage here!
     bufferDesc.mappedAtCreation = false;
-    vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+    m_BillboardVertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
 
     // Upload geometry data to the buffer
-    wgpuQueueWriteBuffer(m_Queue, vertexBuffer, 0, vertexData.data(), bufferDesc.size);
+    wgpuQueueWriteBuffer(m_Queue, m_BillboardVertexBuffer, 0, vertexData.data(), bufferDesc.size);
 
     // Index buffer data
-    std::vector<uint16_t> indexData = {
+    constexpr std::array<uint16_t, 6> indexData{
         0, 1, 2,
         0, 2, 3,
     };
-    indexCount = static_cast<uint32_t>(indexData.size());
+    m_BillboardIndexCount = static_cast<uint32_t>(indexData.size());
 
     // Create index buffer
     WGPUBufferDescriptor indexBufferDesc{};
@@ -478,10 +477,10 @@ void RendererSystem::InitializeBuffers() {
     indexBufferDesc.size = indexData.size() * sizeof(uint16_t);
     indexBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     indexBufferDesc.mappedAtCreation = false;
-    indexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDesc);
+    m_BillboardIndexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDesc);
 
     // Upload index data to the buffer
-    wgpuQueueWriteBuffer(m_Queue, indexBuffer, 0, indexData.data(), indexBufferDesc.size);
+    wgpuQueueWriteBuffer(m_Queue, m_BillboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
 
     // Create uniform buffer
     WGPUBufferDescriptor uniformBufferDesc{};
@@ -489,5 +488,71 @@ void RendererSystem::InitializeBuffers() {
     uniformBufferDesc.size = sizeof(Uniforms);
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
-    uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
+    m_UniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
+}
+
+RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const glm::ivec3 position,
+    const ChunkBitmap &bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel) {
+    ChunkVertexBuffer vertexBuffer;
+
+    static std::vector<VertexData> points;
+    points.clear();
+
+    getVertices(bitmap, getVoxel, points);
+
+    const auto device = GetWebGPUContext().getDevice();
+    const auto queue = wgpuDeviceGetQueue(device);
+
+    const auto chunkPosition = glm::vec4(position, 0.0f);
+
+    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
+
+    WGPUBufferDescriptor descriptor{};
+    descriptor.size = bufferSize;
+    descriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+    descriptor.mappedAtCreation = false;
+    descriptor.label = "Chunk Vertex Buffer";
+
+    vertexBuffer.buffer = wgpuDeviceCreateBuffer(device, &descriptor);
+    vertexBuffer.vertexCount = points.size();
+
+    static std::vector<uint8_t> data;
+    if (data.size() < bufferSize) {
+        data.resize(bufferSize);
+    }
+
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
+    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
+
+    wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
+
+    return vertexBuffer;
+}
+
+void RendererSystem::getVertices(const ChunkBitmap &bitmap,
+    const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel, std::vector<VertexData> &vertices) {
+    constexpr uint32_t BITMAP_SIZE_SQUARED = BITMAP_SIZE * BITMAP_SIZE;
+
+    for (uint32_t i = BITMAP_SIZE_SQUARED; i < BITMAP_SIZE_SQUARED * (BITMAP_SIZE - 1); i++) {
+        if (i % ChunkBitmap::WORD_SIZE == 0 && !bitmap.testWord(i / ChunkBitmap::WORD_SIZE)) {
+            i += ChunkBitmap::WORD_SIZE - 1;
+            continue;
+        }
+
+        const bool isVisible = bitmap.test(i) &
+                               !(bitmap.test(i-1) & bitmap.test(i+1) &
+                                 bitmap.test(i-BITMAP_SIZE) & bitmap.test(i+BITMAP_SIZE) &
+                                 bitmap.test(i-BITMAP_SIZE_SQUARED) & bitmap.test(i+BITMAP_SIZE_SQUARED));
+
+        if (isVisible) {
+            const uint32_t x = (i / (BITMAP_SIZE_SQUARED)) - 1;
+            const uint32_t y = ((i % (BITMAP_SIZE_SQUARED)) / BITMAP_SIZE) - 1;
+            const uint32_t z = (i % BITMAP_SIZE) - 1;
+
+            if (x < Chunk::SIZE && y < Chunk::SIZE && z < Chunk::SIZE) {
+                const auto& voxel = getVoxel(x, y, z);
+                vertices.emplace_back(x, y, z, 1, voxel);
+            }
+        }
+    }
 }
