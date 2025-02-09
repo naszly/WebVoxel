@@ -29,7 +29,8 @@ private:
     std::vector<glm::ivec3> m_LoadQueue;
     std::vector<Chunk> m_LoadedChunks;
 
-    Threading::Worker m_LoadChunksWorker;
+    std::vector<std::unique_ptr<Threading::Worker>> m_LoadChunksWorkers{2};
+
     Threading::Lock m_Lock;
     bool m_ShouldExit = false;
 

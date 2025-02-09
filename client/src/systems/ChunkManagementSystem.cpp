@@ -1,7 +1,10 @@
 #include "ChunkManagementSystem.h"
 
 void ChunkManagementSystem::initialize() {
-    m_LoadChunksWorker.start(worker, this);
+    for (auto& worker : m_LoadChunksWorkers) {
+        worker = std::make_unique<Threading::Worker>();
+        worker->start(ChunkManagementSystem::worker, this);
+    }
 }
 
 void ChunkManagementSystem::update(float dt) {
@@ -82,7 +85,7 @@ void* ChunkManagementSystem::worker(void *arg) {
         }
 
         if (!chunkToLoad.has_value()) {
-            Threading::Sleep(100);
+            Threading::Sleep(200);
         } else {
             const auto chunkPos = chunkToLoad.value();
             Chunk chunk(chunkPos);
