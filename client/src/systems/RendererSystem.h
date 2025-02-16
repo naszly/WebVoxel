@@ -25,11 +25,6 @@ private:
     };
     static_assert(sizeof(Uniforms) % 16 == 0);
 
-    struct DynamicUniforms {
-        glm::vec4 positionOffset;
-    };
-    static_assert(sizeof(DynamicUniforms) % 16 == 0);
-
     WGPUTexture m_DepthTexture{};
     WGPUTextureView m_DepthTextureView{};
     WGPUTexture m_MultisampleColorTexture{};
@@ -43,8 +38,6 @@ private:
     uint32_t m_BillboardIndexCount{};
     WGPUBuffer m_UniformBuffer{};
     Uniforms m_UniformData{};
-    WGPUBuffer m_DynamicUniformBuffer{};
-    DynamicUniforms m_DynamicUniformData{};
     WGPUBindGroup m_UniformBindGroup{};
 
     struct ChunkVertexBuffer {
