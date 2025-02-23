@@ -1,13 +1,46 @@
 #include "World.h"
 
 ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) const {
-    return ChunkNeighbours{
-        .xMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
-        .xPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
-        .yMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
-        .yPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
-        .zMinus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
-        .zPlus = m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
+    return {
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1))
+    };
+}
+
+ExtendedChukNeighbours World::getExtendedChunkNeighbours(const glm::ivec3 &chunkPos) const {
+    return {
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
+
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, 0)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 1)),
+
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, 1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, 1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, 1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, -1)),
+        m_Chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, 1)),
     };
 }
 

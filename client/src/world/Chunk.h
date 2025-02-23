@@ -13,7 +13,17 @@
 
 class Chunk;
 
-struct ChunkNeighbours {
+class ChunkNeighbours {
+public:
+    ChunkNeighbours(const Chunk *x_minus, const Chunk *x_plus, const Chunk *y_minus, const Chunk *y_plus,
+        const Chunk *z_minus, const Chunk *z_plus)
+        : xMinus(x_minus),
+          xPlus(x_plus),
+          yMinus(y_minus),
+          yPlus(y_plus),
+          zMinus(z_minus),
+          zPlus(z_plus) {}
+
     const Chunk* xMinus{nullptr};
     const Chunk* xPlus{nullptr};
     const Chunk* yMinus{nullptr};
@@ -23,6 +33,69 @@ struct ChunkNeighbours {
 
     [[nodiscard]] bool hasAllNeighbours() const {
         return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus;
+    }
+};
+
+class ExtendedChukNeighbours : public ChunkNeighbours {
+public:
+    ExtendedChukNeighbours(const Chunk *x_minus, const Chunk *x_plus, const Chunk *y_minus, const Chunk *y_plus,
+        const Chunk *z_minus, const Chunk *z_plus, const Chunk *x_minus_y_minus, const Chunk *x_minus_y_plus,
+        const Chunk *x_minus_z_minus, const Chunk *x_minus_z_plus, const Chunk *x_plus_y_minus,
+        const Chunk *x_plus_y_plus, const Chunk *x_plus_z_minus, const Chunk *x_plus_z_plus,
+        const Chunk *y_minus_z_minus, const Chunk *y_minus_z_plus, const Chunk *y_plus_z_minus,
+        const Chunk *y_plus_z_plus, const Chunk *x_minus_y_minus_z_minus, const Chunk *x_minus_y_minus_z_plus,
+        const Chunk *x_minus_y_plus_z_minus, const Chunk *x_minus_y_plus_z_plus, const Chunk *x_plus_y_minus_z_minus,
+        const Chunk *x_plus_y_minus_z_plus, const Chunk *x_plus_y_plus_z_minus, const Chunk *x_plus_y_plus_z_plus)
+        : ChunkNeighbours(x_minus, x_plus, y_minus, y_plus, z_minus, z_plus),
+          xMinusYMinus(x_minus_y_minus),
+          xMinusYPlus(x_minus_y_plus),
+          xMinusZMinus(x_minus_z_minus),
+          xMinusZPlus(x_minus_z_plus),
+          xPlusYMinus(x_plus_y_minus),
+          xPlusYPlus(x_plus_y_plus),
+          xPlusZMinus(x_plus_z_minus),
+          xPlusZPlus(x_plus_z_plus),
+          yMinusZMinus(y_minus_z_minus),
+          yMinusZPlus(y_minus_z_plus),
+          yPlusZMinus(y_plus_z_minus),
+          yPlusZPlus(y_plus_z_plus),
+          xMinusYMinusZMinus(x_minus_y_minus_z_minus),
+          xMinusYMinusZPlus(x_minus_y_minus_z_plus),
+          xMinusYPlusZMinus(x_minus_y_plus_z_minus),
+          xMinusYPlusZPlus(x_minus_y_plus_z_plus),
+          xPlusYMinusZMinus(x_plus_y_minus_z_minus),
+          xPlusYMinusZPlus(x_plus_y_minus_z_plus),
+          xPlusYPlusZMinus(x_plus_y_plus_z_minus),
+          xPlusYPlusZPlus(x_plus_y_plus_z_plus) {}
+
+    const Chunk* xMinusYMinus{nullptr};
+    const Chunk* xMinusYPlus{nullptr};
+    const Chunk* xMinusZMinus{nullptr};
+    const Chunk* xMinusZPlus{nullptr};
+    const Chunk* xPlusYMinus{nullptr};
+    const Chunk* xPlusYPlus{nullptr};
+    const Chunk* xPlusZMinus{nullptr};
+    const Chunk* xPlusZPlus{nullptr};
+    const Chunk* yMinusZMinus{nullptr};
+    const Chunk* yMinusZPlus{nullptr};
+    const Chunk* yPlusZMinus{nullptr};
+    const Chunk* yPlusZPlus{nullptr};
+    const Chunk* xMinusYMinusZMinus{nullptr};
+    const Chunk* xMinusYMinusZPlus{nullptr};
+    const Chunk* xMinusYPlusZMinus{nullptr};
+    const Chunk* xMinusYPlusZPlus{nullptr};
+    const Chunk* xPlusYMinusZMinus{nullptr};
+    const Chunk* xPlusYMinusZPlus{nullptr};
+    const Chunk* xPlusYPlusZMinus{nullptr};
+    const Chunk* xPlusYPlusZPlus{nullptr};
+
+    [[nodiscard]] bool hasAllNeighbours() const {
+        return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus &&
+               xMinusYMinus && xMinusYPlus && xMinusZMinus && xMinusZPlus &&
+               xPlusYMinus && xPlusYPlus && xPlusZMinus && xPlusZPlus &&
+               yMinusZMinus && yMinusZPlus && yPlusZMinus && yPlusZPlus &&
+               xMinusYMinusZMinus && xMinusYMinusZPlus && xMinusYPlusZMinus && xMinusYPlusZPlus &&
+               xPlusYMinusZMinus && xPlusYMinusZPlus && xPlusYPlusZMinus && xPlusYPlusZPlus;
     }
 };
 
@@ -108,5 +181,7 @@ private:
         return std::to_string(m_Position.x) + "." + std::to_string(m_Position.y) + "." + std::to_string(m_Position.z) + ".chunk";
     }
 
-    static SparseVoxelOctTree::Neighbours getNeighbours(const ChunkNeighbours &chunkNeighbours);
+    static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChunkNeighbours &chunkNeighbours);
+
+    static std::optional<SparseVoxelOctTree::ExtendedNeighbours> getNeighbours(const ExtendedChukNeighbours &chunkNeighbours);
 };

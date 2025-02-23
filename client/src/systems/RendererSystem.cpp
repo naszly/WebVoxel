@@ -123,33 +123,65 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
 void RendererSystem::update(float dt) {
     World &world = GetWorld();
+    const glm::vec3 playerPosition = GetCamera().getPosition();
+    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
     const auto chunks = world.getChunks();
 
-    for (auto &chunk: chunks) {
-        if (chunk.isDirty()) {
-            auto position = chunk.getPosition();
-            auto neighbours = world.getChunkNeighbours(position);
+    std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
 
-            if (!neighbours.hasAllNeighbours()) {
-                continue;
-            }
+    std::ranges::copy_if(chunks, std::back_inserter(dirtyChunks), [](const Chunk &chunk) {
+        return chunk.isDirty();
+    });
 
-            auto bitmap = chunk.getBitmap(neighbours);
+    std::ranges::sort(dirtyChunks, [&](const Chunk &a, const Chunk &b) {
+        const auto aPos = a.getPosition();
+        const auto bPos = b.getPosition();
+        return Utils::distance(aPos, playerChunk) < Utils::distance(bPos, playerChunk);
+    });
 
-            auto buffer = createChunkVertexBuffer(position, bitmap, [&](const uint32_t x, const uint32_t y, const uint32_t z) {
-                return chunk.getVoxel(x, y, z);
-            });
+    const auto start = std::chrono::high_resolution_clock::now();
+    constexpr auto maxTime = std::chrono::milliseconds(16);
 
-            auto it = m_ChunkVertexBuffers.find(position);
-            if (it != m_ChunkVertexBuffers.end()) {
-                wgpuBufferRelease(it->second.buffer);
+    for (auto &chunkRef: dirtyChunks) {
+        auto& chunk = chunkRef.get();
+
+        auto position = chunk.getPosition();
+
+        auto bitmap = getBitmap(world, chunk);
+
+        if (!bitmap.has_value()) {
+            continue;
+        }
+
+        ChunkVertexBuffer buffer;
+
+        auto getVoxelLambda = [&](const uint32_t x, const uint32_t y, const uint32_t z) {
+            return chunk.getVoxel(x, y, z);
+        };
+
+        if (m_ambient_occlusion) {
+            buffer = createChunkVertexBuffer<VertexDataAO>(position, bitmap.value(), getVoxelLambda);
+        } else {
+            buffer = createChunkVertexBuffer<VertexData>(position, bitmap.value(), getVoxelLambda);
+        }
+
+        auto it = m_ChunkVertexBuffers.find(position);
+        if (it != m_ChunkVertexBuffers.end()) {
+            wgpuBufferRelease(it->second.buffer);
+            if (buffer.vertexCount > 0) {
                 it->second = buffer;
             } else {
-                m_ChunkVertexBuffers.insert({position, buffer});
+                m_ChunkVertexBuffers.erase(it);
             }
+        } else if (buffer.vertexCount > 0) {
+            m_ChunkVertexBuffers.insert({position, buffer});
+        }
 
-            chunk.resetDirty();
+        chunk.resetDirty();
+
+        if (std::chrono::high_resolution_clock::now() - start > maxTime) {
+            break;
         }
     }
 }
@@ -170,6 +202,23 @@ void RendererSystem::onEvent(Event &event) {
 
         return true;
     });
+}
+
+void RendererSystem::setAmbientOcclusion(const bool ambientOcclusion) {
+    if (m_ambient_occlusion != ambientOcclusion) {
+        // Buffers and pipeline needs to be recreated because the vertex format is different
+        for (auto &[position, vertexBuffer] : m_ChunkVertexBuffers ) {
+            wgpuBufferRelease(vertexBuffer.buffer);
+            if (const auto chunk = GetWorld().tryGetChunk(position)) {
+                chunk->setDirty();
+            }
+        }
+        m_ChunkVertexBuffers.clear();
+        wgpuRenderPipelineRelease(m_RenderPipeline);
+
+        m_ambient_occlusion = ambientOcclusion;
+        createRenderPipeline();
+    }
 }
 
 void RendererSystem::createRenderPipeline() {
@@ -254,12 +303,19 @@ void RendererSystem::createRenderPipeline() {
             .format = WGPUVertexFormat_Uint32,
             .offset = 1 * sizeof(uint32_t),
             .shaderLocation = 2,
+        },
+        // Ambient Occlusion
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = 2 * sizeof(uint32_t),
+            .shaderLocation = 4,
         }
     };
+    uint32_t voxelAttributeCount = m_ambient_occlusion ? 3 : 2;
 
-    voxelVertexBufferLayout.attributeCount = voxelAttributes.size();
+    voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
-    voxelVertexBufferLayout.arrayStride = 2 * sizeof(uint32_t);
+    voxelVertexBufferLayout.arrayStride = voxelAttributeCount * sizeof(uint32_t);
     voxelVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
     WGPUVertexBufferLayout chunkVertexBufferLayout{};
@@ -292,7 +348,11 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.bufferCount = bufferLayouts.size();
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
-    pipelineDesc.vertex.entryPoint = "vs_main";
+    if (m_ambient_occlusion) {
+        pipelineDesc.vertex.entryPoint = "vs_main_ao";
+    } else {
+        pipelineDesc.vertex.entryPoint = "vs_main";
+    }
     pipelineDesc.vertex.constantCount = pipelineConstants.size();
     pipelineDesc.vertex.constants = pipelineConstants.data();
 
@@ -491,11 +551,35 @@ void RendererSystem::InitializeBuffers() {
     m_UniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
 }
 
+std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World &world, const Chunk &chunk) const {
+    const auto chunkPosition = chunk.getPosition();
+
+    if (m_ambient_occlusion) {
+        const auto neighbours = world.getExtendedChunkNeighbours(chunkPosition);
+
+        if (neighbours.hasAllNeighbours()) {
+            auto bitmap = chunk.getBitmap(neighbours);
+            return std::make_optional(bitmap);
+        }
+    } else {
+        const auto neighbours = world.getChunkNeighbours(chunkPosition);
+
+        if (neighbours.hasAllNeighbours()) {
+            auto bitmap = chunk.getBitmap(neighbours);
+            return std::make_optional(bitmap);
+        }
+    }
+
+    return std::nullopt;
+}
+
+template<typename VertexT>
 RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const glm::ivec3 position,
-    const ChunkBitmap &bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel) {
+                                                                          const ChunkBitmap &bitmap,
+                                                                          const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel) {
     ChunkVertexBuffer vertexBuffer;
 
-    static std::vector<VertexData> points;
+    static std::vector<VertexT> points;
     points.clear();
 
     getVertices(bitmap, getVoxel, points);
@@ -505,7 +589,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 
     const auto chunkPosition = glm::vec4(position, 0.0f);
 
-    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
+    const size_t bufferSize = points.size() * sizeof(VertexT) + sizeof(chunkPosition);
 
     WGPUBufferDescriptor descriptor{};
     descriptor.size = bufferSize;
@@ -521,16 +605,17 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
         data.resize(bufferSize);
     }
 
-    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
-    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexT));
+    memcpy(data.data() + points.size() * sizeof(VertexT), &chunkPosition, sizeof(chunkPosition));
 
     wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
     return vertexBuffer;
 }
 
+template<typename VertexT>
 void RendererSystem::getVertices(const ChunkBitmap &bitmap,
-    const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel, std::vector<VertexData> &vertices) {
+    const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel, std::vector<VertexT> &vertices) {
     constexpr uint32_t BITMAP_SIZE_SQUARED = BITMAP_SIZE * BITMAP_SIZE;
 
     for (uint32_t i = BITMAP_SIZE_SQUARED; i < BITMAP_SIZE_SQUARED * (BITMAP_SIZE - 1); i++) {
@@ -545,14 +630,97 @@ void RendererSystem::getVertices(const ChunkBitmap &bitmap,
                                  bitmap.test(i-BITMAP_SIZE_SQUARED) & bitmap.test(i+BITMAP_SIZE_SQUARED));
 
         if (isVisible) {
-            const uint32_t x = (i / (BITMAP_SIZE_SQUARED)) - 1;
-            const uint32_t y = ((i % (BITMAP_SIZE_SQUARED)) / BITMAP_SIZE) - 1;
-            const uint32_t z = (i % BITMAP_SIZE) - 1;
+            const uint32_t x = (i / (BITMAP_SIZE_SQUARED));
+            const uint32_t y = ((i % (BITMAP_SIZE_SQUARED)) / BITMAP_SIZE);
+            const uint32_t z = (i % BITMAP_SIZE);
 
-            if (x < Chunk::SIZE && y < Chunk::SIZE && z < Chunk::SIZE) {
-                const auto& voxel = getVoxel(x, y, z);
-                vertices.emplace_back(x, y, z, 1, voxel);
+            const uint8_t vx = x-1;
+            const uint8_t vy = y-1;
+            const uint8_t vz = z-1;
+
+            if (vx < Chunk::SIZE && vy < Chunk::SIZE && vz < Chunk::SIZE) {
+                const auto& voxel = getVoxel(vx, vy, vz);
+
+                if constexpr (std::is_same_v<VertexT, VertexDataAO>) {
+                    const auto ao = getAmbientOcclusion(bitmap, x, y, z);
+                    vertices.emplace_back(VertexData{vx, vy, vz, 1, voxel}, ao);
+                } else {
+                    vertices.emplace_back(vx, vy, vz, 1, voxel);
+                }
             }
         }
     }
+}
+
+AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkBitmap &bitmap,
+                                                     const uint32_t x, const uint32_t y, const uint32_t z) {
+    auto ao = AmbientOcclusion::None;
+
+    auto test = [&](const int dx, const int dy, const int dz) {
+        return bitmap.test((x+dx) * BITMAP_SIZE * BITMAP_SIZE + (y+dy) * BITMAP_SIZE + (z+dz));
+    };
+
+    if (test(-1, -1, -1)) {
+        ao |= AmbientOcclusion::CornerNxNyNz;
+    }
+    if (test(-1, -1, 1)) {
+        ao |= AmbientOcclusion::CornerNxNyPz;
+    }
+    if (test(-1, 1, -1)) {
+        ao |= AmbientOcclusion::CornerNxPyNz;
+    }
+    if (test(-1, 1, 1)) {
+        ao |= AmbientOcclusion::CornerNxPyPz;
+    }
+    if (test(1, -1, -1)) {
+        ao |= AmbientOcclusion::CornerPxNyNz;
+    }
+    if (test(1, -1, 1)) {
+        ao |= AmbientOcclusion::CornerPxNyPz;
+    }
+    if (test(1, 1, -1)) {
+        ao |= AmbientOcclusion::CornerPxPyNz;
+    }
+    if (test(1, 1, 1)) {
+        ao |= AmbientOcclusion::CornerPxPyPz;
+    }
+
+    if (test(-1, -1, 0)) {
+        ao |= AmbientOcclusion::EdgeNxNy;
+    }
+    if (test(-1, 1, 0)) {
+        ao |= AmbientOcclusion::EdgeNxPy;
+    }
+    if (test(1, -1, 0)) {
+        ao |= AmbientOcclusion::EdgePxNy;
+    }
+    if (test(1, 1, 0)) {
+        ao |= AmbientOcclusion::EdgePxPy;
+    }
+    if (test(-1, 0, -1)) {
+        ao |= AmbientOcclusion::EdgeNxNz;
+    }
+    if (test(-1, 0, 1)) {
+        ao |= AmbientOcclusion::EdgeNxPz;
+    }
+    if (test(1, 0, -1)) {
+        ao |= AmbientOcclusion::EdgePxNz;
+    }
+    if (test(1, 0, 1)) {
+        ao |= AmbientOcclusion::EdgePxPz;
+    }
+    if (test(0, -1, -1)) {
+        ao |= AmbientOcclusion::EdgeNyNz;
+    }
+    if (test(0, -1, 1)) {
+        ao |= AmbientOcclusion::EdgeNyPz;
+    }
+    if (test(0, 1, -1)) {
+        ao |= AmbientOcclusion::EdgePyNz;
+    }
+    if (test(0, 1, 1)) {
+        ao |= AmbientOcclusion::EdgePyPz;
+    }
+
+    return ao;
 }

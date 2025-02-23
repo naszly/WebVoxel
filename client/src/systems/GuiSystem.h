@@ -13,4 +13,5 @@ public:
 
 private:
     static void setImGuiDisplaySize();
+    bool m_ambient_occlusion = false;
 };

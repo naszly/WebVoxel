@@ -37,13 +37,6 @@ void Application::start() {
 }
 
 void Application::onEvent(Event &event) {
-    EventDispatcher dispatcher(event);
-
-    /*dispatcher.dispatch<WindowCloseEvent>([this](WindowCloseEvent &event) {
-        m_Window->close();
-        return true;
-    });*/
-
     for (const auto & m_Layer : std::ranges::reverse_view(m_Layers)) {
         m_Layer->onEvent(event);
         if (event.handled) {

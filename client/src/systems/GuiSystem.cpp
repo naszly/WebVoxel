@@ -10,6 +10,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_wgpu.h>
 
+#include "RendererSystem.h"
+
 void GuiSystem::initialize() {
 
     ImGui::CreateContext();
@@ -43,6 +45,9 @@ void GuiSystem::initialize() {
     io.IniFilename = nullptr;
 #endif
 
+    if (const auto rendererSystem = Application::GetInstance().getSystem<RendererSystem>()) {
+        m_ambient_occlusion = rendererSystem->getAmbientOcclusion();
+    }
 }
 
 void GuiSystem::setImGuiDisplaySize() {
@@ -115,6 +120,15 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Checkbox("Is Sphere", &appData.placedVoxelShapeIsSphere);
     ImGui::End();
 
+
+    ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 240), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 120), ImGuiCond_FirstUseEver);
+
+    ImGui::Begin("Ambient Occlusion");
+    ImGui::Checkbox("Enabled", &m_ambient_occlusion);
+    ImGui::End();
+
     ImGui::Render();
 
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
@@ -139,6 +153,11 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 }
 
 void GuiSystem::update(float dt) {
+    if (const auto rendererSystem = Application::GetInstance().getSystem<RendererSystem>()) {
+        if (rendererSystem->getAmbientOcclusion() != m_ambient_occlusion) {
+            rendererSystem->setAmbientOcclusion(m_ambient_occlusion);
+        }
+    }
 }
 
 void GuiSystem::onEvent(Event &event) {

@@ -55,6 +55,16 @@ public:
         return m_ApplicationData;
     }
 
+    template<typename T>
+    std::shared_ptr<T> getSystem() {
+        for (const auto& layer : m_Layers) {
+            if (auto system = layer->getSystem<T>()) {
+                return system;
+            }
+        }
+        return nullptr;
+    }
+
 private:
     Application() = default;
 

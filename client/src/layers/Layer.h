@@ -45,4 +45,14 @@ public:
         m_Systems.push_back(std::move(system));
     }
 
+    template<typename T>
+    std::shared_ptr<T> getSystem() {
+        for (const auto& system : m_Systems) {
+            if (auto ptr = std::dynamic_pointer_cast<T>(system)) {
+                return ptr;
+            }
+        }
+        return nullptr;
+    }
+
 };

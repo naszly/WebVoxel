@@ -11,9 +11,17 @@ public:
     void update(float dt) override;
     void onEvent(Event& event) override;
 
-    RendererSystem() : System() {}
+    explicit RendererSystem(const bool ambientOcclusion = false) : System(), m_ambient_occlusion(ambientOcclusion) {}
+
+    [[nodiscard]] bool getAmbientOcclusion() const {
+        return m_ambient_occlusion;
+    }
+
+    void setAmbientOcclusion(bool ambientOcclusion);
 
 private:
+    bool m_ambient_occlusion;
+
     struct Uniforms {
         glm::mat4 projectionViewMatrix;
         glm::mat4 inverseProjectionViewMatrix;
@@ -57,7 +65,15 @@ private:
     static constexpr uint32_t BITMAP_SIZE = Chunk::SIZE + 2;
     using ChunkBitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
 
+    std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk) const;
+
+    template<typename VertexT>
     static ChunkVertexBuffer createChunkVertexBuffer(glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel);
 
-    static void getVertices(const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel, std::vector<VertexData>& vertices);
+    template<typename VertexT>
+    static void getVertices(const ChunkBitmap &bitmap,
+                                     const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel,
+                                     std::vector<VertexT> &vertices);
+
+    static AmbientOcclusion getAmbientOcclusion(const ChunkBitmap& bitmap, uint32_t x, uint32_t y, uint32_t z);
 };

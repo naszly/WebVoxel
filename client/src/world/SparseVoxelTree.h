@@ -200,55 +200,129 @@ public:
     }
 
     struct Neighbours {
-        const SparseVoxelTree* xMinus{nullptr};
-        const SparseVoxelTree* xPlus{nullptr};
-        const SparseVoxelTree* yMinus{nullptr};
-        const SparseVoxelTree* yPlus{nullptr};
-        const SparseVoxelTree* zMinus{nullptr};
-        const SparseVoxelTree* zPlus{nullptr};
+        const SparseVoxelTree& xMinus;
+        const SparseVoxelTree& xPlus;
+        const SparseVoxelTree& yMinus;
+        const SparseVoxelTree& yPlus;
+        const SparseVoxelTree& zMinus;
+        const SparseVoxelTree& zPlus;
     };
 
-    [[nodiscard]] auto getBitmap(const Neighbours &neighbours) const {
+    struct ExtendedNeighbours {
+        const SparseVoxelTree& xMinus;
+        const SparseVoxelTree& xPlus;
+        const SparseVoxelTree& yMinus;
+        const SparseVoxelTree& yPlus;
+        const SparseVoxelTree& zMinus;
+        const SparseVoxelTree& zPlus;
+
+        const SparseVoxelTree& xMinusYMinus;
+        const SparseVoxelTree& xMinusYPlus;
+        const SparseVoxelTree& xMinusZMinus;
+        const SparseVoxelTree& xMinusZPlus;
+        const SparseVoxelTree& xPlusYMinus;
+        const SparseVoxelTree& xPlusYPlus;
+        const SparseVoxelTree& xPlusZMinus;
+        const SparseVoxelTree& xPlusZPlus;
+        const SparseVoxelTree& yMinusZMinus;
+        const SparseVoxelTree& yMinusZPlus;
+        const SparseVoxelTree& yPlusZMinus;
+        const SparseVoxelTree& yPlusZPlus;
+
+        const SparseVoxelTree& xMinusYMinusZMinus;
+        const SparseVoxelTree& xMinusYMinusZPlus;
+        const SparseVoxelTree& xMinusYPlusZMinus;
+        const SparseVoxelTree& xMinusYPlusZPlus;
+        const SparseVoxelTree& xPlusYMinusZMinus;
+        const SparseVoxelTree& xPlusYMinusZPlus;
+        const SparseVoxelTree& xPlusYPlusZMinus;
+        const SparseVoxelTree& xPlusYPlusZPlus;
+    };
+
+    [[nodiscard]] auto getBitmap(const std::optional<Neighbours> &neighbours) const {
         auto bitmap = m_bitmap;
 
-        for (uint32_t y = 1; y < bitmap_size - 1; y++) {
-            for (uint32_t z = 1; z < bitmap_size - 1; z++) {
-                if (neighbours.xPlus == nullptr || neighbours.xPlus->hasVoxel(0, y-1, z-1)) {
-                    const uint32_t i = calculateIndex(bitmap_size-1, y, z, bitmap_size);
-                    bitmap.set(i);
-                }
-                if (neighbours.xMinus == nullptr || neighbours.xMinus->hasVoxel(size-1, y-1, z-1)) {
-                    const uint32_t i = calculateIndex(0, y, z, bitmap_size);
-                    bitmap.set(i);
-                }
+        if (!neighbours.has_value()) {
+            return bitmap;
+        }
+
+        auto nv = neighbours.value();
+
+        auto setBitmapIfNeighbourHasVoxel = [&](const SparseVoxelTree& neighbour, const uint32_t x, const uint32_t y, const uint32_t z) {
+            const uint32_t vx = (x-1) % size;
+            const uint32_t vy = (y-1) % size;
+            const uint32_t vz = (z-1) % size;
+            if (neighbour.hasVoxel(vx, vy, vz)) {
+                const uint32_t i = calculateIndex(x, y, z, bitmap_size);
+                bitmap.set(i);
+            }
+        };
+
+        for (uint32_t i = 1; i < bitmap_size - 1; i++) {
+            for (uint32_t j = 1; j < bitmap_size - 1; j++) {
+                setBitmapIfNeighbourHasVoxel(nv.xMinus, 0, i, j);
+                setBitmapIfNeighbourHasVoxel(nv.xPlus, bitmap_size-1, i, j);
+                setBitmapIfNeighbourHasVoxel(nv.yMinus, i, 0, j);
+                setBitmapIfNeighbourHasVoxel(nv.yPlus, i, bitmap_size-1, j);
+                setBitmapIfNeighbourHasVoxel(nv.zMinus, i, j, 0);
+                setBitmapIfNeighbourHasVoxel(nv.zPlus, i, j, bitmap_size-1);
             }
         }
 
-        for (uint32_t x = 1; x < bitmap_size - 1; x++) {
-            for (uint32_t z = 1; z < bitmap_size - 1; z++) {
-                if (neighbours.yPlus == nullptr || neighbours.yPlus->hasVoxel(x-1, 0, z-1)) {
-                    const uint32_t i = calculateIndex(x, bitmap_size-1, z, bitmap_size);
-                    bitmap.set(i);
-                }
-                if (neighbours.yMinus == nullptr || neighbours.yMinus->hasVoxel(x-1, size-1, z-1)) {
-                    const uint32_t i = calculateIndex(x, 0, z, bitmap_size);
-                    bitmap.set(i);
-                }
-            }
+        return bitmap;
+    }
+
+    [[nodiscard]] auto getBitmap(const std::optional<ExtendedNeighbours> &neighbours) const {
+        auto bitmap = m_bitmap;
+
+        if (!neighbours.has_value()) {
+            return bitmap;
         }
 
-        for (uint32_t x = 1; x < bitmap_size - 1; x++) {
-            for (uint32_t y = 1; y < bitmap_size - 1; y++) {
-                if (neighbours.zPlus == nullptr || neighbours.zPlus->hasVoxel(x-1, y-1, 0)) {
-                    const uint32_t i = calculateIndex(x, y, bitmap_size-1, bitmap_size);
-                    bitmap.set(i);
-                }
-                if (neighbours.zMinus == nullptr || neighbours.zMinus->hasVoxel(x-1, y-1, size-1)) {
-                    const uint32_t i = calculateIndex(x, y, 0, bitmap_size);
-                    bitmap.set(i);
-                }
+        auto nv = neighbours.value();
+
+        auto setBitmapIfNeighbourHasVoxel = [&](const SparseVoxelTree& neighbour, const uint32_t x, const uint32_t y, const uint32_t z) {
+            const uint32_t vx = (x-1) % size;
+            const uint32_t vy = (y-1) % size;
+            const uint32_t vz = (z-1) % size;
+            if (neighbour.hasVoxel(vx, vy, vz)) {
+                const uint32_t i = calculateIndex(x, y, z, bitmap_size);
+                bitmap.set(i);
             }
+        };
+
+        for (uint32_t i = 1; i < bitmap_size - 1; i++) {
+            for (uint32_t j = 1; j < bitmap_size - 1; j++) {
+                setBitmapIfNeighbourHasVoxel(nv.xMinus, 0, i, j);
+                setBitmapIfNeighbourHasVoxel(nv.xPlus, bitmap_size-1, i, j);
+                setBitmapIfNeighbourHasVoxel(nv.yMinus, i, 0, j);
+                setBitmapIfNeighbourHasVoxel(nv.yPlus, i, bitmap_size-1, j);
+                setBitmapIfNeighbourHasVoxel(nv.zMinus, i, j, 0);
+                setBitmapIfNeighbourHasVoxel(nv.zPlus, i, j, bitmap_size-1);
+            }
+
+            setBitmapIfNeighbourHasVoxel(nv.xMinusYMinus, 0, 0, i);
+            setBitmapIfNeighbourHasVoxel(nv.xMinusYPlus, 0, bitmap_size-1, i);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusYMinus, bitmap_size-1, 0, i);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusYPlus, bitmap_size-1, bitmap_size-1, i);
+            setBitmapIfNeighbourHasVoxel(nv.xMinusZMinus, 0, i, 0);
+            setBitmapIfNeighbourHasVoxel(nv.xMinusZPlus, 0, i, bitmap_size-1);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusZMinus, bitmap_size-1, i, 0);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusZPlus, bitmap_size-1, i, bitmap_size-1);
+            setBitmapIfNeighbourHasVoxel(nv.yMinusZMinus, i, 0, 0);
+            setBitmapIfNeighbourHasVoxel(nv.yMinusZPlus, i, 0, bitmap_size-1);
+            setBitmapIfNeighbourHasVoxel(nv.yPlusZMinus, i, bitmap_size-1, 0);
+            setBitmapIfNeighbourHasVoxel(nv.yPlusZPlus, i, bitmap_size-1, bitmap_size-1);
         }
+
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYMinusZMinus, 0, 0, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYMinusZPlus, 0, 0, bitmap_size-1);
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYPlusZMinus, 0, bitmap_size-1, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYPlusZPlus, 0, bitmap_size-1, bitmap_size-1);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYMinusZMinus, bitmap_size-1, 0, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYMinusZPlus, bitmap_size-1, 0, bitmap_size-1);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYPlusZMinus, bitmap_size-1, bitmap_size-1, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYPlusZPlus, bitmap_size-1, bitmap_size-1, bitmap_size-1);
 
         return bitmap;
     }
