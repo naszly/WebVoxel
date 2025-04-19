@@ -10,6 +10,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_wgpu.h>
 
+#include "ChunkManagementSystem.h"
 #include "RendererSystem.h"
 
 void GuiSystem::initialize() {
@@ -108,6 +109,20 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Text("Chunks: %zu", GetWorld().countChunks());
     ImGui::Text("Rendered Chunks: %zu", appData.renderedChunks);
     ImGui::Text("Rendered Voxels: %zu", appData.renderedVoxels);
+
+    if (ImGui::Button("Clean Chunk FS")) {
+        Chunk::CleanFs();
+    }
+
+    if (const auto cms = Application::GetInstance().getSystem<ChunkManagementSystem>())
+    {
+        ImGui::SameLine();
+        ImGui::BeginDisabled(cms->isSaveInProgress());
+        if (ImGui::Button("Save All Chunks"))
+            cms->saveAllChunks();
+        ImGui::EndDisabled();
+    }
+
     ImGui::End();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);

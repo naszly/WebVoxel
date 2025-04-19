@@ -11,9 +11,24 @@ void ChunkManagementSystem::update(float dt) {
     const Camera& camera = GetCamera();
     World& world = GetWorld();
 
-    loadChunks(camera, world);
+    if (!m_SaveInProgress) {
+        loadChunks(camera, world);
 
-    unloadChunks(camera, world);
+        unloadChunks(camera, world);
+    }
+}
+
+void ChunkManagementSystem::saveAllChunks() {
+    Threading::ScopedLock lock(&m_Lock);
+
+    if (m_SaveInProgress)
+        return;
+
+    m_SaveInProgress = true;
+
+    m_SaveChunksWorker = std::make_unique<Threading::Worker>();
+
+    m_SaveChunksWorker->start(saveAllChunksWorker, this);
 }
 
 void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
@@ -111,6 +126,32 @@ void* ChunkManagementSystem::worker(void *arg) {
             }
         }
     }
+
+    return nullptr;
+}
+
+void* ChunkManagementSystem::saveAllChunksWorker(void *arg) {
+    const auto system = static_cast<ChunkManagementSystem*>(arg);
+
+    World& world = GetWorld();
+    std::vector<glm::ivec3 > chunksToSave;
+
+    {
+        Threading::ScopedLock lock(&system->m_Lock);
+
+        for (auto& chunk : world.getChunks()) {
+            chunksToSave.push_back(chunk.getPosition());
+        }
+    }
+
+    // this might give a segfault in rare cases...
+    for (auto& chunkPos : chunksToSave) {
+        if (const Chunk* chunk = world.tryGetChunk(chunkPos)) {
+            chunk->save();
+        }
+    }
+
+    system->m_SaveInProgress = false;
 
     return nullptr;
 }

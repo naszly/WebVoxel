@@ -10,4 +10,6 @@ namespace FileSystem {
     void WriteFile(const std::string& fileName, const char* buffer, size_t size);
 
     std::vector<char> ReadFile(const std::string& fileName);
+
+    void CleanFiles(const std::string& extension);
 };

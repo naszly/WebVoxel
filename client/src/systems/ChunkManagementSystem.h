@@ -15,6 +15,10 @@ public:
 
     void onEvent(Event &event) override {}
 
+    void saveAllChunks();
+
+    [[nodiscard]] bool isSaveInProgress() const { return m_SaveInProgress; }
+
     ~ChunkManagementSystem() override {
         m_ShouldExit = true;
     }
@@ -31,8 +35,12 @@ private:
 
     std::vector<std::unique_ptr<Threading::Worker>> m_LoadChunksWorkers{2};
 
+    std::unique_ptr<Threading::Worker> m_SaveChunksWorker;
+
     Threading::Lock m_Lock;
     bool m_ShouldExit = false;
+
+    bool m_SaveInProgress = false;
 
     void loadChunks(const Camera &camera, World &world);
 
@@ -43,4 +51,6 @@ private:
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
     static void* worker(void *system);
+
+    static void* saveAllChunksWorker(void *system);
 };

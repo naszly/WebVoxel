@@ -67,7 +67,7 @@ bool Chunk::fileExists() const {
     return FileSystem::FileExists(fileName);
 }
 
-void Chunk::save() {
+void Chunk::save() const {
     const std::string &fileName = getFileName();
 
     std::vector<char> data(SIZE * SIZE * SIZE * sizeof(VoxelData));
@@ -110,6 +110,10 @@ void Chunk::load() {
             }
         }
     }
+}
+
+void Chunk::CleanFs() {
+    FileSystem::CleanFiles(".chunk");
 }
 
 std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const ChunkNeighbours &chunkNeighbours) {

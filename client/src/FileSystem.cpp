@@ -1,7 +1,11 @@
 #include "FileSytem.h"
 
-#include <fstream>
 #include "Log.h"
+
+#ifndef __EMSCRIPTEN__
+#include <fstream>
+#include <filesystem>
+#endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -86,6 +90,48 @@ std::vector<char> FileSystem::ReadFile(const std::string& fileName) {
     return buffer;
 #endif
 }
+
+void FileSystem::CleanFiles(const std::string& extension) {
+    std::string ext = extension;
+    if (!ext.empty() && ext.front() != '.')
+        ext.insert(ext.begin(), '.');      // make sure it starts with '.'
+
+#if defined(__EMSCRIPTEN__)
+    MAIN_THREAD_EM_ASM({
+        const dir   = "/workdir";
+        const ext   = UTF8ToString($0);
+        const files = FS.readdir(dir);
+
+        files.forEach(name => {
+            if (name === "." || name === "..") return;
+            if (name.endsWith(ext)) {
+                try { FS.unlink(dir + "/" + name); }
+                catch (e) { /* ignore errors */ }
+            }
+        });
+    }, ext.c_str());
+
+#else
+    namespace fs = std::filesystem;
+
+    try {
+        for (const auto& entry : fs::directory_iterator(fs::current_path())) {
+            if (!entry.is_regular_file()) continue;
+            if (entry.path().extension() == ext) {
+                std::error_code ec;
+                fs::remove(entry, ec);
+                if (ec) {
+                    LogCore::warning("Failed to remove {0}: {1}", entry.path().string(), ec.message());
+                }
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        LogCore::error("CleanFiles exception: {0}", e.what());
+    }
+#endif
+}
+
 
 void FileSystem::WriteFile(const std::string& fileName, const char* buffer, const size_t size) {
 #if defined(__EMSCRIPTEN__)
