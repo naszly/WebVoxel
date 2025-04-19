@@ -34,6 +34,8 @@ void Application::start() {
         mainLoop();
     }
 #endif
+
+    Timer::exportTimes();
 }
 
 void Application::onEvent(Event &event) {

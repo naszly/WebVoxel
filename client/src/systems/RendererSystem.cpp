@@ -122,6 +122,9 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 }
 
 void RendererSystem::update(float dt) {
+    const std::string timerName = "RendererSystem::update ao: " + std::to_string(m_ambient_occlusion);
+    Timer timer(timerName.c_str());
+
     World &world = GetWorld();
     const glm::vec3 playerPosition = GetCamera().getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
@@ -141,7 +144,7 @@ void RendererSystem::update(float dt) {
     });
 
     const auto start = std::chrono::high_resolution_clock::now();
-    constexpr auto maxTime = std::chrono::milliseconds(16);
+    constexpr auto maxTime = std::chrono::milliseconds(5);
 
     for (auto &chunkRef: dirtyChunks) {
         auto& chunk = chunkRef.get();
