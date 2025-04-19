@@ -41,6 +41,12 @@ int compress_vector(const std::vector<char> &source, std::vector<char> &destinat
     auto *destination_data = reinterpret_cast<Bytef *>(destination.data());
 
     const int return_value = compress2(destination_data, &destination_length, source_data, source_length, Z_BEST_COMPRESSION);
+    if (return_value == Z_OK) {
+        destination.resize(destination_length);
+    } else {
+        destination.clear();
+    }
+
     return return_value;
 }
 
