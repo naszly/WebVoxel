@@ -1,4 +1,5 @@
 override CHUNK_SIZE: f32 = 64.0;
+override AO: bool = false;
 
 const PI: f32 = 3.14159265359;
 
@@ -206,18 +207,24 @@ fn intersectBox(box : Box, ray : Ray) -> Hit {
     if (test.x) {
         sgn = vec3f(sgn.x, 0.0f, 0.0f);
         hit.distance = distanceToPlane.x;
-        hit.uv = getXPlaneUV(rayOrigin, rayDirection, distanceToPlane.x, box.radius.x);
-        hit.plane = u32(sgn.x > 0.0f);
+        if (AO) {
+            hit.uv = getXPlaneUV(rayOrigin, rayDirection, distanceToPlane.x, box.radius.x);
+            hit.plane = u32(sgn.x > 0.0f);
+        }
     } else if (test.y) {
         sgn = vec3f(0.0f, sgn.y, 0.0f);
         hit.distance = distanceToPlane.y;
-        hit.uv = getYPlaneUV(rayOrigin, rayDirection, distanceToPlane.y, box.radius.y);
-        hit.plane = u32(sgn.y > 0.0f) + 2;
+        if (AO) {
+            hit.uv = getYPlaneUV(rayOrigin, rayDirection, distanceToPlane.y, box.radius.y);
+            hit.plane = u32(sgn.y > 0.0f) + 2;
+        }
     } else if (test.z) {
         sgn = vec3f(0.0f, 0.0f, sgn.z);
         hit.distance = distanceToPlane.z;
-        hit.uv = getZPlaneUV(rayOrigin, rayDirection, distanceToPlane.z, box.radius.z);
-        hit.plane = u32(sgn.z > 0.0f) + 4;
+        if (AO) {
+            hit.uv = getZPlaneUV(rayOrigin, rayDirection, distanceToPlane.z, box.radius.z);
+            hit.plane = u32(sgn.z > 0.0f) + 4;
+        }
     } else {
         return hit;
     }
@@ -391,7 +398,7 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
 
         var color : vec3f;
 
-        if (in.ambient_occlusion > 0) {
+        if (AO) {
             color = applyAmbientOcclusion(in.vColor.rgb, hit.uv, hit.plane, in.ambient_occlusion);
         } else {
             color = in.vColor.rgb;

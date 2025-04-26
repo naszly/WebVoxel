@@ -94,7 +94,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
         const auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::SIZE) + glm::vec3(Chunk::SIZE / 2.0f);
 
-        constexpr float chunkSphereRadius = std::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
+        const float chunkSphereRadius = std::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
 
         if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
             continue;
@@ -355,7 +355,7 @@ void RendererSystem::createRenderPipeline() {
         chunkVertexBufferLayout
     };
 
-    constexpr std::array pipelineConstants{
+    constexpr std::array vertexConstants{
         WGPUConstantEntry{
             .key = "CHUNK_SIZE",
             .value = Chunk::SIZE,
@@ -370,8 +370,8 @@ void RendererSystem::createRenderPipeline() {
     } else {
         pipelineDesc.vertex.entryPoint = "vs_main";
     }
-    pipelineDesc.vertex.constantCount = pipelineConstants.size();
-    pipelineDesc.vertex.constants = pipelineConstants.data();
+    pipelineDesc.vertex.constantCount = vertexConstants.size();
+    pipelineDesc.vertex.constants = vertexConstants.data();
 
     pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
@@ -391,11 +391,18 @@ void RendererSystem::createRenderPipeline() {
     colorTarget.blend = &blendState;
     colorTarget.writeMask = WGPUColorWriteMask_All;
 
+    const std::array fragmentConstants{
+        WGPUConstantEntry{
+            .key = "AO",
+            .value = static_cast<double>(m_ambient_occlusion),
+        }
+    };
+
     WGPUFragmentState fragmentState{};
     fragmentState.module = shaderModule;
     fragmentState.entryPoint = "fs_main";
-    fragmentState.constantCount = 0;
-    fragmentState.constants = nullptr;
+    fragmentState.constantCount = fragmentConstants.size();
+    fragmentState.constants = fragmentConstants.data();
 
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
