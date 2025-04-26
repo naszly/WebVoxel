@@ -43,8 +43,8 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     // The attachment part of the render pass descriptor describes the target texture of the pass
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = m_MultisampleColorTextureView;
-    renderPassColorAttachment.resolveTarget = targetView; // Resolve to the target view
+    renderPassColorAttachment.view = m_sampleCount > 1 ? m_MultisampleColorTextureView : targetView;
+    renderPassColorAttachment.resolveTarget = m_sampleCount > 1 ? targetView : nullptr;
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
     renderPassColorAttachment.clearValue = WGPUColor{0.66, 0.7, 0.9, 1.0};
@@ -417,7 +417,7 @@ void RendererSystem::createRenderPipeline() {
 
     pipelineDesc.fragment = &fragmentState;
     pipelineDesc.depthStencil = &depthStencilState;
-    pipelineDesc.multisample.count = 4;
+    pipelineDesc.multisample.count = m_sampleCount;
     pipelineDesc.multisample.mask = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
@@ -447,7 +447,7 @@ void RendererSystem::createDepthTexture() {
     depthTextureDesc.size.height = m_ViewportHeight;
     depthTextureDesc.size.depthOrArrayLayers = 1;
     depthTextureDesc.mipLevelCount = 1;
-    depthTextureDesc.sampleCount = 4; // Ensure this matches the color texture sample count
+    depthTextureDesc.sampleCount = m_sampleCount;
     depthTextureDesc.dimension = WGPUTextureDimension_2D;
     depthTextureDesc.format = WGPUTextureFormat_Depth24PlusStencil8;
     depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
@@ -479,7 +479,7 @@ void RendererSystem::createDepthTexture() {
     colorTextureDesc.size.height = m_ViewportHeight;
     colorTextureDesc.size.depthOrArrayLayers = 1;
     colorTextureDesc.mipLevelCount = 1;
-    colorTextureDesc.sampleCount = 4; // Ensure this matches the depth texture sample count
+    colorTextureDesc.sampleCount = m_sampleCount;
     colorTextureDesc.dimension = WGPUTextureDimension_2D;
     colorTextureDesc.format = GetWebGPUSurface().getSurfaceFormat();
     colorTextureDesc.usage = WGPUTextureUsage_RenderAttachment;

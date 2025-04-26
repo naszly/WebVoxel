@@ -21,6 +21,7 @@ public:
 
 private:
     bool m_ambient_occlusion;
+    const int m_sampleCount = 1;
 
     struct Uniforms {
         glm::mat4 projectionViewMatrix;
