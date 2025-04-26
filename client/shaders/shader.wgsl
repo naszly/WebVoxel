@@ -110,15 +110,10 @@ fn process_vertex(vertex: VertexInputAO) -> VertexOut {
     vertexPosition *= billboard.size;
     vertexPosition += billboard.pos;
 
-    var transformedPosition: vec4f = u.projectionView * vec4f(voxelPosition, 1.0);
-    var vertexPositionZ: f32 = transformedPosition.z / transformedPosition.w;
-
-    if (vertexPositionZ > 0.0 && vertexPositionZ < 1.0) {
-        vertexPositionZ = length(voxelPosition) / u.farPlane;
-    }
+    let depth = length(voxelPosition) / u.farPlane;
 
     var out: VertexOut;
-    out.pos = vec4f(vertexPosition, vertexPositionZ, 1.0);
+    out.pos = vec4f(vertexPosition, depth, 1.0);
     out.vColor = voxelColor;
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
