@@ -84,29 +84,43 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     // Set index buffer
     wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_BillboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_BillboardIndexBuffer));
 
-    appData.renderedChunks = 0;
-    appData.renderedVoxels = 0;
-    for (auto &[position, chunkVertexBuffer]: m_ChunkVertexBuffers) {
+    std::vector<std::pair<glm::vec3, ChunkVertexBuffer>> sortedChunks;
 
-        auto &[buffer, vertexCount] = chunkVertexBuffer;
+    for (auto &[position, chunkVertexBuffer] : m_ChunkVertexBuffers) {
 
-        if (vertexCount == 0) {
+        if (chunkVertexBuffer.vertexCount == 0) {
             continue;
         }
 
         const auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::SIZE) + glm::vec3(Chunk::SIZE / 2.0f);
 
-        const auto chunkSphereRadius = glm::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
+        constexpr float chunkSphereRadius = std::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
 
         if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
             continue;
         }
 
+        sortedChunks.emplace_back(chunkCenter, chunkVertexBuffer);
+    }
+
+    const glm::vec3 camPos = camera.getPosition();
+
+    std::ranges::sort(sortedChunks, [&](const auto &a, const auto &b) {
+        const float distA = glm::length2(a.first - camPos);
+        const float distB = glm::length2(b.first - camPos);
+
+        return distA < distB; // Front-to-back!
+    });
+
+    appData.renderedChunks = 0;
+    appData.renderedVoxels = 0;
+
+    for (auto &chunkVertexBuffer: sortedChunks | std::views::values) {
+
+        auto &[buffer, vertexCount] = chunkVertexBuffer;
+
         appData.renderedChunks++;
         appData.renderedVoxels += vertexCount;
-
-        // Update uniform buffer data
-        wgpuQueueWriteBuffer(m_Queue, m_UniformBuffer, 0, &m_UniformData, sizeof(Uniforms));
 
         // Set voxel buffer
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, buffer, 0, wgpuBufferGetSize(buffer) - sizeof(glm::vec4));
