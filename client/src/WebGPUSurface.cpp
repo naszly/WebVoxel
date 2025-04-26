@@ -8,6 +8,8 @@
 #include <ranges>
 #include <algorithm>
 
+#include <magic_enum.hpp>
+
 WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUContext>& context) : m_Context(context), m_Window(window) {
 
     m_Surface = glfwCreateWindowWGPUSurface(context->getInstance(), window);
@@ -26,9 +28,23 @@ WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUCon
 
     m_SurfaceFormat = getPreferredFormat(capabilities, preferredFormats);
 
+    m_PresentMode = WGPUPresentMode_Fifo;
+    for (uint32_t i = 0; i < capabilities.presentModeCount; ++i) {
+        if (capabilities.presentModes[i] == WGPUPresentMode_Immediate) {
+            m_PresentMode = WGPUPresentMode_Immediate;
+            break;
+        }
+        if (capabilities.presentModes[i] == WGPUPresentMode_Mailbox) {
+            m_PresentMode = WGPUPresentMode_Mailbox;
+        }
+    }
+
     configureSurface();
 
-    LogCore::info("WebGPU surface created: {0}", reinterpret_cast<size_t>(m_Surface));
+    LogCore::info("WebGPU surface created: {0}, format: {1}, present mode: {2}",
+              reinterpret_cast<size_t>(m_Surface),
+              magic_enum::enum_name(m_SurfaceFormat),
+              magic_enum::enum_name(m_PresentMode));
 }
 
 WebGPUSurface::~WebGPUSurface() {
@@ -50,7 +66,7 @@ void WebGPUSurface::configureSurface() {
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
     config.width = m_Width;
     config.height = m_Height;
-    config.presentMode = WGPUPresentMode_Fifo;
+    config.presentMode = m_PresentMode;
 
     wgpuSurfaceConfigure(m_Surface, &config);
 }

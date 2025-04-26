@@ -44,6 +44,7 @@ private:
 
     WGPUSurface m_Surface{};
     WGPUTextureFormat m_SurfaceFormat{};
+    WGPUPresentMode m_PresentMode;
 
     void configureSurface();
 
