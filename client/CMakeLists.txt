@@ -135,10 +135,16 @@ else()
     set(ASSET_DIR ${PROJECT_BINARY_DIR})
 endif()
 
-file(GLOB_RECURSE SHADERS_FILES ${PROJECT_SOURCE_DIR}/shaders/*)
-foreach(SHADER_FILE ${SHADERS_FILES})
+file(GLOB_RECURSE SHADER_FILES ${PROJECT_SOURCE_DIR}/shaders/*)
+foreach(SHADER_FILE ${SHADER_FILES})
     get_filename_component(SHADER_NAME ${SHADER_FILE} NAME)
     configure_file(${SHADER_FILE} ${ASSET_DIR}/shaders/${SHADER_NAME} COPYONLY)
+endforeach()
+
+file(GLOB_RECURSE MODEL_FILES ${PROJECT_SOURCE_DIR}/models/*)
+foreach(MODEL_FILE ${MODEL_FILES})
+    get_filename_component(MODEL_NAME ${MODEL_FILE} NAME)
+    configure_file(${MODEL_FILE} ${ASSET_DIR}/models/${MODEL_NAME} COPYONLY)
 endforeach()
 
 file(GLOB_RECURSE FONT_FILES ${PROJECT_SOURCE_DIR}/external/imgui/misc/fonts/*.ttf)

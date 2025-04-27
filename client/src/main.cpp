@@ -8,6 +8,7 @@
 #include "systems/ControllerSystem.h"
 #include "systems/GuiSystem.h"
 #include "systems/RendererSystem.h"
+#include "systems/VoxWorldLoaderSystem.h"
 
 int main() {
 
@@ -46,11 +47,11 @@ int main() {
 
     const auto rendererSystem = std::make_shared<RendererSystem>();
     const auto controllerSystem = std::make_shared<ControllerSystem>();
-    const auto chunkManagementSystem = std::make_shared<ChunkManagementSystem>();
+    const auto voxWorldLoaderSystem = std::make_shared<VoxWorldLoaderSystem>();
 
     layer->pushSystem(rendererSystem);
     layer->pushSystem(controllerSystem);
-    layer->pushSystem(chunkManagementSystem);
+    layer->pushSystem(voxWorldLoaderSystem);
 
     app.pushLayer(layer);
 
