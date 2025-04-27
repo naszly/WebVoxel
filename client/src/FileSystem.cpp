@@ -2,10 +2,8 @@
 
 #include "Log.h"
 
-#ifndef __EMSCRIPTEN__
 #include <fstream>
 #include <filesystem>
-#endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -73,6 +71,11 @@ std::vector<char> FileSystem::ReadFile(const std::string& fileName) {
     ReadFile_Emscripten(filePath.c_str(), &buffer);
     return buffer;
 #else
+    return ReadFileNative(fileName);
+#endif
+}
+
+std::vector<char> FileSystem::ReadFileNative(const std::string &fileName) {
     std::ifstream file(fileName, std::ios::binary);
     if (!file) {
         LogCore::error("Failed to open file for reading: {0}", fileName);
@@ -88,7 +91,6 @@ std::vector<char> FileSystem::ReadFile(const std::string& fileName) {
     file.close();
 
     return buffer;
-#endif
 }
 
 void FileSystem::CleanFiles(const std::string& extension) {

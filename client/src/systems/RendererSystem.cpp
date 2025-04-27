@@ -1,10 +1,9 @@
 #include "RendererSystem.h"
 
-#include <fstream>
-
 #include "../Application.h"
 #include "../ApplicationEvent.h"
 #include "../Log.h"
+#include "../FileSytem.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
@@ -514,14 +513,9 @@ void RendererSystem::createDepthTexture() {
 }
 
 std::string RendererSystem::LoadShader(const char *filename) {
-    std::ifstream file(filename, std::ios::binary);
+    auto shaderBuffer = FileSystem::ReadFileNative(filename);
 
-    if (!file) {
-        LogWebGPU::error("Failed to open file: {0}", filename);
-        return "";
-    }
-
-    std::string shaderCode((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::string shaderCode(shaderBuffer.begin(), shaderBuffer.end());
 
     return shaderCode;
 }
