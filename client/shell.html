@@ -97,14 +97,7 @@
 
   <span id="controls" style="margin: 8px">
     <span>
-      <label for="resize"><input type="checkbox" id="resize">Resize canvas</label>
-    </span>
-    <span>
-      <label for="pointerLock"><input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer</label>
-    </span>
-    <span>
-      <input type="button" value="Fullscreen"
-             onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, document.getElementById('resize').checked)">
+      <input type="button" value="Fullscreen" onclick="Module.requestFullscreen()">
     </span>
   </span>
 
