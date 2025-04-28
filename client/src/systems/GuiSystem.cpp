@@ -21,6 +21,7 @@ void GuiSystem::initialize() {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
     io.Fonts->AddFontFromFileTTF("fonts/Roboto-Medium.ttf", 16);
 
