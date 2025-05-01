@@ -7,9 +7,6 @@
 WebGPUContext::WebGPUContext() {
     createInstance();
     requestAdapter();
-    logAdapterLimits();
-    logAdapterFeatures();
-    logAdapterProperties();
     requestDevice();
 }
 
@@ -34,7 +31,7 @@ void WebGPUContext::createInstance() {
         return;
     }
 
-    LogCore::info("WebGPU instance created: {0}", (size_t)m_Instance);
+    LogCore::info("WebGPU instance created: {0}", reinterpret_cast<size_t>(m_Instance));
 }
 
 void WebGPUContext::requestAdapter() {
@@ -42,10 +39,9 @@ void WebGPUContext::requestAdapter() {
         WGPUAdapter adapter = nullptr;
         bool requestEnded = false;
     };
-    UserData userData;
 
     auto onAdapterRequestEnded = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, char const *message, void *userData) {
-        auto data = static_cast<UserData*>(userData);
+        const auto data = static_cast<UserData*>(userData);
 
         if (status == WGPURequestAdapterStatus_Success) {
             data->adapter = adapter;
@@ -56,8 +52,9 @@ void WebGPUContext::requestAdapter() {
         data->requestEnded = true;
     };
 
-    const WGPURequestAdapterOptions options = {};
+    constexpr WGPURequestAdapterOptions options = {};
 
+    UserData userData;
     wgpuInstanceRequestAdapter(m_Instance, &options, onAdapterRequestEnded, &userData);
 
 #ifdef __EMSCRIPTEN__
@@ -69,104 +66,7 @@ void WebGPUContext::requestAdapter() {
     assert(userData.requestEnded);
 
     m_Adapter = userData.adapter;
-    LogCore::info("WebGPU adapter requested: {0}", (size_t)m_Adapter);
-}
-
-void WebGPUContext::logAdapterLimits() const {
-    WGPUSupportedLimits supportedLimits = {};
-    supportedLimits.nextInChain = nullptr;
-
-#ifdef WEBGPU_BACKEND_DAWN
-    bool success = wgpuAdapterGetLimits(m_Adapter, &supportedLimits) == WGPUStatus_Success;
-#else
-    bool success = wgpuAdapterGetLimits(m_Adapter, &supportedLimits);
-#endif
-
-    if (!success) {
-        LogCore::error("Failed to get WebGPU adapter limits");
-        return;
-    }
-
-    LogCore::info("WebGPU adapter limits:");
-    LogCore::info("  maxTextureDimension1D: {0}", supportedLimits.limits.maxTextureDimension1D);
-    LogCore::info("  maxTextureDimension2D: {0}", supportedLimits.limits.maxTextureDimension2D);
-    LogCore::info("  maxTextureDimension3D: {0}", supportedLimits.limits.maxTextureDimension3D);
-    LogCore::info("  maxTextureArrayLayers: {0}", supportedLimits.limits.maxTextureArrayLayers);
-    LogCore::info("  maxBindGroups: {0}", supportedLimits.limits.maxBindGroups);
-    LogCore::info("  maxBindGroupsPlusVertexBuffers: {0}", supportedLimits.limits.maxBindGroupsPlusVertexBuffers);
-    LogCore::info("  maxBindingsPerBindGroup: {0}", supportedLimits.limits.maxBindingsPerBindGroup);
-    LogCore::info("  maxDynamicUniformBuffersPerPipelineLayout: {0}", supportedLimits.limits.maxDynamicUniformBuffersPerPipelineLayout);
-    LogCore::info("  maxDynamicStorageBuffersPerPipelineLayout: {0}", supportedLimits.limits.maxDynamicStorageBuffersPerPipelineLayout);
-    LogCore::info("  maxSampledTexturesPerShaderStage: {0}", supportedLimits.limits.maxSampledTexturesPerShaderStage);
-    LogCore::info("  maxSamplersPerShaderStage: {0}", supportedLimits.limits.maxSamplersPerShaderStage);
-    LogCore::info("  maxStorageBuffersPerShaderStage: {0}", supportedLimits.limits.maxStorageBuffersPerShaderStage);
-    LogCore::info("  maxStorageTexturesPerShaderStage: {0}", supportedLimits.limits.maxStorageTexturesPerShaderStage);
-    LogCore::info("  maxUniformBuffersPerShaderStage: {0}", supportedLimits.limits.maxUniformBuffersPerShaderStage);
-    LogCore::info("  maxUniformBufferBindingSize: {0}", supportedLimits.limits.maxUniformBufferBindingSize);
-    LogCore::info("  maxStorageBufferBindingSize: {0}", supportedLimits.limits.maxStorageBufferBindingSize);
-    LogCore::info("  minUniformBufferOffsetAlignment: {0}", supportedLimits.limits.minUniformBufferOffsetAlignment);
-    LogCore::info("  minStorageBufferOffsetAlignment: {0}", supportedLimits.limits.minStorageBufferOffsetAlignment);
-    LogCore::info("  maxVertexBuffers: {0}", supportedLimits.limits.maxVertexBuffers);
-    LogCore::info("  maxBufferSize: {0}", supportedLimits.limits.maxBufferSize);
-    LogCore::info("  maxVertexAttributes: {0}", supportedLimits.limits.maxVertexAttributes);
-    LogCore::info("  maxVertexBufferArrayStride: {0}", supportedLimits.limits.maxVertexBufferArrayStride);
-    LogCore::info("  maxInterStageShaderComponents: {0}", supportedLimits.limits.maxInterStageShaderComponents);
-    LogCore::info("  maxInterStageShaderVariables: {0}", supportedLimits.limits.maxInterStageShaderVariables);
-    LogCore::info("  maxColorAttachments: {0}", supportedLimits.limits.maxColorAttachments);
-    LogCore::info("  maxColorAttachmentBytesPerSample: {0}", supportedLimits.limits.maxColorAttachmentBytesPerSample);
-    LogCore::info("  maxComputeWorkgroupStorageSize: {0}", supportedLimits.limits.maxComputeWorkgroupStorageSize);
-    LogCore::info("  maxComputeInvocationsPerWorkgroup: {0}", supportedLimits.limits.maxComputeInvocationsPerWorkgroup);
-    LogCore::info("  maxComputeWorkgroupSizeX: {0}", supportedLimits.limits.maxComputeWorkgroupSizeX);
-    LogCore::info("  maxComputeWorkgroupSizeY: {0}", supportedLimits.limits.maxComputeWorkgroupSizeY);
-    LogCore::info("  maxComputeWorkgroupSizeZ: {0}", supportedLimits.limits.maxComputeWorkgroupSizeZ);
-    LogCore::info("  maxComputeWorkgroupsPerDimension: {0}", supportedLimits.limits.maxComputeWorkgroupsPerDimension);
-}
-
-void WebGPUContext::logAdapterFeatures() const {
-#ifndef __EMSCRIPTEN__
-    std::vector<WGPUFeatureName> features;
-    size_t featureCount = wgpuAdapterEnumerateFeatures(m_Adapter, nullptr);
-
-    features.resize(featureCount);
-
-    wgpuAdapterEnumerateFeatures(m_Adapter, features.data());
-
-    LogCore::info("WebGPU adapter features:");
-
-    for (const auto& feature : features) {
-        LogCore::info("  {0:#010x}", (uint64_t)feature);
-    }
-#endif // NOT __EMSCRIPTEN__
-}
-
-void WebGPUContext::logAdapterProperties() const {
-#ifdef WEBGPU_BACKEND_WGPU
-    WGPUAdapterProperties properties = {};
-    wgpuAdapterGetProperties(m_Adapter, &properties);
-
-    LogCore::info("WebGPU adapter properties:");
-    LogCore::info("  name: {0}", properties.name ? properties.name : "null");
-    LogCore::info("  vendorID: {0}", properties.vendorID);
-    LogCore::info("  vendorName: {0}", properties.vendorName ? properties.vendorName : "null");
-    LogCore::info("  architecture: {0}", properties.architecture ? properties.architecture : "null");
-    LogCore::info("  deviceID: {0}", properties.deviceID);
-    LogCore::info("  driverDescription: {0}", properties.driverDescription ? properties.driverDescription : "null");
-    LogCore::info("  adapterType: {0:#010x}", (uint64_t)properties.adapterType);
-    LogCore::info("  backendType: {0:#010x}", (uint64_t)properties.backendType);
-#else
-    WGPUAdapterInfo info = {};
-    wgpuAdapterGetInfo(m_Adapter, &info);
-
-    LogCore::info("WebGPU adapter info:");
-    LogCore::info("  vendor: {0}", info.vendor);
-    LogCore::info("  architecture: {0}", info.architecture);
-    LogCore::info("  device: {0}", info.device);
-    LogCore::info("  description: {0}", info.description);
-    LogCore::info("  backendType: {0:#010x}", (uint64_t)info.backendType);
-    LogCore::info("  adapterType: {0:#010x}", (uint64_t)info.adapterType);
-    LogCore::info("  vendorID: {0}", info.vendorID);
-    LogCore::info("  deviceID: {0}", info.deviceID);
-#endif
+    LogCore::info("WebGPU adapter requested: {0}", reinterpret_cast<size_t>(m_Adapter));
 }
 
 void WebGPUContext::requestDevice() {
@@ -174,10 +74,9 @@ void WebGPUContext::requestDevice() {
         WGPUDevice device = nullptr;
         bool requestEnded = false;
     };
-    UserData userData;
 
     auto onDeviceRequestEnded = [](WGPURequestDeviceStatus status, WGPUDevice device, char const *message, void *userData) {
-        auto data = static_cast<UserData*>(userData);
+        const auto data = static_cast<UserData*>(userData);
 
         if (status == WGPURequestDeviceStatus_Success) {
             data->device = device;
@@ -228,6 +127,7 @@ void WebGPUContext::requestDevice() {
     };
 #endif
 
+    UserData userData;
     wgpuAdapterRequestDevice(m_Adapter, &descriptor, onDeviceRequestEnded, &userData);
 
 #ifdef __EMSCRIPTEN__
@@ -239,7 +139,7 @@ void WebGPUContext::requestDevice() {
     assert(userData.requestEnded);
 
     m_Device = userData.device;
-    LogCore::info("WebGPU device requested: {0}", (size_t)m_Device);
+    LogCore::info("WebGPU device requested: {0}", reinterpret_cast<size_t>(m_Device));
 
 #ifndef WEBGPU_BACKEND_DAWN
     wgpuDeviceSetUncapturedErrorCallback(m_Device, onDeviceError, nullptr);
