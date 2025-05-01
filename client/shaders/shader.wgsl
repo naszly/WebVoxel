@@ -78,7 +78,8 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
         matT[2] * quadricMat
     );
 
-    if (dot(matD[2], matT[2]) > 0.0) {
+    let discriminant: f32 = dot(matD[2], matT[2]);
+    if (projW < 0.0 || discriminant > 0.0) {
         return Billboard(vec2f(0.0, 0.0), vec2f(0.0, 0.0));
     }
 
@@ -87,7 +88,7 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
         dot(matD[1], matT[2]),
         dot(matD[0], matT[0]),
         dot(matD[1], matT[1])
-    ) / dot(matD[2], matT[2]);
+    ) / discriminant;
 
     let outPosition: vec2f = eqCoefs.xy;
     var AABB: vec2f = sqrt(eqCoefs.xy * eqCoefs.xy - eqCoefs.zw);
@@ -161,23 +162,15 @@ struct Hit {
     plane : u32,
 }
 
-fn maxComponent(v : vec3f) -> f32 {
-    return max(max(v.x, v.y), v.z);
-}
+fn rayBoxTest(distanceToPlane: vec3f, rayOrigin: vec3f, rayDirection: vec3f, boxRadius: vec3f) -> vec3<bool> {
+    let pointOnXPlane = rayOrigin.yz + rayDirection.yz * distanceToPlane.x;
+    let intersectsXPlane = all(abs(pointOnXPlane) < boxRadius.yz);
 
-fn allLessThan(v1 : vec2f, v2 : vec2f) -> bool {
-    return v1.x < v2.x && v1.y < v2.y;
-}
+    let pointOnYPlane = rayOrigin.xz + rayDirection.xz * distanceToPlane.y;
+    let intersectsYPlane = all(abs(pointOnYPlane) < boxRadius.xz);
 
-fn rayBoxTest(distanceToPlane : vec3f, rayOrigin : vec3f, rayDirection : vec3f, boxRadius : vec3f) -> vec3<bool> {
-    let intersectsXPlane : bool = distanceToPlane.x > 0.0f &&
-        allLessThan(abs(rayOrigin.yz + rayDirection.yz * distanceToPlane.x), boxRadius.yz);
-
-    let intersectsYPlane : bool = distanceToPlane.y > 0.0f &&
-        allLessThan(abs(rayOrigin.xz + rayDirection.xz * distanceToPlane.y), boxRadius.xz);
-
-    let intersectsZPlane : bool = distanceToPlane.z > 0.0f &&
-        allLessThan(abs(rayOrigin.xy + rayDirection.xy * distanceToPlane.z), boxRadius.xy);
+    let pointOnZPlane = rayOrigin.xy + rayDirection.xy * distanceToPlane.z;
+    let intersectsZPlane = all(abs(pointOnZPlane) < boxRadius.xy);
 
     return vec3<bool>(intersectsXPlane, intersectsYPlane, intersectsZPlane);
 }
