@@ -107,14 +107,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(zlib)
 
+# opengametools (ogt_vox.h)
+FetchContent_Populate(
+    opengametools
+    GIT_REPOSITORY https://github.com/jpaver/opengametools
+    GIT_TAG 22e71873ffc55c3a6253d31302e4f5e2191f9a0b
+    GIT_SHALLOW ON
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/opengametools
+)
+file(GLOB_RECURSE OGT_SOURCES ${opengametools_SOURCE_DIR}/src/*)
+
 file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${OGT_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} glm::glm webgpu glfw glfw3webgpu spdlog::spdlog magic_enum::magic_enum FastNoise2 zlib)
 target_include_directories(${PROJECT_NAME} PRIVATE ${webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${glfw3webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+target_include_directories(${PROJECT_NAME} PRIVATE ${opengametools_SOURCE_DIR}/src)
 
 target_compile_definitions(
     ${PROJECT_NAME} PRIVATE
