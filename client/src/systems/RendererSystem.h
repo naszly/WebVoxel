@@ -24,7 +24,7 @@ private:
     const int m_sampleCount = 1;
 
     struct Uniforms {
-        glm::mat4 projectionViewMatrix;
+        glm::mat4 transposedProjectionViewMatrix;
         glm::mat4 inverseProjectionViewMatrix;
         glm::vec3 cameraPosition;
         float fov;

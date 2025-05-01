@@ -25,7 +25,7 @@ void RendererSystem::initialize() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     const Camera &camera = Application::GetInstance().getCamera();
 
-    m_UniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
+    m_UniformData.transposedProjectionViewMatrix = glm::transpose(camera.getProjectionViewMatrix());
     m_UniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
     m_UniformData.cameraPosition = camera.getPosition();
     m_UniformData.fov = FOV;

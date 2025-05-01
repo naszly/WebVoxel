@@ -4,7 +4,7 @@ override AO: bool = false;
 const PI: f32 = 3.14159265359;
 
 struct Uniforms {
-    projectionView : mat4x4<f32>,
+    transposedProjectionViewMatrix : mat4x4<f32>,
     inverseProjectionViewMatrix : mat4x4<f32>,
     cameraPosition : vec3f,
     fov : f32,
@@ -55,18 +55,21 @@ struct Billboard {
     size : vec2f,
 }
 
-fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x4<f32>) -> Billboard {
+fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
     let quadricMat: vec4f = vec4f(1.0, 1.0, 1.0, -1.0);
     let sphereRadius: f32 = voxelSize * 0.5 * 1.732051;
     let sphereCenter: vec4f = vec4f(voxelPosition, 1.0);
-    let modelViewProj: mat4x4<f32> = transpose(objectToScreenMatrix);
+    let viewProj: mat4x4<f32> = u.transposedProjectionViewMatrix;
+
+    let projX = dot(sphereCenter, viewProj[0]);
+    let projY = dot(sphereCenter, viewProj[1]);
+    let projW = dot(sphereCenter, viewProj[3]);
 
     var matT: mat3x4<f32> = mat3x4<f32>(
-        mat3x4<f32>(modelViewProj[0], modelViewProj[1], modelViewProj[3]) * sphereRadius
+        vec4f(viewProj[0].xyz * sphereRadius, projX),
+        vec4f(viewProj[1].xyz * sphereRadius, projY),
+        vec4f(viewProj[3].xyz * sphereRadius, projW)
     );
-    matT[0].w = dot(sphereCenter, modelViewProj[0]);
-    matT[1].w = dot(sphereCenter, modelViewProj[1]);
-    matT[2].w = dot(sphereCenter, modelViewProj[3]);
 
     let matD: mat3x4<f32> = mat3x4<f32>(
         matT[0] * quadricMat,
@@ -92,29 +95,28 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32, objectToScreenMatrix: mat4x
 }
 
 fn process_vertex(vertex: VertexInputAO) -> VertexOut {
-    var vertexPosition: vec2f = vertex.vertex_position.xy;
-    var instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxel_position) * 255;
-    var voxelColor: vec4f = unpack4x8unorm(vertex.voxel_color);
-    var chunkOffset: vec3f = vertex.chunk_position.xyz * CHUNK_SIZE;
+    let vertexPosition: vec2f = vertex.vertex_position.xy;
+    let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxel_position) * 255;
+    let voxelColor: vec4f = unpack4x8unorm(vertex.voxel_color);
+    let chunkOffset: vec3f = vertex.chunk_position.xyz * CHUNK_SIZE;
 
-    var voxelSize = instanceVoxelPosition.w;
+    let voxelSize = instanceVoxelPosition.w;
 
-    var voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
+    let voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
 
-    var billboard: Billboard = quadricProj(voxelPosition, voxelSize, u.projectionView);
+    let billboard: Billboard = quadricProj(voxelPosition, voxelSize);
 
-    var stochasticCoverage: f32 = billboard.size.x * u.viewportSize.x * billboard.size.y * u.viewportSize.y;
+    let stochasticCoverage: f32 = billboard.size.x * u.viewportSize.x * billboard.size.y * u.viewportSize.y;
     if (stochasticCoverage < 0.8) {
-        billboard.size = vec2f(0.0, 0.0);
+        var out: VertexOut;
+        out.pos = vec4f(0.0, 0.0, -1.0, 0.0);
+        return out;
     }
-
-    vertexPosition *= billboard.size;
-    vertexPosition += billboard.pos;
 
     let depth = length(voxelPosition) / u.farPlane;
 
     var out: VertexOut;
-    out.pos = vec4f(vertexPosition, depth, 1.0);
+    out.pos = vec4f(vertexPosition * billboard.size + billboard.pos, depth, 1.0);
     out.vColor = voxelColor;
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
