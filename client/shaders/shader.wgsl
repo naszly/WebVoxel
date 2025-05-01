@@ -2,6 +2,7 @@ override CHUNK_SIZE: f32 = 64.0;
 override AO: bool = false;
 
 const PI: f32 = 3.14159265359;
+const HALF_PI: f32 = 1.57079632679;
 
 struct Uniforms {
     transposedProjectionViewMatrix : mat4x4<f32>,
@@ -211,21 +212,21 @@ fn intersectBox(box : Box, ray : Ray) -> Hit {
         hit.distance = distanceToPlane.x;
         if (AO) {
             hit.uv = getXPlaneUV(rayOrigin, rayDirection, distanceToPlane.x, box.radius.x);
-            hit.plane = u32(sgn.x > 0.0f);
+            hit.plane = select(0u, 1u, sgn.x > 0.0f);
         }
     } else if (test.y) {
         sgn = vec3f(0.0f, sgn.y, 0.0f);
         hit.distance = distanceToPlane.y;
         if (AO) {
             hit.uv = getYPlaneUV(rayOrigin, rayDirection, distanceToPlane.y, box.radius.y);
-            hit.plane = u32(sgn.y > 0.0f) + 2;
+            hit.plane = select(2u, 3u, sgn.y > 0.0f);
         }
     } else if (test.z) {
         sgn = vec3f(0.0f, 0.0f, sgn.z);
         hit.distance = distanceToPlane.z;
         if (AO) {
             hit.uv = getZPlaneUV(rayOrigin, rayDirection, distanceToPlane.z, box.radius.z);
-            hit.plane = u32(sgn.z > 0.0f) + 4;
+            hit.plane = select(4u, 5u, sgn.z > 0.0f);
         }
     } else {
         return hit;
@@ -285,7 +286,7 @@ fn getAmbientOcclusion(cornerNuNv : u32, cornerNuPv : u32, cornerPuNv : u32, cor
         factor *= 1.0 - uv.x * uv.y;
     }
 
-    return mix(0.25, 1.0, sin(factor * PI * 0.5));
+    return mix(0.25, 1.0, sin(factor * HALF_PI));
 }
 
 fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusion : u32) -> vec3f {
@@ -319,51 +320,29 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
     const PlaneNz = 4; // Negative Z (Front Plane)
     const PlanePz = 5; // Positive Z (Back Plane)
 
-    var c : vec3f = color;
+    const Corners = array<array<u32, 4>, 6>(
+        array<u32, 4>(CornerNxNyNz, CornerNxNyPz, CornerNxPyNz, CornerNxPyPz), // PlaneNx
+        array<u32, 4>(CornerPxNyNz, CornerPxNyPz, CornerPxPyNz, CornerPxPyPz), // PlanePx
+        array<u32, 4>(CornerNxNyNz, CornerNxNyPz, CornerPxNyNz, CornerPxNyPz), // PlaneNy
+        array<u32, 4>(CornerNxPyNz, CornerNxPyPz, CornerPxPyNz, CornerPxPyPz), // PlanePy
+        array<u32, 4>(CornerNxNyNz, CornerNxPyNz, CornerPxNyNz, CornerPxPyNz), // PlaneNz
+        array<u32, 4>(CornerNxNyPz, CornerNxPyPz, CornerPxNyPz, CornerPxPyPz)  // PlanePz
+    );
 
-    switch (plane) {
-        case PlaneNx: {
-            c *= getAmbientOcclusion(CornerNxNyNz, CornerNxNyPz, CornerNxPyNz, CornerNxPyPz,
-                                     EdgeNxNy, EdgeNxPy, EdgeNxNz, EdgeNxPz,
-                                     uv, ambientOcclusion);
-            break;
-        }
-        case PlanePx: {
-            c *= getAmbientOcclusion(CornerPxNyNz, CornerPxNyPz, CornerPxPyNz, CornerPxPyPz,
-                                     EdgePxNy, EdgePxPy, EdgePxNz, EdgePxPz,
-                                     uv, ambientOcclusion);
-            break;
-        }
-        case PlaneNy: {
-            c *= getAmbientOcclusion(CornerNxNyNz, CornerNxNyPz, CornerPxNyNz, CornerPxNyPz,
-                                     EdgeNxNy, EdgePxNy, EdgeNyNz, EdgeNyPz,
-                                     uv, ambientOcclusion);
-            break;
-        }
-        case PlanePy: {
-            c *= getAmbientOcclusion(CornerNxPyNz, CornerNxPyPz, CornerPxPyNz, CornerPxPyPz,
-                                     EdgeNxPy, EdgePxPy, EdgePyNz, EdgePyPz,
-                                     uv, ambientOcclusion);
-            break;
-        }
-        case PlaneNz: {
-            c *= getAmbientOcclusion(CornerNxNyNz, CornerNxPyNz, CornerPxNyNz, CornerPxPyNz,
-                                     EdgeNxNz, EdgePxNz, EdgeNyNz, EdgePyNz,
-                                     uv, ambientOcclusion);
-            break;
-        }
-        case PlanePz: {
-            c *= getAmbientOcclusion(CornerNxNyPz, CornerNxPyPz, CornerPxNyPz, CornerPxPyPz,
-                                     EdgeNxPz, EdgePxPz, EdgeNyPz, EdgePyPz,
-                                     uv, ambientOcclusion);
-            break;
-        }
-        default: {
-            break;
-        }
-    }
+    const Edges = array<array<u32, 4>, 6>(
+        array<u32, 4>(EdgeNxNy, EdgeNxPy, EdgeNxNz, EdgeNxPz), // PlaneNx
+        array<u32, 4>(EdgePxNy, EdgePxPy, EdgePxNz, EdgePxPz), // PlanePx
+        array<u32, 4>(EdgeNxNy, EdgePxNy, EdgeNyNz, EdgeNyPz), // PlaneNy
+        array<u32, 4>(EdgeNxPy, EdgePxPy, EdgePyNz, EdgePyPz), // PlanePy
+        array<u32, 4>(EdgeNxNz, EdgePxNz, EdgeNyNz, EdgePyNz), // PlaneNz
+        array<u32, 4>(EdgeNxPz, EdgePxPz, EdgeNyPz, EdgePyPz)  // PlanePz
+    );
 
-    return c;
+    return color * getAmbientOcclusion(
+        Corners[plane][0], Corners[plane][1], Corners[plane][2], Corners[plane][3],
+        Edges[plane][0], Edges[plane][1], Edges[plane][2], Edges[plane][3],
+        uv, ambientOcclusion
+    );
 }
 
 @fragment fn fs_main(in : FragmentIn) -> FragmentOut {
