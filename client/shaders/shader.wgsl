@@ -167,13 +167,13 @@ fn allLessThan(v1 : vec2f, v2 : vec2f) -> bool {
 }
 
 fn rayBoxTest(distanceToPlane : vec3f, rayOrigin : vec3f, rayDirection : vec3f, boxRadius : vec3f) -> vec3<bool> {
-    var intersectsXPlane : bool = distanceToPlane.x > 0.0f &&
+    let intersectsXPlane : bool = distanceToPlane.x > 0.0f &&
         allLessThan(abs(rayOrigin.yz + rayDirection.yz * distanceToPlane.x), boxRadius.yz);
 
-    var intersectsYPlane : bool = distanceToPlane.y > 0.0f &&
-        allLessThan(abs(rayOrigin.xz + rayDirection.xz * distanceToPlane.y), boxRadius.zx);
+    let intersectsYPlane : bool = distanceToPlane.y > 0.0f &&
+        allLessThan(abs(rayOrigin.xz + rayDirection.xz * distanceToPlane.y), boxRadius.xz);
 
-    var intersectsZPlane : bool = distanceToPlane.z > 0.0f &&
+    let intersectsZPlane : bool = distanceToPlane.z > 0.0f &&
         allLessThan(abs(rayOrigin.xy + rayDirection.xy * distanceToPlane.z), boxRadius.xy);
 
     return vec3<bool>(intersectsXPlane, intersectsYPlane, intersectsZPlane);
@@ -195,9 +195,9 @@ fn intersectBox(box : Box, ray : Ray) -> Hit {
 
     var sgn : vec3f = -sign(rayDirection);
 
-    var distanceToPlane : vec3f = (box.radius * sgn - rayOrigin) / rayDirection;
+    let distanceToPlane : vec3f = (box.radius * sgn - rayOrigin) / rayDirection;
 
-    var test : vec3<bool> = rayBoxTest(distanceToPlane, rayOrigin, rayDirection, box.radius);
+    let test : vec3<bool> = rayBoxTest(distanceToPlane, rayOrigin, rayDirection, box.radius);
 
     var hit : Hit;
     hit.isHit = false;
@@ -236,8 +236,8 @@ fn intersectBox(box : Box, ray : Ray) -> Hit {
 }
 
 fn screenToWorldSpace(screenPos : vec2f) -> vec3f {
-    var pos = screenPos * 2.0f - 1.0f;
-    var worldPos : vec4f = u.inverseProjectionViewMatrix * vec4f(pos.x, -pos.y, -1.0f, 1.0f);
+    let pos = screenPos * 2.0f - 1.0f;
+    let worldPos : vec4f = u.inverseProjectionViewMatrix * vec4f(pos.x, -pos.y, -1.0f, 1.0f);
     return worldPos.xyz / worldPos.w;
 }
 
