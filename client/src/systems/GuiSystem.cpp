@@ -99,7 +99,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Debug Info");
     static double lastTime = 0.0f;
@@ -111,7 +111,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Text("Rendered Chunks: %zu", appData.renderedChunks);
     ImGui::Text("Rendered Voxels: %zu", appData.renderedVoxels);
 
-    if (ImGui::Button("Clean Chunk FS")) {
+    if (ImGui::Button("Clean FS")) {
         Chunk::CleanFs();
     }
 
@@ -124,25 +124,35 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         ImGui::EndDisabled();
     }
 
+    if (const auto rs = Application::GetInstance().getSystem<RendererSystem>())
+    {
+        if (ImGui::Button("Export timestamps")) {
+            const auto queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
+
+            wgpuQueueOnSubmittedWorkDone(queue, [](WGPUQueueWorkDoneStatus status, void* userdata) {
+                    const auto rendererSystem = static_cast<RendererSystem*>(userdata);
+                    if (status == WGPUQueueWorkDoneStatus_Success) {
+                        LogApp::info("Exporting timestamps...");
+                        rendererSystem->exportTimestamps();
+                    } else {
+                        LogApp::error("Failed to export timestamps");
+                    }
+                }, rs.get());
+        }
+    }
+
+    ImGui::Checkbox("Ambient occlusion", &m_ambient_occlusion);
+
     ImGui::End();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(0, 120), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 200), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
     ImGui::ColorEdit3("Color", glm::value_ptr(appData.placedVoxelColor));
     ImGui::SliderInt("Radius", &appData.placedVoxelRadius, 0, 64);
     ImGui::Checkbox("Is Sphere", &appData.placedVoxelShapeIsSphere);
-    ImGui::End();
-
-
-    ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(0, 240), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 120), ImGuiCond_FirstUseEver);
-
-    ImGui::Begin("Ambient Occlusion");
-    ImGui::Checkbox("Enabled", &m_ambient_occlusion);
     ImGui::End();
 
     ImGui::Render();

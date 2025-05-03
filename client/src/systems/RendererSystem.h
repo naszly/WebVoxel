@@ -19,6 +19,8 @@ public:
 
     void setAmbientOcclusion(bool ambientOcclusion);
 
+    void exportTimestamps() const;
+
 private:
     bool m_ambient_occlusion;
     const int m_sampleCount = 1;
@@ -55,6 +57,12 @@ private:
     };
 
     std::unordered_map<glm::ivec3, ChunkVertexBuffer> m_ChunkVertexBuffers;
+
+    WGPUQuerySet m_QuerySet{};
+    WGPUBuffer m_QueryResolveBuffer{};
+    WGPUBuffer m_QueryReadBuffer{};
+    const uint64_t m_QueryReadBufferCapacity = 524288 * sizeof(uint64_t);
+    uint64_t m_QueryReadBufferSize{};
 
     void createRenderPipeline();
     void createDepthTexture();

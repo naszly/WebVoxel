@@ -16,6 +16,16 @@ WebGPUContext::~WebGPUContext() {
     wgpuInstanceRelease(m_Instance);
 }
 
+void WebGPUContext::pollEvents() const {
+#if defined(WEBGPU_BACKEND_DAWN)
+    wgpuDeviceTick(m_Device);
+#elif defined(WEBGPU_BACKEND_WGPU)
+    wgpuDevicePoll(m_Device, false, nullptr);
+#elif defined(WEBGPU_BACKEND_EMSCRIPTEN)
+    emscripten_sleep(100);
+#endif
+}
+
 void WebGPUContext::createInstance() {
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
@@ -110,11 +120,15 @@ void WebGPUContext::requestDevice() {
     uncapturedErrorCallbackInfo.callback = onDeviceError;
 #endif
 
+    const std::vector requiredFeatures = {
+        WGPUFeatureName_TimestampQuery,
+    };
+
     WGPUDeviceDescriptor descriptor = {};
     descriptor.nextInChain = nullptr;
     descriptor.label = "WebGPU Device";
-    descriptor.requiredFeatureCount = 0;
-    descriptor.requiredFeatures = nullptr;
+    descriptor.requiredFeatureCount = static_cast<uint32_t>(requiredFeatures.size());
+    descriptor.requiredFeatures = requiredFeatures.data();
     descriptor.requiredLimits = nullptr;
     descriptor.defaultQueue.nextInChain = nullptr;
     descriptor.defaultQueue.label = "WebGPU Queue";

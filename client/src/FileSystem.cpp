@@ -51,6 +51,26 @@ void WriteFile_Emscripten(const char* fileName, const char* buffer, int size) {
     }, fileName, buffer, size);
 }
 
+void DownloadFile_Emscripten(const char* fileName, const char* downloadName) {
+    MAIN_THREAD_EM_ASM({
+        let fileName = UTF8ToString($0);
+        let downloadName = UTF8ToString($1);
+
+        try {
+            let data = FS.readFile(fileName, { encoding: 'binary' });
+            let blob = new Blob([new Uint8Array(data)], { type: 'application/octet-stream' });
+
+            let link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = downloadName;
+            link.click();
+
+            URL.revokeObjectURL(link.href);
+        } catch (readErr) {
+            console.error('Could not read file:', readErr);
+        }
+    }, fileName, downloadName);
+}
 #endif
 
 bool FileSystem::FileExists(const std::string& fileName) {
@@ -148,5 +168,14 @@ void FileSystem::WriteFile(const std::string& fileName, const char* buffer, cons
 
     file.write(buffer, size);
     file.close();
+#endif
+}
+
+void FileSystem::Download(const std::string& fileName, const std::string& downloadName) {
+#if defined(__EMSCRIPTEN__)
+    const auto filePath = "/workdir/" + fileName;
+    DownloadFile_Emscripten(filePath.c_str(), downloadName.c_str());
+#else
+    LogCore::error("Download is only supported in Emscripten builds.");
 #endif
 }

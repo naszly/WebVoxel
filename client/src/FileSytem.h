@@ -33,4 +33,15 @@ namespace FileSystem {
     std::vector<char> ReadFileNative(const std::string& fileName);
 
     void CleanFiles(const std::string& extension);
+
+    /**
+     * @brief Downloads a file from the filesystem.
+     * 
+     * In Emscripten builds, this method downloads a file from the virtual filesystem
+     * and triggers a browser download. For native builds, this method is not supported.
+     * 
+     * @param fileName The name of the file to download.
+     * @param downloadName The name to use for the downloaded file.
+     */
+    void Download(const std::string& fileName, const std::string& downloadName);
 };
