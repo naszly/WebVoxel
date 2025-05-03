@@ -126,29 +126,18 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         Chunk::CleanFs();
     }
 
-    if (const auto cms = Application::GetInstance().getSystem<ChunkManagementSystem>())
-    {
+    if (const auto chunkManager = Application::GetInstance().getSystem<ChunkManagementSystem>()) {
         ImGui::SameLine();
-        ImGui::BeginDisabled(cms->isSaveInProgress());
-        if (ImGui::Button("Save All Chunks"))
-            cms->saveAllChunks();
+        ImGui::BeginDisabled(chunkManager->isSaveInProgress());
+        if (ImGui::Button("Save All Chunks")) {
+            chunkManager->saveAllChunks();
+        }
         ImGui::EndDisabled();
     }
 
-    if (const auto rs = Application::GetInstance().getSystem<RendererSystem>())
-    {
+    if (const auto renderer = Application::GetInstance().getSystem<RendererSystem>()) {
         if (ImGui::Button("Export timestamps")) {
-            const auto queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
-
-            wgpuQueueOnSubmittedWorkDone(queue, [](WGPUQueueWorkDoneStatus status, void* userdata) {
-                    const auto rendererSystem = static_cast<RendererSystem*>(userdata);
-                    if (status == WGPUQueueWorkDoneStatus_Success) {
-                        LogApp::info("Exporting timestamps...");
-                        rendererSystem->exportTimestamps();
-                    } else {
-                        LogApp::error("Failed to export timestamps");
-                    }
-                }, rs.get());
+            renderer->exportTimestamps();
         }
     }
 

@@ -304,55 +304,19 @@ void RendererSystem::setFog(const bool fog) {
 }
 
 void RendererSystem::exportTimestamps() const {
-    struct UserData {
-        WGPUBuffer buffer;
-        uint64_t size;
-        std::vector<uint64_t> durations;
-        bool requestEnded = false;
-    };
+    const auto queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
 
-    auto callback = [](WGPUBufferMapAsyncStatus status, void* userdata) {
-        const auto data = static_cast<UserData*>(userdata);
-        if (status == WGPUBufferMapAsyncStatus_Success) {
-            if (const auto* timestamps = static_cast<const uint64_t*>(wgpuBufferGetConstMappedRange(data->buffer, 0, data->size))) {
-                for (size_t i = 0; i < data->size / sizeof(uint64_t) / 2; ++i) {
-                    uint64_t duration = timestamps[i*2+1] - timestamps[i*2];
-                    data->durations.push_back(duration);
-                }
-            } else {
-                LogApp::error("Failed to get mapped range from query read buffer");
-            }
-            wgpuBufferUnmap(data->buffer);
+    auto onWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, void* userdata) {
+        const auto rendererSystem = static_cast<const RendererSystem*>(userdata);
+        if (status == WGPUQueueWorkDoneStatus_Success) {
+            LogApp::info("Exporting timestamps...");
+            rendererSystem->exportTimestampsInternal();
         } else {
-            LogApp::error("Failed to map query read buffer: {0}", magic_enum::enum_name(status));
+            LogApp::error("Failed to export timestamps");
         }
-        data->requestEnded = true;
     };
 
-    UserData userData{m_QueryReadBuffer, m_QueryReadBufferSize};
-    wgpuBufferMapAsync(m_QueryReadBuffer, WGPUMapMode_Read, 0, m_QueryReadBufferCapacity, callback, &userData);
-
-    GetWebGPUContext().pollEvents();
-
-    while (!userData.requestEnded) {
-        Threading::Sleep(30);
-        GetWebGPUContext().pollEvents();
-    }
-
-    if (!userData.durations.empty()) {
-        std::stringstream ss;
-        for (const auto& duration : userData.durations) {
-            ss << duration << "\n";
-        }
-        const std::string fileName = std::format("timestamps_{}.txt", std::chrono::high_resolution_clock::now().time_since_epoch().count());
-        FileSystem::WriteFile(fileName, ss.str().c_str(), ss.str().size());
-        LogApp::info("Timestamps saved to file: {0}", fileName);
-
-        FileSystem::Download(fileName, fileName);
-
-    } else {
-        LogApp::warning("No timestamps to save");
-    }
+    wgpuQueueOnSubmittedWorkDone(queue, onWorkDoneCallback, const_cast<RendererSystem *>(this));
 }
 
 void RendererSystem::createRenderPipeline() {
@@ -693,6 +657,57 @@ void RendererSystem::InitializeBuffers() {
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
     m_UniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
+}
+
+void RendererSystem::exportTimestampsInternal() const {
+    struct UserData {
+        WGPUBuffer buffer;
+        uint64_t size;
+        std::vector<uint64_t> durations;
+        bool requestEnded = false;
+    };
+
+    auto callback = [](WGPUBufferMapAsyncStatus status, void* userdata) {
+        const auto data = static_cast<UserData*>(userdata);
+        if (status == WGPUBufferMapAsyncStatus_Success) {
+            if (const auto* timestamps = static_cast<const uint64_t*>(wgpuBufferGetConstMappedRange(data->buffer, 0, data->size))) {
+                for (size_t i = 0; i < data->size / sizeof(uint64_t) / 2; ++i) {
+                    uint64_t duration = timestamps[i*2+1] - timestamps[i*2];
+                    data->durations.push_back(duration);
+                }
+            } else {
+                LogApp::error("Failed to get mapped range from query read buffer");
+            }
+            wgpuBufferUnmap(data->buffer);
+        } else {
+            LogApp::error("Failed to map query read buffer: {0}", magic_enum::enum_name(status));
+        }
+        data->requestEnded = true;
+    };
+
+    UserData userData{m_QueryReadBuffer, m_QueryReadBufferSize};
+    wgpuBufferMapAsync(m_QueryReadBuffer, WGPUMapMode_Read, 0, m_QueryReadBufferCapacity, callback, &userData);
+
+    GetWebGPUContext().pollEvents();
+
+    while (!userData.requestEnded) {
+        Threading::Sleep(30);
+        GetWebGPUContext().pollEvents();
+    }
+
+    if (!userData.durations.empty()) {
+        std::stringstream ss;
+        for (const auto& duration : userData.durations) {
+            ss << duration << "\n";
+        }
+        const std::string fileName = std::format("timestamps_{}.txt", std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        FileSystem::WriteFile(fileName, ss.str().c_str(), ss.str().size());
+        LogApp::info("Timestamps saved to file: {0}", fileName);
+
+        FileSystem::Download(fileName, fileName);
+    } else {
+        LogApp::warning("No timestamps to save");
+    }
 }
 
 RendererSystem::ChunkBitmap RendererSystem::getBitmap(const World &world, const Chunk &chunk) const {
