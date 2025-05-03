@@ -145,8 +145,6 @@ fn process_vertex(vertex: VertexInputAO) -> VertexOut {
 struct Box {
     center : vec3f,
     radius : vec3f,
-    invRadius : vec3f,
-    rotation : mat3x3<f32>,
 }
 
 struct Ray {
@@ -186,8 +184,8 @@ fn getZPlaneUV(rayOrigin : vec3f, rayDirection : vec3f, distance : f32, boxRadiu
 }
 
 fn intersectBox(box : Box, ray : Ray) -> Hit {
-    let rayOrigin : vec3f = box.rotation * (ray.origin - box.center);
-    let rayDirection : vec3f = ray.direction * box.rotation;
+    let rayOrigin : vec3f = ray.origin - box.center;
+    let rayDirection : vec3f = ray.direction;
 
     var sgn : vec3f = -sign(rayDirection);
 
@@ -201,21 +199,21 @@ fn intersectBox(box : Box, ray : Ray) -> Hit {
     hit.normal = vec3f(0.0f, 0.0f, 0.0f);
 
     if (test.x) {
-        sgn = vec3f(sgn.x, 0.0f, 0.0f);
+        hit.normal = vec3f(sgn.x, 0.0f, 0.0f);
         hit.distance = distanceToPlane.x;
         if (AO) {
             hit.uv = getXPlaneUV(rayOrigin, rayDirection, distanceToPlane.x, box.radius.x);
             hit.plane = select(0u, 1u, sgn.x > 0.0f);
         }
     } else if (test.y) {
-        sgn = vec3f(0.0f, sgn.y, 0.0f);
+        hit.normal = vec3f(0.0f, sgn.y, 0.0f);
         hit.distance = distanceToPlane.y;
         if (AO) {
             hit.uv = getYPlaneUV(rayOrigin, rayDirection, distanceToPlane.y, box.radius.y);
             hit.plane = select(2u, 3u, sgn.y > 0.0f);
         }
     } else if (test.z) {
-        sgn = vec3f(0.0f, 0.0f, sgn.z);
+        hit.normal = vec3f(0.0f, 0.0f, sgn.z);
         hit.distance = distanceToPlane.z;
         if (AO) {
             hit.uv = getZPlaneUV(rayOrigin, rayDirection, distanceToPlane.z, box.radius.z);
@@ -226,7 +224,6 @@ fn intersectBox(box : Box, ray : Ray) -> Hit {
     }
 
     hit.isHit = true;
-    hit.normal = box.rotation * sgn;
 
     return hit;
 }
@@ -355,9 +352,6 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
     var box : Box;
     box.center = in.vPos;
     box.radius = vec3f(in.vSize * 0.5);
-    box.rotation = mat3x3<f32>(1.0f, 0.0f, 0.0f,
-                               0.0f, 1.0f, 0.0f,
-                               0.0f, 0.0f, 1.0f);
 
     let hit : Hit = intersectBox(box, ray);
 
