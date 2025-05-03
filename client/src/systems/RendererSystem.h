@@ -11,7 +11,7 @@ public:
     void update(float dt) override;
     void onEvent(Event& event) override;
 
-    explicit RendererSystem(const bool ambientOcclusion = false) : System(), m_ambient_occlusion(ambientOcclusion) {}
+    explicit RendererSystem() : System() {}
 
     [[nodiscard]] bool getAmbientOcclusion() const {
         return m_ambient_occlusion;
@@ -19,10 +19,24 @@ public:
 
     void setAmbientOcclusion(bool ambientOcclusion);
 
+    [[nodiscard]] bool getLighting() const {
+        return m_lighting;
+    }
+
+    void setLighting(bool lighting);
+
+    [[nodiscard]] bool getFog() const {
+        return m_fog;
+    }
+
+    void setFog(bool fog);
+
     void exportTimestamps() const;
 
 private:
-    bool m_ambient_occlusion;
+    bool m_ambient_occlusion = false;
+    bool m_lighting = false;
+    bool m_fog = false;
     const int m_sampleCount = 1;
 
     struct Uniforms {

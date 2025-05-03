@@ -142,11 +142,13 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     }
 
     ImGui::Checkbox("Ambient occlusion", &m_ambient_occlusion);
+    ImGui::Checkbox("Lighting", &m_lighting);
+    ImGui::Checkbox("Fog", &m_fog);
 
     ImGui::End();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(0, 200), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 300), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
@@ -182,6 +184,12 @@ void GuiSystem::update(float dt) {
     if (const auto rendererSystem = Application::GetInstance().getSystem<RendererSystem>()) {
         if (rendererSystem->getAmbientOcclusion() != m_ambient_occlusion) {
             rendererSystem->setAmbientOcclusion(m_ambient_occlusion);
+        }
+        if (rendererSystem->getLighting() != m_lighting) {
+            rendererSystem->setLighting(m_lighting);
+        }
+        if (rendererSystem->getFog() != m_fog) {
+            rendererSystem->setFog(m_fog);
         }
     }
 }

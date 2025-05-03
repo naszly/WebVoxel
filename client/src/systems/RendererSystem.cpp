@@ -289,6 +289,20 @@ void RendererSystem::setAmbientOcclusion(const bool ambientOcclusion) {
     }
 }
 
+void RendererSystem::setLighting(const bool lighting) {
+    if (m_lighting != lighting) {
+        m_lighting = lighting;
+        createRenderPipeline();
+    }
+}
+
+void RendererSystem::setFog(const bool fog) {
+    if (m_fog != fog) {
+        m_fog = fog;
+        createRenderPipeline();
+    }
+}
+
 void RendererSystem::exportTimestamps() const {
     struct UserData {
         WGPUBuffer buffer;
@@ -498,6 +512,14 @@ void RendererSystem::createRenderPipeline() {
         WGPUConstantEntry{
             .key = "AO",
             .value = static_cast<double>(m_ambient_occlusion),
+        },
+        WGPUConstantEntry{
+            .key = "LIGHTING",
+            .value = static_cast<double>(m_lighting),
+        },
+        WGPUConstantEntry{
+            .key = "FOG",
+            .value = static_cast<double>(m_fog),
         }
     };
 

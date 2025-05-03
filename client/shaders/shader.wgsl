@@ -1,5 +1,7 @@
 override CHUNK_SIZE: f32 = 64.0;
 override AO: bool = false;
+override LIGHTING: bool = false;
+override FOG: bool = false;
 
 const PI: f32 = 3.14159265359;
 const HALF_PI: f32 = 1.57079632679;
@@ -344,7 +346,6 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
         return out;
     }
 
-    let lightDir : vec3f = normalize(vec3f(0.2f, 0.8f, -0.5f));
     var ray : Ray;
     ray.origin = vec3f(0.0, 0.0, 0.0);
     ray.direction = normalize(screenToWorldSpace(in.fragPos.xy / u.viewportSize.xy));
@@ -356,14 +357,6 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
     let hit : Hit = intersectBox(box, ray);
 
     if (hit.isHit) {
-        let ambientLight : f32 = 0.3f;
-        let directionalLight : f32 = max(dot(hit.normal, lightDir), 0.0f) * 0.7f;
-
-        let light = ambientLight + directionalLight;
-
-        let fog : f32 = sqrt(clamp(hit.distance / u.farPlane, 0.0f, 1.0f)) * 0.3f;
-        let fogColor : vec3f = vec3f(0.41f, 0.42f, 0.5f);
-
         var color : vec3f;
 
         if (AO) {
@@ -372,9 +365,21 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
             color = in.vColor.rgb;
         }
 
-        color *= light;
+        if (LIGHTING) {
+            let lightDir : vec3f = normalize(vec3f(0.2f, 0.8f, -0.5f));
+            let ambientLight : f32 = 0.3f;
+            let directionalLight : f32 = max(dot(hit.normal, lightDir), 0.0f) * 0.7f;
+            let light = ambientLight + directionalLight;
+            color *= light;
+        }
 
-        out.color = vec4f(mix(color, fogColor, fog), 1.0f);
+        if (FOG) {
+            let fog : f32 = sqrt(clamp(hit.distance / u.farPlane, 0.0f, 1.0f)) * 0.3f;
+            let fogColor : vec3f = vec3f(0.41f, 0.42f, 0.5f);
+            color = mix(color, fogColor, fog);
+        }
+
+        out.color = vec4f(color, 1.0f);
     } else {
         discard;
     }
