@@ -71,6 +71,17 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::NewFrame();
 
+    // Draw crosshair in the center of the screen
+    {
+        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+        const int screenWidth = GetWebGPUSurface().getWidth();
+        const int screenHeight = GetWebGPUSurface().getHeight();
+        const float centerX = static_cast<float>(screenWidth) / 2.0f;
+        const float centerY = static_cast<float>(screenHeight) / 2.0f;
+
+        drawList->AddCircle({ centerX, centerY }, 3.0f, ImColor(255, 255, 255, 170));
+    }
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);

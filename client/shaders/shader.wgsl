@@ -340,12 +340,6 @@ fn applyAmbientOcclusion(color : vec3f, uv : vec2f, plane : u32, ambientOcclusio
 @fragment fn fs_main(in : FragmentIn) -> FragmentOut {
     var out : FragmentOut;
 
-    // crosshair
-    if (length(in.fragPos.xy - u.viewportSize.xy * 0.5) < 2.0) {
-        out.color = vec4f(1.0f, 1.0f, 1.0f, 1.0f);
-        return out;
-    }
-
     var ray : Ray;
     ray.origin = vec3f(0.0, 0.0, 0.0);
     ray.direction = normalize(screenToWorldSpace(in.fragPos.xy / u.viewportSize.xy));
