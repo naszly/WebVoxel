@@ -483,9 +483,9 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
     if (m_ambient_occlusion) {
-        pipelineDesc.vertex.entryPoint = "vs_main_ao";
+        pipelineDesc.vertex.entryPoint = "vsMainAo";
     } else {
-        pipelineDesc.vertex.entryPoint = "vs_main";
+        pipelineDesc.vertex.entryPoint = "vsMain";
     }
     pipelineDesc.vertex.constantCount = vertexConstants.size();
     pipelineDesc.vertex.constants = vertexConstants.data();
@@ -525,7 +525,7 @@ void RendererSystem::createRenderPipeline() {
 
     WGPUFragmentState fragmentState{};
     fragmentState.module = shaderModule;
-    fragmentState.entryPoint = "fs_main";
+    fragmentState.entryPoint = "fsMain";
     fragmentState.constantCount = fragmentConstants.size();
     fragmentState.constants = fragmentConstants.data();
 
