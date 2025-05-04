@@ -38,6 +38,14 @@ void Application::start(const int width, const int height) {
     Timer::exportTimes();
 }
 
+void Application::stop() {
+#if defined(__EMSCRIPTEN__)
+    emscripten_cancel_main_loop();
+#else
+    m_Window->close();
+#endif
+}
+
 void Application::onEvent(Event &event) {
     for (const auto & m_Layer : std::ranges::reverse_view(m_Layers)) {
         m_Layer->onEvent(event);

@@ -32,6 +32,8 @@ public:
 
     bool shouldClose();
 
+    void close();
+
     void pollEvents();
 
     [[nodiscard]] std::shared_ptr<WebGPUContext> getWebGPUContext() const {

@@ -23,6 +23,8 @@ public:
 
     void start(int width, int height);
 
+    void stop();
+
     void pushLayer(std::shared_ptr<Layer> layer) {
         m_Layers.push_back(std::move(layer));
     }
