@@ -15,10 +15,10 @@ void Application::emscriptenMainLoop(void* arg) {
 }
 #endif
 
-void Application::start() {
+void Application::start(const int width, const int height) {
     m_Window = Window::create({
-            800,
-            600,
+            width,
+            height,
             "Voxel WebGPU",
             [this](Event &event) { onEvent(event); }
         });

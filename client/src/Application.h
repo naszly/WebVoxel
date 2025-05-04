@@ -21,7 +21,7 @@ class Application {
 public:
     static Application& GetInstance();
 
-    void start();
+    void start(int width, int height);
 
     void pushLayer(std::shared_ptr<Layer> layer) {
         m_Layers.push_back(std::move(layer));

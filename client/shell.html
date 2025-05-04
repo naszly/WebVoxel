@@ -99,7 +99,13 @@
   var progressElement = document.getElementById('progress');
   var spinnerElement = document.getElementById('spinner');
 
+  let urlParams = new URLSearchParams(window.location.search);
+
+  let width = urlParams.get('width') ? parseInt(urlParams.get('width')) : 1280;
+  let height = urlParams.get('height') ? parseInt(urlParams.get('height')) : 720;
+
   var Module = {
+    arguments: [width.toString(), height.toString()],
     canvas: (() => {
       var canvas = document.getElementById('canvas');
 
