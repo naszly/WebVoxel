@@ -46,10 +46,11 @@ int main(const int argc, char** argv) {
 
     const int width = (argc > 1) ? std::stoi(argv[1]) : 800;
     const int height = (argc > 2) ? std::stoi(argv[2]) : 600;
+    const int voxWorldModelIndex = (argc > 3) ? std::stoi(argv[3]) : 0;
 
     const auto rendererSystem = std::make_shared<RendererSystem>();
     const auto controllerSystem = std::make_shared<ControllerSystem>();
-    const auto voxWorldLoaderSystem = std::make_shared<VoxWorldLoaderSystem>();
+    const auto voxWorldLoaderSystem = std::make_shared<VoxWorldLoaderSystem>(voxWorldModelIndex);
 
     layer->pushSystem(rendererSystem);
     layer->pushSystem(controllerSystem);

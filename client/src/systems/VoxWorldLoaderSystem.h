@@ -1,7 +1,6 @@
 #pragma once
 
 #include "System.h"
-#include "../Thread.h"
 
 class VoxWorldLoaderSystem final : public System {
 public:
@@ -13,6 +12,8 @@ public:
 
     void onEvent(Event &event) override;
 
+    explicit VoxWorldLoaderSystem(const int modelIndex) : System(), m_ModelIndex(modelIndex) { }
+
 private:
-    std::unique_ptr<Threading::Worker> m_LoadWorker;
+    int m_ModelIndex;
 };
