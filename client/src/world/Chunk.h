@@ -166,6 +166,10 @@ public:
         return m_Data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
+    [[nodiscard]] auto getBitmap(const ExtendedChukNeighbours& chunkNeighbours) const {
+        return m_Data.getBitmap(getNeighbours(chunkNeighbours));
+    }
+
     [[nodiscard]] bool fileExists() const;
 
     void save() const;
