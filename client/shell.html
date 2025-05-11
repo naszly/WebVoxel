@@ -101,12 +101,8 @@
 
   let urlParams = new URLSearchParams(window.location.search);
 
-  let width = urlParams.get('width') ? parseInt(urlParams.get('width')) : 1280;
-  let height = urlParams.get('height') ? parseInt(urlParams.get('height')) : 720;
-  let modelIndex = urlParams.get('modelIndex') ? parseInt(urlParams.get('modelIndex')) : 0;
-
   var Module = {
-    arguments: [width.toString(), height.toString(), modelIndex.toString()],
+    arguments: [],
     canvas: (() => {
       var canvas = document.getElementById('canvas');
 
@@ -153,6 +149,19 @@
       if (text) console.error('[post-exception status] ' + text);
     };
   };
+
+  let width = urlParams.get('width');
+  let height = urlParams.get('height');
+  let modelIndex = urlParams.get('modelIndex');
+
+  if (width && height) {
+    Module.arguments.push(width.toString());
+    Module.arguments.push(height.toString());
+
+    if (modelIndex) {
+      Module.arguments.push(modelIndex.toString());
+    }
+  }
 </script>
 {{{ SCRIPT }}}
 </body>
