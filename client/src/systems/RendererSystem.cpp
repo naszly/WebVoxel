@@ -213,7 +213,7 @@ void RendererSystem::update(float dt) {
     });
 
     const auto start = std::chrono::high_resolution_clock::now();
-    constexpr auto maxTime = std::chrono::milliseconds(5);
+    constexpr auto chunkProcessingTimeLimit = std::chrono::milliseconds(10);
 
     for (auto &chunkRef: dirtyChunks) {
         auto& chunk = chunkRef.get();
@@ -252,7 +252,7 @@ void RendererSystem::update(float dt) {
 
         chunk.resetDirty();
 
-        if (std::chrono::high_resolution_clock::now() - start > maxTime) {
+        if (std::chrono::high_resolution_clock::now() - start > chunkProcessingTimeLimit) {
             break;
         }
     }
