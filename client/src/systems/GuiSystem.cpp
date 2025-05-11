@@ -121,6 +121,10 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Text("Chunks: %zu", GetWorld().countChunks());
     ImGui::Text("Rendered Chunks: %zu", appData.renderedChunks);
     ImGui::Text("Rendered Voxels: %zu", appData.renderedVoxels);
+    const auto position = GetCamera().getPosition();
+    const auto direction = GetCamera().getDirection();
+    ImGui::Text("Position: (%.2f, %.2f, %.2f)", position.x, position.y, position.z);
+    ImGui::Text("Direction: (%.2f, %.2f, %.2f)", direction.x, direction.y, direction.z);
 
     if (ImGui::Button("Clean FS")) {
         Chunk::CleanFs();
