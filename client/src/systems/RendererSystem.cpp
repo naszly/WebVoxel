@@ -222,6 +222,10 @@ void RendererSystem::update(float dt) {
 
         auto bitmap = getBitmap(world, chunk);
 
+        if (!bitmap) {
+            continue;
+        }
+
         ChunkVertexBuffer buffer;
 
         auto getVoxelLambda = [&](const uint32_t x, const uint32_t y, const uint32_t z) {
@@ -229,9 +233,9 @@ void RendererSystem::update(float dt) {
         };
 
         if (m_ambient_occlusion) {
-            buffer = createChunkVertexBuffer<VertexDataAO>(position, bitmap, getVoxelLambda);
+            buffer = createChunkVertexBuffer<VertexDataAO>(position, bitmap.value(), getVoxelLambda);
         } else {
-            buffer = createChunkVertexBuffer<VertexData>(position, bitmap, getVoxelLambda);
+            buffer = createChunkVertexBuffer<VertexData>(position, bitmap.value(), getVoxelLambda);
         }
 
         auto it = m_ChunkVertexBuffers.find(position);
@@ -710,16 +714,26 @@ void RendererSystem::exportTimestampsInternal() const {
     }
 }
 
-RendererSystem::ChunkBitmap RendererSystem::getBitmap(const World &world, const Chunk &chunk) const {
+std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World &world, const Chunk &chunk) const {
     const auto chunkPosition = chunk.getPosition();
 
     if (m_ambient_occlusion) {
         const auto neighbours = world.getExtendedChunkNeighbours(chunkPosition);
-        return chunk.getBitmap(neighbours);
+
+        if (neighbours.hasAllNeighbours()) {
+            auto bitmap = chunk.getBitmap(neighbours);
+            return std::make_optional(bitmap);
+        }
+    } else {
+        const auto neighbours = world.getChunkNeighbours(chunkPosition);
+
+        if (neighbours.hasAllNeighbours()) {
+            auto bitmap = chunk.getBitmap(neighbours);
+            return std::make_optional(bitmap);
+        }
     }
 
-    const auto neighbours = world.getChunkNeighbours(chunkPosition);
-    return chunk.getBitmap(neighbours);
+    return std::nullopt;
 }
 
 template<typename VertexT>
