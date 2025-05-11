@@ -45,7 +45,21 @@ void VoxWorldLoaderSystem::initialize() {
 
         const auto magicOffset = glm::ivec3(instance.transform.m30 - model->size_x / 2.0,
                                             instance.transform.m32 - model->size_z / 2.0,
-                                            instance.transform.m31 - model->size_y / 2.0);
+                                            instance.transform.m31 - model->size_y / 2.0) - offsets[m_ModelIndex];
+
+        const auto size = glm::ivec3(model->size_x, model->size_z, model->size_y);
+
+        const auto start = WorldCoordinate(magicOffset).chunkPosition() + glm::ivec3(-1, -1, -1);
+        const auto end = WorldCoordinate(magicOffset + size).chunkPosition() + glm::ivec3(1, 1, 1);
+
+        for (int x = start.x; x <= end.x; ++x) {
+            for (int y = start.y; y <= end.y; ++y) {
+                for (int z = start.z; z <= end.z; ++z) {
+                     if (!world.hasChunk({x, y, z}))
+                         world.createChunk({x, y, z});
+                }
+            }
+        }
 
         uint32_t voxelIndex = 0;
         for (uint32_t z = 0; z < model->size_z; z++) {
@@ -58,7 +72,7 @@ void VoxWorldLoaderSystem::initialize() {
                     const auto&[r, g, b, a] = scene->palette.color[colorIndex];
                     const VoxelData voxel(r, g, b, a);
 
-                    glm::ivec3 worldPosition = glm::ivec3(x, z, y) + magicOffset - offsets[m_ModelIndex];
+                    glm::ivec3 worldPosition = glm::ivec3(x, z, y) + magicOffset;
                     world.setVoxel(WorldCoordinate(worldPosition), voxel);
                 }
             }

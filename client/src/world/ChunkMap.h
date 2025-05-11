@@ -25,6 +25,8 @@ public:
 
     [[nodiscard]] bool hasChunk(glm::ivec3 key) const;
 
+    Chunk& createChunk(const glm::ivec3 &key);
+
     void moveChunk(Chunk &chunk);
 
     void removeChunk(glm::ivec3 key);
@@ -43,8 +45,6 @@ public:
 
 private:
     std::unordered_map<glm::ivec3, Chunk> m_Chunks;
-
-    Chunk& createChunk(const glm::ivec3 &key);
 
     void setChunkDirty(const glm::ivec3& key);
 

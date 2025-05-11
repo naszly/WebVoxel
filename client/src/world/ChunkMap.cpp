@@ -24,6 +24,20 @@ bool ChunkMap::hasChunk(const glm::ivec3 key) const {
     return m_Chunks.contains(key);
 }
 
+Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
+    auto [it, success] = m_Chunks.try_emplace(key, key);
+
+    if (success) {
+        LogApp::info("Created chunk at ({}, {}, {})", key.x, key.y, key.z);
+
+        setNeighboursDirty(key);
+    } else {
+        LogApp::error("Failed to create chunk at ({}, {}, {})", key.x, key.y, key.z);
+    }
+
+    return it->second;
+}
+
 void ChunkMap::moveChunk(Chunk &chunk) {
     const auto key = chunk.getPosition();
     m_Chunks.try_emplace(key, std::move(chunk));
@@ -74,20 +88,6 @@ void ChunkMap::removeVoxel(const WorldCoordinate &coord) {
 
         setNeighboursDirtyIfEdge(cPos, lPos);
     }
-}
-
-Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
-    auto [it, success] = m_Chunks.try_emplace(key, key);
-
-    if (success) {
-        LogApp::info("Created chunk at ({}, {}, {})", key.x, key.y, key.z);
-
-        setNeighboursDirty(key);
-    } else {
-        LogApp::error("Failed to create chunk at ({}, {}, {})", key.x, key.y, key.z);
-    }
-
-    return it->second;
 }
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {

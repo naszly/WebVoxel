@@ -747,6 +747,10 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 
     getVertices(bitmap, getVoxel, points);
 
+    if (points.empty()) {
+        return vertexBuffer;
+    }
+
     const auto device = GetWebGPUContext().getDevice();
     const auto queue = wgpuDeviceGetQueue(device);
 
