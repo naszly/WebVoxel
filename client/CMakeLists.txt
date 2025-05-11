@@ -55,8 +55,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw3webgpu)
 
-include(FetchContent)
-
 # spdlog
 set(SPDLOG_USE_STD_FORMAT ON)
 FetchContent_Declare(
