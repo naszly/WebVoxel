@@ -16,7 +16,7 @@ void ControllerSystem::initialize() {
     Camera& camera = GetCamera();
 
     camera.setDirection({0,0,1});
-    camera.setPosition({0,0,0});
+    camera.setPosition({0,150,0});
 }
 
 void ControllerSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) {

@@ -94,6 +94,14 @@
   <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
 </div>
 
+<div id="model-buttons" style="text-align: center; margin: 10px;">
+  <button onclick="setModelIndex(null)">Procedural</button>
+  <button onclick="setModelIndex(0)">Model 0</button>
+  <button onclick="setModelIndex(1)">Model 1</button>
+  <button onclick="setModelIndex(2)">Model 2</button>
+  <button onclick="setModelIndex(3)">Model 3</button>
+</div>
+
 <script type="text/javascript">
   var statusElement = document.getElementById('status');
   var progressElement = document.getElementById('progress');
@@ -150,8 +158,8 @@
     };
   };
 
-  let width = urlParams.get('width');
-  let height = urlParams.get('height');
+  let width = urlParams.get('width') || 1280;
+  let height = urlParams.get('height') || 720;
   let modelIndex = urlParams.get('modelIndex');
 
   if (width && height) {
@@ -161,6 +169,16 @@
     if (modelIndex) {
       Module.arguments.push(modelIndex.toString());
     }
+  }
+
+  function setModelIndex(index) {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (index === null) {
+      urlParams.delete('modelIndex');
+    } else {
+      urlParams.set('modelIndex', index);
+    }
+    window.location.search = urlParams.toString();
   }
 </script>
 {{{ SCRIPT }}}
