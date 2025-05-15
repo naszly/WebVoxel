@@ -170,7 +170,7 @@ if(EMSCRIPTEN)
             -sUSE_GLFW=3
             -sUSE_WEBGPU=1
             -sASYNCIFY
-            -sSTACK_SIZE=5242880 # 5MB
+            -sSTACK_SIZE=8388608 # 8MB
             -sALLOW_MEMORY_GROWTH
             -sMAXIMUM_MEMORY=4294967296 # 4GB
             -sEXIT_RUNTIME
