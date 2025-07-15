@@ -11,13 +11,13 @@ static auto divideRoundDown(const glm::i64vec3 &numerator, const glm::i64vec3 &d
 }
 
 glm::i64vec3 WorldCoordinate::worldPosition() const {
-    return position;
+    return m_position;
 }
 
 glm::ivec3 WorldCoordinate::chunkPosition() const {
-    return divideRoundDown(position, CHUNK_SIZE);
+    return divideRoundDown(m_position, CHUNK_SIZE);
 }
 
 glm::ivec3 WorldCoordinate::localPosition() const {
-    return Utils::mod(position, CHUNK_SIZE);
+    return Utils::mod(m_position, CHUNK_SIZE);
 }

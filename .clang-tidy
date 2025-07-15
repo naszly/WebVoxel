@@ -1,0 +1,49 @@
+Checks: >
+  readability-identifier-naming,
+WarningsAsErrors: '*'
+
+CheckOptions:
+  - key:             readability-identifier-naming.ClassCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.StructCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.EnumCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.FunctionCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.MethodCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.VariableCase
+    value:           camelBack
+  - key:             readability-identifier-naming.ParameterCase
+    value:           camelBack
+  - key:             readability-identifier-naming.MemberCase
+    value:           camelBack
+  - key:             readability-identifier-naming.ClassMemberCase
+    value:           camelBack
+  - key:             readability-identifier-naming.PrivateMemberPrefix
+    value:           m_
+  - key:             readability-identifier-naming.ProtectedMemberPrefix
+    value:           m_
+  - key:             readability-identifier-naming.PublicMemberPrefix
+    value:           ''
+  - key:             readability-identifier-naming.ConstantCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.EnumConstantCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.NamespaceCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.GlobalConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.StaticConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.TypeAliasCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.TemplateParameterCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.MacroDefinitionCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value:           '^[A-Z_][A-Z0-9_]*$'
+  - key:             readability-identifier-naming.Enabled
+    value:           true

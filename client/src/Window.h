@@ -57,5 +57,5 @@ private:
     std::shared_ptr<WebGPUContext> m_WebGPUContext;
     std::unique_ptr<WebGPUSurface> m_WebGPUSurface;
     std::unique_ptr<Input> m_Input;
-    EventCallbackFn eventCallback;
+    EventCallbackFn m_eventCallback;
 };

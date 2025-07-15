@@ -24,11 +24,11 @@ public:
     }
 
 private:
-    static constexpr int m_LoadRadius = 10;
-    static constexpr int m_UnloadRadius = 12;
-    static_assert(m_LoadRadius < m_UnloadRadius, "Load radius must be less than unload radius");
+    static constexpr int LOAD_RADIUS = 10;
+    static constexpr int UNLOAD_RADIUS = 12;
+    static_assert(LOAD_RADIUS < UNLOAD_RADIUS, "Load radius must be less than unload radius");
 
-    const FastNoise::SmartNode<> fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
+    const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
 
     std::vector<glm::ivec3> m_LoadQueue;
     std::vector<Chunk> m_LoadedChunks;

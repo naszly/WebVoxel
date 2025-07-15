@@ -47,8 +47,8 @@ void Application::stop() {
 }
 
 void Application::onEvent(Event &event) {
-    for (const auto & m_Layer : std::ranges::reverse_view(m_Layers)) {
-        m_Layer->onEvent(event);
+    for (const auto & layer : std::ranges::reverse_view(m_Layers)) {
+        layer->onEvent(event);
         if (event.handled) {
             break;
         }

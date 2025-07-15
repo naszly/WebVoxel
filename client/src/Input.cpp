@@ -9,12 +9,12 @@
 #include "imgui.h"
 
 bool Input::isKeyPressed(KeyCode keyCode) const {
-    auto state = glfwGetKey(glfwWindow, static_cast<int>(keyCode));
+    auto state = glfwGetKey(m_glfwWindow, static_cast<int>(keyCode));
     return state == GLFW_PRESS;
 }
 
 bool Input::isMouseButtonPressed(MouseCode mouseCode) const {
-    auto state = glfwGetMouseButton(glfwWindow, static_cast<int>(mouseCode));
+    auto state = glfwGetMouseButton(m_glfwWindow, static_cast<int>(mouseCode));
     return state == GLFW_PRESS;
 }
 
@@ -32,7 +32,7 @@ bool Input::isMouseRightButtonPressed() const {
 
 std::pair<float, float> Input::getCursorPosition() const {
     double x, y;
-    glfwGetCursorPos(glfwWindow, &x, &y);
+    glfwGetCursorPos(m_glfwWindow, &x, &y);
     return {x, y};
 }
 
@@ -51,7 +51,7 @@ void Input::setCursorMode(const CursorMode mode) const {
             break;
     }
 
-    glfwSetInputMode(glfwWindow, GLFW_CURSOR, value);
+    glfwSetInputMode(m_glfwWindow, GLFW_CURSOR, value);
 
     if (ImGui::GetCurrentContext() != nullptr) {
         ImGuiIO& io = ImGui::GetIO();

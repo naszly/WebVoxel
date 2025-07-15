@@ -790,9 +790,9 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 template<typename VertexT>
 void RendererSystem::getVertices(const ChunkBitmap &bitmap,
     const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel, std::vector<VertexT> &vertices) {
-    constexpr uint32_t BITMAP_SIZE_SQUARED = BITMAP_SIZE * BITMAP_SIZE;
+    constexpr uint32_t bitmapSizeSquared = BITMAP_SIZE * BITMAP_SIZE;
 
-    for (uint32_t i = BITMAP_SIZE_SQUARED; i < BITMAP_SIZE_SQUARED * (BITMAP_SIZE - 1); i++) {
+    for (uint32_t i = bitmapSizeSquared; i < bitmapSizeSquared * (BITMAP_SIZE - 1); i++) {
         if (i % ChunkBitmap::WORD_SIZE == 0 && !bitmap.testWord(i / ChunkBitmap::WORD_SIZE)) {
             i += ChunkBitmap::WORD_SIZE - 1;
             continue;
@@ -801,11 +801,11 @@ void RendererSystem::getVertices(const ChunkBitmap &bitmap,
         const bool isVisible = bitmap.test(i) &
                                !(bitmap.test(i-1) & bitmap.test(i+1) &
                                  bitmap.test(i-BITMAP_SIZE) & bitmap.test(i+BITMAP_SIZE) &
-                                 bitmap.test(i-BITMAP_SIZE_SQUARED) & bitmap.test(i+BITMAP_SIZE_SQUARED));
+                                 bitmap.test(i-bitmapSizeSquared) & bitmap.test(i+bitmapSizeSquared));
 
         if (isVisible) {
-            const uint32_t x = (i / (BITMAP_SIZE_SQUARED));
-            const uint32_t y = ((i % (BITMAP_SIZE_SQUARED)) / BITMAP_SIZE);
+            const uint32_t x = (i / (bitmapSizeSquared));
+            const uint32_t y = ((i % (bitmapSizeSquared)) / BITMAP_SIZE);
             const uint32_t z = (i % BITMAP_SIZE);
 
             const uint8_t vx = x-1;

@@ -8,7 +8,7 @@
 #include <GLFW/glfw3.h>
 
 
-Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventCallback) {
+Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.eventCallback) {
 
     glfwSetErrorCallback([](const int error, const char* description) {
         LogCore::error("GLFW Error ({0}): {1}", error, description);
@@ -42,17 +42,17 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
         switch (action) {
             case GLFW_PRESS: {
                 KeyPressedEvent event(static_cast<const KeyCode>(key), false);
-                window->eventCallback(event);
+                window->m_eventCallback(event);
                 break;
             }
             case GLFW_RELEASE: {
                 KeyReleasedEvent event(static_cast<const KeyCode>(key));
-                window->eventCallback(event);
+                window->m_eventCallback(event);
                 break;
             }
             case GLFW_REPEAT: {
                 KeyPressedEvent event(static_cast<const KeyCode>(key), true);
-                window->eventCallback(event);
+                window->m_eventCallback(event);
                 break;
             }
             default: {
@@ -68,12 +68,12 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
         switch (action) {
             case GLFW_PRESS: {
                 MouseButtonPressedEvent event(static_cast<const MouseCode>(button));
-                window->eventCallback(event);
+                window->m_eventCallback(event);
                 break;
             }
             case GLFW_RELEASE: {
                 MouseButtonReleasedEvent event(static_cast<const MouseCode>(button));
-                window->eventCallback(event);
+                window->m_eventCallback(event);
                 break;
             }
             default: {
@@ -87,14 +87,14 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         MouseScrolledEvent event(static_cast<float>(xOffset), static_cast<float>(yOffset));
-        window->eventCallback(event);
+        window->m_eventCallback(event);
     });
 
     glfwSetCursorPosCallback(m_Window, [](GLFWwindow *glfwWindow, const double xPos, const double yPos) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         MouseMovedEvent event(static_cast<float>(xPos), static_cast<float>(yPos));
-        window->eventCallback(event);
+        window->m_eventCallback(event);
     });
 
     glfwSetWindowSizeCallback(m_Window, [](GLFWwindow *glfwWindow, const int width, const int height) {
@@ -103,7 +103,7 @@ Window::Window(const WindowCreationConfig& config) : eventCallback(config.eventC
         window->m_WebGPUSurface->resize();
 
         WindowResizedEvent event(width, height);
-        window->eventCallback(event);
+        window->m_eventCallback(event);
     });
 }
 

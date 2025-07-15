@@ -51,7 +51,7 @@ namespace internal {
             if constexpr (IS_LEAF) {
                 assert(x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE);
                 [[assume( x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE)]];
-                return nodes[x][y][z];
+                return m_nodes[x][y][z];
             } else {
                 const uint32_t nodeX = x / TREE_SIZE;
                 const uint32_t nodeY = y / TREE_SIZE;
@@ -59,7 +59,7 @@ namespace internal {
 
                 assert(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE);
                 [[assume(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE)]];
-                const auto& child = nodes[nodeX][nodeY][nodeZ];
+                const auto& child = m_nodes[nodeX][nodeY][nodeZ];
 
                 if (child == nullptr) {
                     return EMPTY_VOXEL;
@@ -73,7 +73,7 @@ namespace internal {
             if constexpr (IS_LEAF) {
                 assert(x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE);
                 [[assume( x < NODE_SIZE && y < NODE_SIZE && z < NODE_SIZE)]];
-                nodes[x][y][z] = voxel;
+                m_nodes[x][y][z] = voxel;
             } else {
                 const uint32_t nodeX = x / TREE_SIZE;
                 const uint32_t nodeY = y / TREE_SIZE;
@@ -81,7 +81,7 @@ namespace internal {
 
                 assert(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE);
                 [[assume(nodeX < NODE_SIZE && nodeY < NODE_SIZE && nodeZ < NODE_SIZE)]];
-                auto& child = nodes[nodeX][nodeY][nodeZ];
+                auto& child = m_nodes[nodeX][nodeY][nodeZ];
 
                 if (child == nullptr) {
                     if (!voxel.isEmpty()) {
@@ -104,14 +104,14 @@ namespace internal {
 
         using NodeType = std::conditional_t<IS_LEAF, VoxelData, ChildTree*>;
 
-        NodeType nodes[NODE_SIZE][NODE_SIZE][NODE_SIZE];
+        NodeType m_nodes[NODE_SIZE][NODE_SIZE][NODE_SIZE];
 
 
         void initialize() {
             if constexpr (IS_LEAF) {
-                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
+                std::fill_n(&m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
             } else {
-                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+                std::fill_n(&m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
             }
         }
 
@@ -120,8 +120,8 @@ namespace internal {
                 for (uint32_t x = 0; x < NODE_SIZE; x++) {
                     for (uint32_t y = 0; y < NODE_SIZE; y++) {
                         for (uint32_t z = 0; z < NODE_SIZE; z++) {
-                            if (nodes[x][y][z] != nullptr) {
-                                delete nodes[x][y][z];
+                            if (m_nodes[x][y][z] != nullptr) {
+                                delete m_nodes[x][y][z];
                             }
                         }
                     }
@@ -131,28 +131,28 @@ namespace internal {
 
         void copyFrom(const SparseVoxelTree& other) {
             if constexpr (!IS_LEAF) {
-                std::fill_n(&nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+                std::fill_n(&m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
                 for (uint32_t x = 0; x < NODE_SIZE; x++) {
                     for (uint32_t y = 0; y < NODE_SIZE; y++) {
                         for (uint32_t z = 0; z < NODE_SIZE; z++) {
-                            if (other.nodes[x][y][z] != nullptr) {
-                                nodes[x][y][z] = new ChildTree(*other.nodes[x][y][z]);
+                            if (other.m_nodes[x][y][z] != nullptr) {
+                                m_nodes[x][y][z] = new ChildTree(*other.m_nodes[x][y][z]);
                             }
                         }
                     }
                 }
             } else {
-                std::copy_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &nodes[0][0][0]);
+                std::copy_n(&other.m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &m_nodes[0][0][0]);
             }
         }
 
         void moveFrom(SparseVoxelTree&& other) {
             if constexpr (!IS_LEAF) {
-                std::copy_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &nodes[0][0][0]);
-                std::fill_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
+                std::copy_n(&other.m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &m_nodes[0][0][0]);
+                std::fill_n(&other.m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, nullptr);
             } else {
-                std::copy_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &nodes[0][0][0]);
-                std::fill_n(&other.nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
+                std::copy_n(&other.m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, &m_nodes[0][0][0]);
+                std::fill_n(&other.m_nodes[0][0][0], NODE_SIZE * NODE_SIZE * NODE_SIZE, EMPTY_VOXEL);
             }
         }
     };
@@ -163,8 +163,8 @@ namespace internal {
 template<uint32_t depth, uint32_t base_size>
 class SparseVoxelTree : public internal::SparseVoxelTree<depth, base_size> {
     using BaseSparseVoxelTree = internal::SparseVoxelTree<depth, base_size>;
-    constexpr static uint32_t size = Utils::pow(base_size, depth);
-    static constexpr uint32_t bitmap_size = size + 2;
+    constexpr static uint32_t SIZE = Utils::pow(base_size, depth);
+    static constexpr uint32_t BITMAP_SIZE = SIZE + 2;
 public:
     SparseVoxelTree() : BaseSparseVoxelTree() {}
 
@@ -186,7 +186,7 @@ public:
 
     void setVoxel(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
         BaseSparseVoxelTree::set(x, y, z, voxel);
-        uint32_t i = calculateIndex(x+1, y+1, z+1, bitmap_size);
+        uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
         if (!voxel.isEmpty()) {
             m_bitmap.set(i);
         } else {
@@ -195,7 +195,7 @@ public:
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        uint32_t i = calculateIndex(x+1, y+1, z+1, bitmap_size);
+        uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
         return m_bitmap.test(i);
     }
 
@@ -249,23 +249,23 @@ public:
         auto nv = neighbours.value();
 
         auto setBitmapIfNeighbourHasVoxel = [&](const SparseVoxelTree& neighbour, const uint32_t x, const uint32_t y, const uint32_t z) {
-            const uint32_t vx = (x-1) % size;
-            const uint32_t vy = (y-1) % size;
-            const uint32_t vz = (z-1) % size;
+            const uint32_t vx = (x-1) % SIZE;
+            const uint32_t vy = (y-1) % SIZE;
+            const uint32_t vz = (z-1) % SIZE;
             if (neighbour.hasVoxel(vx, vy, vz)) {
-                const uint32_t i = calculateIndex(x, y, z, bitmap_size);
+                const uint32_t i = calculateIndex(x, y, z, BITMAP_SIZE);
                 bitmap.set(i);
             }
         };
 
-        for (uint32_t i = 1; i < bitmap_size - 1; i++) {
-            for (uint32_t j = 1; j < bitmap_size - 1; j++) {
+        for (uint32_t i = 1; i < BITMAP_SIZE - 1; i++) {
+            for (uint32_t j = 1; j < BITMAP_SIZE - 1; j++) {
                 setBitmapIfNeighbourHasVoxel(nv.xMinus, 0, i, j);
-                setBitmapIfNeighbourHasVoxel(nv.xPlus, bitmap_size-1, i, j);
+                setBitmapIfNeighbourHasVoxel(nv.xPlus, BITMAP_SIZE-1, i, j);
                 setBitmapIfNeighbourHasVoxel(nv.yMinus, i, 0, j);
-                setBitmapIfNeighbourHasVoxel(nv.yPlus, i, bitmap_size-1, j);
+                setBitmapIfNeighbourHasVoxel(nv.yPlus, i, BITMAP_SIZE-1, j);
                 setBitmapIfNeighbourHasVoxel(nv.zMinus, i, j, 0);
-                setBitmapIfNeighbourHasVoxel(nv.zPlus, i, j, bitmap_size-1);
+                setBitmapIfNeighbourHasVoxel(nv.zPlus, i, j, BITMAP_SIZE-1);
             }
         }
 
@@ -282,55 +282,55 @@ public:
         auto nv = neighbours.value();
 
         auto setBitmapIfNeighbourHasVoxel = [&](const SparseVoxelTree& neighbour, const uint32_t x, const uint32_t y, const uint32_t z) {
-            const uint32_t vx = (x-1) % size;
-            const uint32_t vy = (y-1) % size;
-            const uint32_t vz = (z-1) % size;
+            const uint32_t vx = (x-1) % SIZE;
+            const uint32_t vy = (y-1) % SIZE;
+            const uint32_t vz = (z-1) % SIZE;
             if (neighbour.hasVoxel(vx, vy, vz)) {
-                const uint32_t i = calculateIndex(x, y, z, bitmap_size);
+                const uint32_t i = calculateIndex(x, y, z, BITMAP_SIZE);
                 bitmap.set(i);
             }
         };
 
-        for (uint32_t i = 1; i < bitmap_size - 1; i++) {
-            for (uint32_t j = 1; j < bitmap_size - 1; j++) {
+        for (uint32_t i = 1; i < BITMAP_SIZE - 1; i++) {
+            for (uint32_t j = 1; j < BITMAP_SIZE - 1; j++) {
                 setBitmapIfNeighbourHasVoxel(nv.xMinus, 0, i, j);
-                setBitmapIfNeighbourHasVoxel(nv.xPlus, bitmap_size-1, i, j);
+                setBitmapIfNeighbourHasVoxel(nv.xPlus, BITMAP_SIZE-1, i, j);
                 setBitmapIfNeighbourHasVoxel(nv.yMinus, i, 0, j);
-                setBitmapIfNeighbourHasVoxel(nv.yPlus, i, bitmap_size-1, j);
+                setBitmapIfNeighbourHasVoxel(nv.yPlus, i, BITMAP_SIZE-1, j);
                 setBitmapIfNeighbourHasVoxel(nv.zMinus, i, j, 0);
-                setBitmapIfNeighbourHasVoxel(nv.zPlus, i, j, bitmap_size-1);
+                setBitmapIfNeighbourHasVoxel(nv.zPlus, i, j, BITMAP_SIZE-1);
             }
 
             setBitmapIfNeighbourHasVoxel(nv.xMinusYMinus, 0, 0, i);
-            setBitmapIfNeighbourHasVoxel(nv.xMinusYPlus, 0, bitmap_size-1, i);
-            setBitmapIfNeighbourHasVoxel(nv.xPlusYMinus, bitmap_size-1, 0, i);
-            setBitmapIfNeighbourHasVoxel(nv.xPlusYPlus, bitmap_size-1, bitmap_size-1, i);
+            setBitmapIfNeighbourHasVoxel(nv.xMinusYPlus, 0, BITMAP_SIZE-1, i);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusYMinus, BITMAP_SIZE-1, 0, i);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusYPlus, BITMAP_SIZE-1, BITMAP_SIZE-1, i);
             setBitmapIfNeighbourHasVoxel(nv.xMinusZMinus, 0, i, 0);
-            setBitmapIfNeighbourHasVoxel(nv.xMinusZPlus, 0, i, bitmap_size-1);
-            setBitmapIfNeighbourHasVoxel(nv.xPlusZMinus, bitmap_size-1, i, 0);
-            setBitmapIfNeighbourHasVoxel(nv.xPlusZPlus, bitmap_size-1, i, bitmap_size-1);
+            setBitmapIfNeighbourHasVoxel(nv.xMinusZPlus, 0, i, BITMAP_SIZE-1);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusZMinus, BITMAP_SIZE-1, i, 0);
+            setBitmapIfNeighbourHasVoxel(nv.xPlusZPlus, BITMAP_SIZE-1, i, BITMAP_SIZE-1);
             setBitmapIfNeighbourHasVoxel(nv.yMinusZMinus, i, 0, 0);
-            setBitmapIfNeighbourHasVoxel(nv.yMinusZPlus, i, 0, bitmap_size-1);
-            setBitmapIfNeighbourHasVoxel(nv.yPlusZMinus, i, bitmap_size-1, 0);
-            setBitmapIfNeighbourHasVoxel(nv.yPlusZPlus, i, bitmap_size-1, bitmap_size-1);
+            setBitmapIfNeighbourHasVoxel(nv.yMinusZPlus, i, 0, BITMAP_SIZE-1);
+            setBitmapIfNeighbourHasVoxel(nv.yPlusZMinus, i, BITMAP_SIZE-1, 0);
+            setBitmapIfNeighbourHasVoxel(nv.yPlusZPlus, i, BITMAP_SIZE-1, BITMAP_SIZE-1);
         }
 
         setBitmapIfNeighbourHasVoxel(nv.xMinusYMinusZMinus, 0, 0, 0);
-        setBitmapIfNeighbourHasVoxel(nv.xMinusYMinusZPlus, 0, 0, bitmap_size-1);
-        setBitmapIfNeighbourHasVoxel(nv.xMinusYPlusZMinus, 0, bitmap_size-1, 0);
-        setBitmapIfNeighbourHasVoxel(nv.xMinusYPlusZPlus, 0, bitmap_size-1, bitmap_size-1);
-        setBitmapIfNeighbourHasVoxel(nv.xPlusYMinusZMinus, bitmap_size-1, 0, 0);
-        setBitmapIfNeighbourHasVoxel(nv.xPlusYMinusZPlus, bitmap_size-1, 0, bitmap_size-1);
-        setBitmapIfNeighbourHasVoxel(nv.xPlusYPlusZMinus, bitmap_size-1, bitmap_size-1, 0);
-        setBitmapIfNeighbourHasVoxel(nv.xPlusYPlusZPlus, bitmap_size-1, bitmap_size-1, bitmap_size-1);
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYMinusZPlus, 0, 0, BITMAP_SIZE-1);
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYPlusZMinus, 0, BITMAP_SIZE-1, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xMinusYPlusZPlus, 0, BITMAP_SIZE-1, BITMAP_SIZE-1);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYMinusZMinus, BITMAP_SIZE-1, 0, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYMinusZPlus, BITMAP_SIZE-1, 0, BITMAP_SIZE-1);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYPlusZMinus, BITMAP_SIZE-1, BITMAP_SIZE-1, 0);
+        setBitmapIfNeighbourHasVoxel(nv.xPlusYPlusZPlus, BITMAP_SIZE-1, BITMAP_SIZE-1, BITMAP_SIZE-1);
 
         return bitmap;
     }
 
 private:
-    Bitmap<bitmap_size * bitmap_size * bitmap_size> m_bitmap{};
+    Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE> m_bitmap{};
 
-    static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t bitmap_size) {
-        return x * bitmap_size * bitmap_size + y * bitmap_size + z;
+    static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t bitmapSize) {
+        return x * bitmapSize * bitmapSize + y * bitmapSize + z;
     }
 };

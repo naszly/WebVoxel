@@ -11,6 +11,6 @@ public:
     ControllerSystem() : System() {}
 
 private:
-    bool isMouseCaptured = false;
+    bool m_isMouseCaptured = false;
     static void updateCamera(float dt, const Input &input, Camera &camera);
 };

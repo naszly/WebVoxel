@@ -5,27 +5,27 @@
 class WindowResizedEvent final : public Event {
 public:
     WindowResizedEvent(const unsigned int width, const unsigned int height) :
-            Event(eventType), width(width), height(height) {}
+            Event(EVENT_TYPE), m_width(width), m_height(height) {}
 
-    [[nodiscard]] unsigned int getWidth() const { return width; }
+    [[nodiscard]] unsigned int getWidth() const { return m_width; }
 
-    [[nodiscard]] unsigned int getHeight() const { return height; }
+    [[nodiscard]] unsigned int getHeight() const { return m_height; }
 
-    static constexpr EventType eventType = EventType::WindowResized;
+    static constexpr EventType EVENT_TYPE = EventType::WindowResized;
 
     [[nodiscard]] std::string toString() const override {
-        return "WindowResizedEvent" + std::to_string(width) + "x" + std::to_string(height);
+        return "WindowResizedEvent" + std::to_string(m_width) + "x" + std::to_string(m_height);
     }
 
 private:
-    unsigned int width, height;
+    unsigned int m_width, m_height;
 };
 
 class WindowClosedEvent final : public Event {
 public:
-    WindowClosedEvent() : Event(eventType) {}
+    WindowClosedEvent() : Event(EVENT_TYPE) {}
 
-    static constexpr EventType eventType = EventType::WindowClosed;
+    static constexpr EventType EVENT_TYPE = EventType::WindowClosed;
 
     [[nodiscard]] std::string toString() const override {
         return "WindowClosedEvent";

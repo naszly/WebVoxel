@@ -41,32 +41,32 @@ void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
 }
 
 int compress_vector(const std::vector<char> &source, std::vector<char> &destination) {
-    const auto source_data = reinterpret_cast<const Bytef *>(source.data());
-    const unsigned long source_length = source.size();
+    const auto sourceData = reinterpret_cast<const Bytef *>(source.data());
+    const unsigned long sourceLength = source.size();
 
-    uLongf destination_length = compressBound(source_length);
-    destination.resize(destination_length);
-    auto *destination_data = reinterpret_cast<Bytef *>(destination.data());
+    uLongf destinationLength = compressBound(sourceLength);
+    destination.resize(destinationLength);
+    auto *destinationData = reinterpret_cast<Bytef *>(destination.data());
 
-    const int return_value = compress2(destination_data, &destination_length, source_data, source_length, Z_BEST_COMPRESSION);
-    if (return_value == Z_OK) {
-        destination.resize(destination_length);
+    const int returnValue = compress2(destinationData, &destinationLength, sourceData, sourceLength, Z_BEST_COMPRESSION);
+    if (returnValue == Z_OK) {
+        destination.resize(destinationLength);
     } else {
         destination.clear();
     }
 
-    return return_value;
+    return returnValue;
 }
 
 int decompress_vector(const std::vector<char> &source, std::vector<char> &destination) {
-    const auto source_data = reinterpret_cast<const Bytef *>(source.data());
-    unsigned long source_length = source.size();
+    const auto sourceData = reinterpret_cast<const Bytef *>(source.data());
+    unsigned long sourceLength = source.size();
 
-    const auto destination_data = reinterpret_cast<Bytef *>(destination.data());
-    uLongf destination_length = destination.size();
+    const auto destinationData = reinterpret_cast<Bytef *>(destination.data());
+    uLongf destinationLength = destination.size();
 
-    const int return_value = uncompress2(destination_data, &destination_length, source_data, &source_length);
-    return return_value;
+    const int returnValue = uncompress2(destinationData, &destinationLength, sourceData, &sourceLength);
+    return returnValue;
 }
 
 bool Chunk::fileExists() const {

@@ -47,11 +47,11 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
     std::vector<glm::ivec3> chunksToLoad;
-    for (int x = -m_LoadRadius; x <= m_LoadRadius; x++) {
-        for (int y = -m_LoadRadius; y <= m_LoadRadius; y++) {
-            for (int z = -m_LoadRadius; z <= m_LoadRadius; z++) {
+    for (int x = -LOAD_RADIUS; x <= LOAD_RADIUS; x++) {
+        for (int y = -LOAD_RADIUS; y <= LOAD_RADIUS; y++) {
+            for (int z = -LOAD_RADIUS; z <= LOAD_RADIUS; z++) {
                 const auto chunkPos = playerChunk + glm::ivec3(x, y, z);
-                if (getChunkDistance(playerPosition, chunkPos) <= m_LoadRadius && !world.hasChunk(chunkPos)) {
+                if (getChunkDistance(playerPosition, chunkPos) <= LOAD_RADIUS && !world.hasChunk(chunkPos)) {
                     chunksToLoad.push_back(chunkPos);
                 }
             }
@@ -74,7 +74,7 @@ void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
 
     for (const auto &chunk : chunks) {
         auto chunkPos = chunk.getPosition();
-        if (getChunkDistance(playerPosition, chunkPos) > m_UnloadRadius) {
+        if (getChunkDistance(playerPosition, chunkPos) > UNLOAD_RADIUS) {
             chunksToUnload.push_back(chunkPos);
         }
     }
@@ -112,7 +112,7 @@ void* ChunkManagementSystem::worker(void *arg) {
             if (existingChunk) {
                 chunk.load();
             } else {
-                chunk.generate(system->fnGenerator);
+                chunk.generate(system->m_fnGenerator);
                 chunk.save();
             }
 

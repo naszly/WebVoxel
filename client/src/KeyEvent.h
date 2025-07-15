@@ -5,52 +5,52 @@
 
 class KeyEvent : public Event {
 public:
-    [[nodiscard]] KeyCode getKeyCode() const { return keyCode; }
+    [[nodiscard]] KeyCode getKeyCode() const { return m_keyCode; }
 
 protected:
     KeyEvent(const EventType type, const KeyCode keyCode) :
-            Event(type), keyCode(keyCode) {}
+            Event(type), m_keyCode(keyCode) {}
 
-    KeyCode keyCode;
+    KeyCode m_keyCode;
 };
 
 class KeyPressedEvent final : public KeyEvent {
 public:
     explicit KeyPressedEvent(const KeyCode keyCode, const bool repeat = false) :
-            KeyEvent(eventType, keyCode), repeat(repeat) {}
+            KeyEvent(EVENT_TYPE, keyCode), m_repeat(repeat) {}
 
-    [[nodiscard]] bool isRepeat() const { return repeat; }
+    [[nodiscard]] bool isRepeat() const { return m_repeat; }
 
-    static constexpr EventType eventType = EventType::KeyPressed;
+    static constexpr EventType EVENT_TYPE = EventType::KeyPressed;
 
     [[nodiscard]] std::string toString() const override {
-        return "KeyPressedEvent: " + std::string(magic_enum::enum_name(keyCode)) + " (" + std::to_string(repeat) + ")";
+        return "KeyPressedEvent: " + std::string(magic_enum::enum_name(m_keyCode)) + " (" + std::to_string(m_repeat) + ")";
     }
 
 private:
-    bool repeat;
+    bool m_repeat;
 };
 
 class KeyReleasedEvent final : public KeyEvent {
 public:
     explicit KeyReleasedEvent(const KeyCode keyCode) :
-            KeyEvent(eventType, keyCode) {}
+            KeyEvent(EVENT_TYPE, keyCode) {}
 
-    static constexpr EventType eventType = EventType::KeyReleased;
+    static constexpr EventType EVENT_TYPE = EventType::KeyReleased;
 
     [[nodiscard]] std::string toString() const override {
-        return "KeyReleasedEvent: " + std::string(magic_enum::enum_name(keyCode));
+        return "KeyReleasedEvent: " + std::string(magic_enum::enum_name(m_keyCode));
     }
 };
 
 class KeyTypedEvent final : public KeyEvent {
 public:
     explicit KeyTypedEvent(const KeyCode keyCode) :
-            KeyEvent(eventType, keyCode) {}
+            KeyEvent(EVENT_TYPE, keyCode) {}
 
-    static constexpr EventType eventType = EventType::KeyTyped;
+    static constexpr EventType EVENT_TYPE = EventType::KeyTyped;
 
     [[nodiscard]] std::string toString() const override {
-        return "KeyTypedEvent: " + std::string(magic_enum::enum_name(keyCode));
+        return "KeyTypedEvent: " + std::string(magic_enum::enum_name(m_keyCode));
     }
 };

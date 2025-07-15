@@ -15,14 +15,14 @@ class Chunk;
 
 class ChunkNeighbours {
 public:
-    ChunkNeighbours(const Chunk *x_minus, const Chunk *x_plus, const Chunk *y_minus, const Chunk *y_plus,
-        const Chunk *z_minus, const Chunk *z_plus)
-        : xMinus(x_minus),
-          xPlus(x_plus),
-          yMinus(y_minus),
-          yPlus(y_plus),
-          zMinus(z_minus),
-          zPlus(z_plus) {}
+    ChunkNeighbours(const Chunk *xMinus, const Chunk *xPlus, const Chunk *yMinus, const Chunk *yPlus,
+        const Chunk *zMinus, const Chunk *zPlus)
+        : xMinus(xMinus),
+          xPlus(xPlus),
+          yMinus(yMinus),
+          yPlus(yPlus),
+          zMinus(zMinus),
+          zPlus(zPlus) {}
 
     const Chunk* xMinus{nullptr};
     const Chunk* xPlus{nullptr};
@@ -38,35 +38,35 @@ public:
 
 class ExtendedChukNeighbours : public ChunkNeighbours {
 public:
-    ExtendedChukNeighbours(const Chunk *x_minus, const Chunk *x_plus, const Chunk *y_minus, const Chunk *y_plus,
-        const Chunk *z_minus, const Chunk *z_plus, const Chunk *x_minus_y_minus, const Chunk *x_minus_y_plus,
-        const Chunk *x_minus_z_minus, const Chunk *x_minus_z_plus, const Chunk *x_plus_y_minus,
-        const Chunk *x_plus_y_plus, const Chunk *x_plus_z_minus, const Chunk *x_plus_z_plus,
-        const Chunk *y_minus_z_minus, const Chunk *y_minus_z_plus, const Chunk *y_plus_z_minus,
-        const Chunk *y_plus_z_plus, const Chunk *x_minus_y_minus_z_minus, const Chunk *x_minus_y_minus_z_plus,
-        const Chunk *x_minus_y_plus_z_minus, const Chunk *x_minus_y_plus_z_plus, const Chunk *x_plus_y_minus_z_minus,
-        const Chunk *x_plus_y_minus_z_plus, const Chunk *x_plus_y_plus_z_minus, const Chunk *x_plus_y_plus_z_plus)
-        : ChunkNeighbours(x_minus, x_plus, y_minus, y_plus, z_minus, z_plus),
-          xMinusYMinus(x_minus_y_minus),
-          xMinusYPlus(x_minus_y_plus),
-          xMinusZMinus(x_minus_z_minus),
-          xMinusZPlus(x_minus_z_plus),
-          xPlusYMinus(x_plus_y_minus),
-          xPlusYPlus(x_plus_y_plus),
-          xPlusZMinus(x_plus_z_minus),
-          xPlusZPlus(x_plus_z_plus),
-          yMinusZMinus(y_minus_z_minus),
-          yMinusZPlus(y_minus_z_plus),
-          yPlusZMinus(y_plus_z_minus),
-          yPlusZPlus(y_plus_z_plus),
-          xMinusYMinusZMinus(x_minus_y_minus_z_minus),
-          xMinusYMinusZPlus(x_minus_y_minus_z_plus),
-          xMinusYPlusZMinus(x_minus_y_plus_z_minus),
-          xMinusYPlusZPlus(x_minus_y_plus_z_plus),
-          xPlusYMinusZMinus(x_plus_y_minus_z_minus),
-          xPlusYMinusZPlus(x_plus_y_minus_z_plus),
-          xPlusYPlusZMinus(x_plus_y_plus_z_minus),
-          xPlusYPlusZPlus(x_plus_y_plus_z_plus) {}
+    ExtendedChukNeighbours(const Chunk *xMinus, const Chunk *xPlus, const Chunk *yMinus, const Chunk *yPlus,
+        const Chunk *zMinus, const Chunk *zPlus, const Chunk *xMinusYMinus, const Chunk *xMinusYPlus,
+        const Chunk *xMinusZMinus, const Chunk *xMinusZPlus, const Chunk *xPlusYMinus,
+        const Chunk *xPlusYPlus, const Chunk *xPlusZMinus, const Chunk *xPlusZPlus,
+        const Chunk *yMinusZMinus, const Chunk *yMinusZPlus, const Chunk *yPlusZMinus,
+        const Chunk *yPlusZPlus, const Chunk *xMinusYMinusZMinus, const Chunk *xMinusYMinusZPlus,
+        const Chunk *xMinusYPlusZMinus, const Chunk *xMinusYPlusZPlus, const Chunk *xPlusYMinusZMinus,
+        const Chunk *xPlusYMinusZPlus, const Chunk *xPlusYPlusZMinus, const Chunk *xPlusYPlusZPlus)
+        : ChunkNeighbours(xMinus, xPlus, yMinus, yPlus, zMinus, zPlus),
+          xMinusYMinus(xMinusYMinus),
+          xMinusYPlus(xMinusYPlus),
+          xMinusZMinus(xMinusZMinus),
+          xMinusZPlus(xMinusZPlus),
+          xPlusYMinus(xPlusYMinus),
+          xPlusYPlus(xPlusYPlus),
+          xPlusZMinus(xPlusZMinus),
+          xPlusZPlus(xPlusZPlus),
+          yMinusZMinus(yMinusZMinus),
+          yMinusZPlus(yMinusZPlus),
+          yPlusZMinus(yPlusZMinus),
+          yPlusZPlus(yPlusZPlus),
+          xMinusYMinusZMinus(xMinusYMinusZMinus),
+          xMinusYMinusZPlus(xMinusYMinusZPlus),
+          xMinusYPlusZMinus(xMinusYPlusZMinus),
+          xMinusYPlusZPlus(xMinusYPlusZPlus),
+          xPlusYMinusZMinus(xPlusYMinusZMinus),
+          xPlusYMinusZPlus(xPlusYMinusZPlus),
+          xPlusYPlusZMinus(xPlusYPlusZMinus),
+          xPlusYPlusZPlus(xPlusYPlusZPlus) {}
 
     const Chunk* xMinusYMinus{nullptr};
     const Chunk* xMinusYPlus{nullptr};

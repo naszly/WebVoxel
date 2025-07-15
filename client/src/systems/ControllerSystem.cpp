@@ -27,7 +27,7 @@ void ControllerSystem::update(const float dt) {
     const Input& input = GetInput();
     Camera& camera = GetCamera();
 
-    if (isMouseCaptured) {
+    if (m_isMouseCaptured) {
         updateCamera(dt, input, camera);
     }
 }
@@ -52,14 +52,14 @@ void ControllerSystem::onEvent(Event &event) {
         {
             EmscriptenPointerlockChangeEvent pointerlockStatus;
             emscripten_get_pointerlock_status(&pointerlockStatus);
-            if (isMouseCaptured != pointerlockStatus.isActive) {
-                isMouseCaptured = pointerlockStatus.isActive;
-                input.setCursorMode(isMouseCaptured ? Disabled : Normal);
+            if (m_isMouseCaptured != pointerlockStatus.isActive) {
+                m_isMouseCaptured = pointerlockStatus.isActive;
+                input.setCursorMode(m_isMouseCaptured ? Disabled : Normal);
             }
         }
 #endif
 
-        if (!isMouseCaptured) {
+        if (!m_isMouseCaptured) {
             firstMouse = true;
             return false;
         }
@@ -105,13 +105,13 @@ void ControllerSystem::onEvent(Event &event) {
         const auto cameraDir = glm::normalize(camera.getDirection());
         constexpr float reach = 256.0f;
 
-        if (button == MouseCode::ButtonLeft && !isMouseCaptured) {
-            isMouseCaptured = true;
+        if (button == MouseCode::ButtonLeft && !m_isMouseCaptured) {
+            m_isMouseCaptured = true;
             input.setCursorMode(Disabled);
             return true;
         }
 
-        if (button == MouseCode::ButtonLeft && isMouseCaptured) {
+        if (button == MouseCode::ButtonLeft && m_isMouseCaptured) {
             castRay(cameraPos, cameraDir, reach, [&](const auto &pos, const auto &prevPos) {
                 const auto worldPos = WorldCoordinate(pos);
 
@@ -127,7 +127,7 @@ void ControllerSystem::onEvent(Event &event) {
             return true;
         }
 
-        if (button == MouseCode::ButtonRight && isMouseCaptured) {
+        if (button == MouseCode::ButtonRight && m_isMouseCaptured) {
             castRay(cameraPos, cameraDir, reach, [&](const auto &pos, const auto &prevPos) {
                 const auto worldPos = WorldCoordinate(pos);
                 const auto prevWorldPos = WorldCoordinate(prevPos);
@@ -152,8 +152,8 @@ void ControllerSystem::onEvent(Event &event) {
 
     dispatcher.dispatch<KeyPressedEvent>([&](const KeyPressedEvent &keyEvent) {
         const auto keyCode = keyEvent.getKeyCode();
-        if ((keyCode == KeyCode::Escape || keyCode == KeyCode::C) && isMouseCaptured) {
-            isMouseCaptured = false;
+        if ((keyCode == KeyCode::Escape || keyCode == KeyCode::C) && m_isMouseCaptured) {
+            m_isMouseCaptured = false;
             input.setCursorMode(Normal);
             return true;
         }

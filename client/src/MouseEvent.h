@@ -5,73 +5,73 @@
 
 class MouseButtonEvent : public Event {
 public:
-    [[nodiscard]] MouseCode getMouseButton() const { return button; }
+    [[nodiscard]] MouseCode getMouseButton() const { return m_button; }
 
 protected:
     MouseButtonEvent(const EventType type, const MouseCode button) :
-            Event(type), button(button) {}
+            Event(type), m_button(button) {}
 
-    MouseCode button;
+    MouseCode m_button;
 };
 
 class MouseButtonPressedEvent final : public MouseButtonEvent {
 public:
     explicit MouseButtonPressedEvent(const MouseCode button) :
-            MouseButtonEvent(eventType, button) {}
+            MouseButtonEvent(EVENT_TYPE, button) {}
 
-    static constexpr EventType eventType = EventType::MouseButtonPressed;
+    static constexpr EventType EVENT_TYPE = EventType::MouseButtonPressed;
 
     [[nodiscard]] std::string toString() const override {
-        return "MouseButtonPressedEvent: " + std::string(magic_enum::enum_name(button));
+        return "MouseButtonPressedEvent: " + std::string(magic_enum::enum_name(m_button));
     }
 };
 
 class MouseButtonReleasedEvent final : public MouseButtonEvent {
 public:
     explicit MouseButtonReleasedEvent(const MouseCode button) :
-            MouseButtonEvent(eventType, button) {}
+            MouseButtonEvent(EVENT_TYPE, button) {}
 
-    static constexpr EventType eventType = EventType::MouseButtonReleased;
+    static constexpr EventType EVENT_TYPE = EventType::MouseButtonReleased;
 
     [[nodiscard]] std::string toString() const override {
-        return "MouseButtonReleasedEvent: " + std::string(magic_enum::enum_name(button));
+        return "MouseButtonReleasedEvent: " + std::string(magic_enum::enum_name(m_button));
     }
 };
 
 class MouseMovedEvent final : public Event {
 public:
     MouseMovedEvent(const float x, const float y) :
-            Event(eventType), mouseX(x), mouseY(y) {}
+            Event(EVENT_TYPE), m_mouseX(x), m_mouseY(y) {}
 
-    [[nodiscard]] float getX() const { return mouseX; }
+    [[nodiscard]] float getX() const { return m_mouseX; }
 
-    [[nodiscard]] float getY() const { return mouseY; }
+    [[nodiscard]] float getY() const { return m_mouseY; }
 
-    static constexpr EventType eventType = EventType::MouseMoved;
+    static constexpr EventType EVENT_TYPE = EventType::MouseMoved;
 
     [[nodiscard]] std::string toString() const override {
-        return "MouseMovedEvent: " + std::to_string(mouseX) + "x" + std::to_string(mouseY);
+        return "MouseMovedEvent: " + std::to_string(m_mouseX) + "x" + std::to_string(m_mouseY);
     }
 
 private:
-    float mouseX, mouseY;
+    float m_mouseX, m_mouseY;
 };
 
 class MouseScrolledEvent final : public Event {
 public:
     MouseScrolledEvent(const float xOffset, const float yOffset) :
-            Event(eventType), xOffset(xOffset), yOffset(yOffset) {}
+            Event(EVENT_TYPE), m_xOffset(xOffset), m_yOffset(yOffset) {}
 
-    [[nodiscard]] float getXOffset() const { return xOffset; }
+    [[nodiscard]] float getXOffset() const { return m_xOffset; }
 
-    [[nodiscard]] float getYOffset() const { return yOffset; }
+    [[nodiscard]] float getYOffset() const { return m_yOffset; }
 
-    static constexpr EventType eventType = EventType::MouseScrolled;
+    static constexpr EventType EVENT_TYPE = EventType::MouseScrolled;
 
     [[nodiscard]] std::string toString() const override {
-        return "MouseScrolledEvent: " + std::to_string(xOffset) + " " + std::to_string(yOffset);
+        return "MouseScrolledEvent: " + std::to_string(m_xOffset) + " " + std::to_string(m_yOffset);
     }
 
 private:
-    float xOffset, yOffset;
+    float m_xOffset, m_yOffset;
 };

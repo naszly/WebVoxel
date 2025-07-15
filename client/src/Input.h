@@ -15,7 +15,7 @@ enum CursorMode {
 
 class Input {
 public:
-    explicit Input(GLFWwindow *window) : glfwWindow(window) {};
+    explicit Input(GLFWwindow *window) : m_glfwWindow(window) {};
 
     ~Input() = default;
 
@@ -38,5 +38,5 @@ public:
     void setCursorMode(CursorMode mode) const;
 
 private:
-    GLFWwindow *glfwWindow;
+    GLFWwindow *m_glfwWindow;
 };

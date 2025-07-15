@@ -26,14 +26,14 @@ public:
 
     bool handled = false;
 
-    [[nodiscard]] EventType getEventType() const { return type; }
+    [[nodiscard]] EventType getEventType() const { return m_type; }
 
     [[nodiscard]] bool isInCategory(const EventCategory category) const {
         return getCategory() == category;
     }
 
     [[nodiscard]] EventCategory getCategory() const {
-        switch (type) {
+        switch (m_type) {
             case EventType::None:
                 return EventCategory::None;
             case EventType::WindowClosed:
@@ -56,32 +56,32 @@ public:
 
 
     [[nodiscard]] virtual std::string toString() const {
-        return "Event: " + std::string(magic_enum::enum_name(type));
+        return "Event: " + std::string(magic_enum::enum_name(m_type));
     }
 
 protected:
-    explicit Event(const EventType type) : type(type) {}
+    explicit Event(const EventType type) : m_type(type) {}
 
 private:
-    EventType type;
+    EventType m_type;
 };
 
 using EventCallbackFn = std::function<void(Event &)>;
 
 class EventDispatcher {
 public:
-    explicit EventDispatcher(Event &event) : event(event) {}
+    explicit EventDispatcher(Event &event) : m_event(event) {}
 
     // F will be deduced by the compiler
     template<typename T, typename F>
     bool dispatch(const F &func) {
-        if (event.getEventType() == T::eventType) {
-            event.handled |= func(static_cast<T &>(event));
+        if (m_event.getEventType() == T::EVENT_TYPE) {
+            m_event.handled |= func(static_cast<T &>(m_event));
             return true;
         }
         return false;
     }
 
 private:
-    Event &event;
+    Event &m_event;
 };
