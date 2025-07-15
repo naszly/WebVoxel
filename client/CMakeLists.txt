@@ -27,7 +27,7 @@ FetchContent_MakeAvailable(glm)
 
 FetchContent_Declare(
     glfw3webgpu
-    GIT_REPOSITORY https://github.com/eliemichel/glfw3webgpu
+    GIT_REPOSITORY https://github.com/naszly/glfw3webgpu
     GIT_TAG main
     GIT_SHALLOW ON
 )
