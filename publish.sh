@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 mkdir -p publish
 
 rm -f build-web/client/index.*
