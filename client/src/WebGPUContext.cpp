@@ -27,14 +27,15 @@ void WebGPUContext::pollEvents() const {
 }
 
 void WebGPUContext::createInstance() {
+    constexpr WGPUInstanceFeatureName requiredFeatures[] = {
+        WGPUInstanceFeatureName_TimedWaitAny
+    };
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = nullptr;
+    desc.requiredFeatureCount = 1;
+    desc.requiredFeatures = requiredFeatures;
 
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    m_Instance = wgpuCreateInstance(nullptr);
-#else //  WEBGPU_BACKEND_EMSCRIPTEN
     m_Instance = wgpuCreateInstance(&desc);
-#endif //  WEBGPU_BACKEND_EMSCRIPTEN
 
     if (!m_Instance) {
         LogCore::critical("Failed to create WebGPU instance");
@@ -79,20 +80,12 @@ void WebGPUContext::requestAdapter() {
     WGPUFutureWaitInfo futureInfo = {};
     futureInfo.future = wgpuInstanceRequestAdapter(m_Instance, &options, callbackInfo);
 
-    const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 0);
+    const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 6e+10);
 
     if (waitStatus != WGPUWaitStatus_Success) {
         LogCore::critical("Failed to wait for WebGPU adapter request: {0}", magic_enum::enum_name(waitStatus));
         return;
     }
-
-#ifdef __EMSCRIPTEN__
-    while (!userData.requestEnded) {
-        emscripten_sleep(100);
-    }
-#endif // __EMSCRIPTEN__
-
-    assert(userData.requestEnded);
 
     m_Adapter = userData.adapter;
     LogCore::info("WebGPU adapter requested: {0}", reinterpret_cast<size_t>(m_Adapter));
@@ -179,7 +172,7 @@ void WebGPUContext::requestDevice() {
     WGPUFutureWaitInfo futureInfo = {};
     futureInfo.future = wgpuAdapterRequestDevice(m_Adapter, &descriptor, requestDeviceCallbackInfo);
 
-    const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 0);
+    const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 6e+10);
 
     if (waitStatus != WGPUWaitStatus_Success) {
         LogCore::critical("Failed to wait for WebGPU device request: {0}", magic_enum::enum_name(waitStatus));

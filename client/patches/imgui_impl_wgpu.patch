@@ -1,0 +1,13 @@
+diff --git a/backends/imgui_impl_wgpu.cpp b/backends/imgui_impl_wgpu.cpp
+index d20028d5..6854d495 100644
+--- a/backends/imgui_impl_wgpu.cpp
++++ b/backends/imgui_impl_wgpu.cpp
+@@ -53,7 +53,7 @@
+     #endif
+ #else
+     #if defined(IMGUI_IMPL_WEBGPU_BACKEND_DAWN) || defined(IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
+-    #error neither IMGUI_IMPL_WEBGPU_BACKEND_DAWN nor IMGUI_IMPL_WEBGPU_BACKEND_WGPU may be defined if targeting emscripten!
++//    #error neither IMGUI_IMPL_WEBGPU_BACKEND_DAWN nor IMGUI_IMPL_WEBGPU_BACKEND_WGPU may be defined if targeting emscripten!
+     #endif
+ #endif
+ 

@@ -337,13 +337,9 @@ void RendererSystem::createRenderPipeline() {
     WGPUShaderModuleDescriptor shaderDesc{};
     std::string shaderCode = LoadShader("shaders/shader.wgsl");
 
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
+    WGPUShaderSourceWGSL shaderCodeDesc{};
     shaderCodeDesc.chain.next = nullptr;
-#ifdef WEBGPU_BACKEND_DAWN
     shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-#else
-	shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-#endif
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
     shaderCodeDesc.code = WGPUStringView{shaderCode.c_str(), shaderCode.size()};
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
@@ -509,11 +505,7 @@ void RendererSystem::createRenderPipeline() {
     // Configure the depth-stencil state
     WGPUDepthStencilState depthStencilState{};
     depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
-#ifdef WEBGPU_BACKEND_DAWN
     depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
-#else
-	depthStencilState.depthWriteEnabled = true;
-#endif
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
     depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
     depthStencilState.stencilFront.failOp = WGPUStencilOperation_Keep;

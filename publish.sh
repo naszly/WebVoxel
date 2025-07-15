@@ -2,14 +2,14 @@
 
 mkdir -p publish
 
-rm -f build-emscripten/index.*
+rm -f build-web/index.*
 
-emcmake cmake -B build-emscripten
-cmake --build build-emscripten
+emcmake cmake -B build-web
+cmake --build build-web
 
 rm -rf publish/*
 
-cp -v build-emscripten/index.* publish/
+cp -v build-web/index.* publish/
 
 cat <<EOL > publish/_headers
 /*
