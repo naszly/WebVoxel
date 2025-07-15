@@ -2,10 +2,6 @@ cmake_minimum_required(VERSION 3.13)
 
 project(WebVoxel)
 
-set(CMAKE_CXX_STANDARD 23
-    CXX_EXTENSIONS OFF
-    COMPILE_WARNING_AS_ERROR ON)
-
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
@@ -20,7 +16,7 @@ include(FetchContent)
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG 0.9.9.8
+    GIT_TAG 1.0.1
     GIT_SHALLOW ON
 )
 FetchContent_MakeAvailable(glm)
@@ -96,6 +92,9 @@ file(GLOB_RECURSE OGT_SOURCES ${opengametools_SOURCE_DIR}/src/*)
 file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${OGT_SOURCES})
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)
+set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_AS_ERROR ON)
 
 target_link_libraries(${PROJECT_NAME} glm::glm webgpu glfw glfw3webgpu spdlog::spdlog magic_enum::magic_enum FastNoise2 zlib)
 target_include_directories(${PROJECT_NAME} PRIVATE ${webgpu_SOURCE_DIR})
