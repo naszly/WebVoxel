@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.28)
 
 project(WebVoxel)
 
@@ -49,16 +49,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(magic_enum)
 
 # ImGUI
-FetchContent_Populate(
-        imgui
-        URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.1-docking.zip
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.92.1-docking
+    GIT_SHALLOW ON
 )
+FetchContent_MakeAvailable(imgui)
+
 file(GLOB IMGUI_SOURCES
-        ${imgui_SOURCE_DIR}/*.cpp
-        ${imgui_SOURCE_DIR}/*.h
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp)
+    ${imgui_SOURCE_DIR}/*.cpp
+    ${imgui_SOURCE_DIR}/*.h
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp)
 
 # FastNoise2
 FetchContent_Declare(
@@ -80,13 +83,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(zlib)
 
 # opengametools (ogt_vox.h)
-FetchContent_Populate(
+FetchContent_Declare(
     opengametools
     GIT_REPOSITORY https://github.com/jpaver/opengametools
     GIT_TAG master
     GIT_SHALLOW ON
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/opengametools
+    EXCLUDE_FROM_ALL
 )
+FetchContent_MakeAvailable(opengametools)
 file(GLOB_RECURSE OGT_SOURCES ${opengametools_SOURCE_DIR}/src/*)
 
 file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
@@ -116,7 +120,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 if (EMSCRIPTEN)
-   set(ASSET_DIR ${PROJECT_BINARY_DIR}/asset_dir)
+    set(ASSET_DIR ${PROJECT_BINARY_DIR}/asset_dir)
 else()
     set(ASSET_DIR ${PROJECT_BINARY_DIR})
 endif()
