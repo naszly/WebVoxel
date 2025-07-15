@@ -140,7 +140,7 @@ foreach (MODEL_FILE ${MODEL_FILES})
     configure_file(${MODEL_FILE} ${ASSET_DIR}/models/${MODEL_NAME} COPYONLY)
 endforeach ()
 
-file(GLOB_RECURSE FONT_FILES ${PROJECT_SOURCE_DIR}/external/imgui/misc/fonts/*.ttf)
+file(GLOB_RECURSE FONT_FILES ${imgui_SOURCE_DIR}/misc/fonts/*.ttf)
 foreach (FONT_FILE ${FONT_FILES})
     get_filename_component(FONT_NAME ${FONT_FILE} NAME)
     configure_file(${FONT_FILE} ${ASSET_DIR}/fonts/${FONT_NAME} COPYONLY)
