@@ -36,7 +36,7 @@ void RendererSystem::initialize() {
         resolveBufferDesc.size = 2 * sizeof(uint64_t);
         resolveBufferDesc.usage = WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc;
         resolveBufferDesc.mappedAtCreation = false;
-        resolveBufferDesc.label = "Query Resolve Buffer";
+        resolveBufferDesc.label = WGPUStringView{"Query Resolve Buffer", WGPU_STRLEN};
         m_QueryResolveBuffer = wgpuDeviceCreateBuffer(device, &resolveBufferDesc);
 
         // 2. Read buffer (CPU-visible)
@@ -44,7 +44,7 @@ void RendererSystem::initialize() {
         readBufferDesc.size = m_QueryReadBufferCapacity;
         readBufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
         readBufferDesc.mappedAtCreation = false;
-        readBufferDesc.label = "Query Read Buffer";
+        readBufferDesc.label = WGPUStringView{"Query Read Buffer", WGPU_STRLEN};
         m_QueryReadBuffer = wgpuDeviceCreateBuffer(device, &readBufferDesc);
     } else {
         LogCore::warning("TimestampQuery feature not supported");
@@ -89,7 +89,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.stencilClearValue = 0;
 
-    WGPURenderPassTimestampWrites timestampWrites = {};
+    WGPUPassTimestampWrites timestampWrites = {};
     timestampWrites.querySet = m_QuerySet;
     timestampWrites.beginningOfPassWriteIndex = 0;
     timestampWrites.endOfPassWriteIndex = 1;
@@ -99,7 +99,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
     renderPassDesc.timestampWrites = &timestampWrites;
 
-    renderPassDesc.label = "RendererSystem RenderPass";
+    renderPassDesc.label = WGPUStringView{"RendererSystem RenderPass", WGPU_STRLEN};
 
     Application &app = Application::GetInstance();
     auto &appData = app.getApplicationData();
@@ -310,8 +310,8 @@ void RendererSystem::setFog(const bool fog) {
 void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
 
-    auto onWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, void* userdata) {
-        const auto rendererSystem = static_cast<const RendererSystem*>(userdata);
+    WGPUQueueWorkDoneCallback onWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
+        const auto rendererSystem = static_cast<const RendererSystem*>(userdata1);
         if (status == WGPUQueueWorkDoneStatus_Success) {
             LogApp::info("Exporting timestamps...");
             rendererSystem->exportTimestampsInternal();
@@ -320,7 +320,13 @@ void RendererSystem::exportTimestamps() const {
         }
     };
 
-    wgpuQueueOnSubmittedWorkDone(queue, onWorkDoneCallback, const_cast<RendererSystem *>(this));
+    WGPUQueueWorkDoneCallbackInfo workDoneInfo = {};
+    workDoneInfo.callback = onWorkDoneCallback;
+    workDoneInfo.userdata1 = const_cast<RendererSystem *>(this);
+    workDoneInfo.userdata2 = nullptr;
+    workDoneInfo.nextInChain = nullptr;
+
+    wgpuQueueOnSubmittedWorkDone(queue, workDoneInfo);
 }
 
 void RendererSystem::createRenderPipeline() {
@@ -339,7 +345,7 @@ void RendererSystem::createRenderPipeline() {
 	shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
 #endif
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    shaderCodeDesc.code = shaderCode.c_str();
+    shaderCodeDesc.code = WGPUStringView{shaderCode.c_str(), shaderCode.size()};
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
 
     // Create the bind group layout
@@ -442,7 +448,7 @@ void RendererSystem::createRenderPipeline() {
 
     constexpr std::array vertexConstants{
         WGPUConstantEntry{
-            .key = "CHUNK_SIZE",
+            .key = WGPUStringView{"CHUNK_SIZE", WGPU_STRLEN},
             .value = Chunk::SIZE,
         }
     };
@@ -451,9 +457,9 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
     if (m_ambient_occlusion) {
-        pipelineDesc.vertex.entryPoint = "vsMainAo";
+        pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMainAo", WGPU_STRLEN};
     } else {
-        pipelineDesc.vertex.entryPoint = "vsMain";
+        pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
     }
     pipelineDesc.vertex.constantCount = vertexConstants.size();
     pipelineDesc.vertex.constants = vertexConstants.data();
@@ -478,22 +484,22 @@ void RendererSystem::createRenderPipeline() {
 
     const std::array fragmentConstants{
         WGPUConstantEntry{
-            .key = "AO",
+            .key = WGPUStringView{"AO", WGPU_STRLEN},
             .value = static_cast<double>(m_ambient_occlusion),
         },
         WGPUConstantEntry{
-            .key = "LIGHTING",
+            .key = WGPUStringView{"LIGHTING", WGPU_STRLEN},
             .value = static_cast<double>(m_lighting),
         },
         WGPUConstantEntry{
-            .key = "FOG",
+            .key = WGPUStringView{"FOG", WGPU_STRLEN},
             .value = static_cast<double>(m_fog),
         }
     };
 
     WGPUFragmentState fragmentState{};
     fragmentState.module = shaderModule;
-    fragmentState.entryPoint = "fsMain";
+    fragmentState.entryPoint = WGPUStringView{"fsMain", WGPU_STRLEN};
     fragmentState.constantCount = fragmentConstants.size();
     fragmentState.constants = fragmentConstants.data();
 
@@ -671,9 +677,13 @@ void RendererSystem::exportTimestampsInternal() const {
         bool requestEnded = false;
     };
 
-    auto callback = [](WGPUBufferMapAsyncStatus status, void* userdata) {
-        const auto data = static_cast<UserData*>(userdata);
-        if (status == WGPUBufferMapAsyncStatus_Success) {
+    auto callback = [](const WGPUMapAsyncStatus status,
+                       WGPUStringView message,
+                       WGPU_NULLABLE void* userdata1,
+                       WGPU_NULLABLE void* userdata2)
+    {
+        const auto data = static_cast<UserData*>(userdata1);
+        if (status == WGPUMapAsyncStatus_Success) {
             if (const auto* timestamps = static_cast<const uint64_t*>(wgpuBufferGetConstMappedRange(data->buffer, 0, data->size))) {
                 for (size_t i = 0; i < data->size / sizeof(uint64_t) / 2; ++i) {
                     uint64_t duration = timestamps[i*2+1] - timestamps[i*2];
@@ -690,7 +700,12 @@ void RendererSystem::exportTimestampsInternal() const {
     };
 
     UserData userData{m_QueryReadBuffer, m_QueryReadBufferSize};
-    wgpuBufferMapAsync(m_QueryReadBuffer, WGPUMapMode_Read, 0, m_QueryReadBufferCapacity, callback, &userData);
+
+    auto callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+    callbackInfo.callback = callback;
+    callbackInfo.userdata1 = &userData;
+
+    wgpuBufferMapAsync(m_QueryReadBuffer, WGPUMapMode_Read, 0, m_QueryReadBufferCapacity, callbackInfo);
 
     GetWebGPUContext().pollEvents();
 
@@ -762,7 +777,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
     descriptor.size = bufferSize;
     descriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     descriptor.mappedAtCreation = false;
-    descriptor.label = "Chunk Vertex Buffer";
+    descriptor.label = WGPUStringView{"Chunk Vertex Buffer", WGPU_STRLEN};
 
     vertexBuffer.buffer = wgpuDeviceCreateBuffer(device, &descriptor);
     vertexBuffer.vertexCount = points.size();

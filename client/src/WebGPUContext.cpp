@@ -49,23 +49,42 @@ void WebGPUContext::requestAdapter() {
         WGPUAdapter adapter = nullptr;
         bool requestEnded = false;
     };
+    UserData userData;
 
-    auto onAdapterRequestEnded = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, char const *message, void *userData) {
-        const auto data = static_cast<UserData*>(userData);
+    const WGPURequestAdapterCallback adapterCallback = [](const WGPURequestAdapterStatus status,
+                                                             const WGPUAdapter adapter,
+                                                             WGPUStringView message,
+                                                             WGPU_NULLABLE void *userdata1,
+                                                             WGPU_NULLABLE void *userdata2)
+    {
+            const auto data = static_cast<UserData*>(userdata1);
 
-        if (status == WGPURequestAdapterStatus_Success) {
-            data->adapter = adapter;
-        } else {
-            LogCore::critical("Failed to request WebGPU adapter: {0}", message);
-        }
+            if (status == WGPURequestAdapterStatus_Success) {
+                data->adapter = adapter;
+            } else {
+                LogCore::critical("Failed to request WebGPU adapter: {0}", message.data);
+            }
 
-        data->requestEnded = true;
+            data->requestEnded = true;
     };
+
+    WGPURequestAdapterCallbackInfo callbackInfo = {};
+    callbackInfo.nextInChain = nullptr;
+    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+    callbackInfo.callback = adapterCallback;
+    callbackInfo.userdata1 = &userData;
 
     constexpr WGPURequestAdapterOptions options = {};
 
-    UserData userData;
-    wgpuInstanceRequestAdapter(m_Instance, &options, onAdapterRequestEnded, &userData);
+    WGPUFutureWaitInfo futureInfo = {};
+    futureInfo.future = wgpuInstanceRequestAdapter(m_Instance, &options, callbackInfo);
+
+    const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 0);
+
+    if (waitStatus != WGPUWaitStatus_Success) {
+        LogCore::critical("Failed to wait for WebGPU adapter request: {0}", magic_enum::enum_name(waitStatus));
+        return;
+    }
 
 #ifdef __EMSCRIPTEN__
     while (!userData.requestEnded) {
@@ -84,21 +103,32 @@ void WebGPUContext::requestDevice() {
         WGPUDevice device = nullptr;
         bool requestEnded = false;
     };
+    UserData userData;
 
-    auto onDeviceRequestEnded = [](WGPURequestDeviceStatus status, WGPUDevice device, char const *message, void *userData) {
-        const auto data = static_cast<UserData*>(userData);
+    const WGPURequestDeviceCallback onDeviceRequestEnded = [](const WGPURequestDeviceStatus status,
+                                                                 const WGPUDevice device,
+                                                                 WGPUStringView message,
+                                                                 WGPU_NULLABLE void *userdata1,
+                                                                 WGPU_NULLABLE void *userdata2)
+    {
+        const auto data = static_cast<UserData*>(userdata1);
 
         if (status == WGPURequestDeviceStatus_Success) {
             data->device = device;
         } else {
-            LogCore::critical("Failed to request WebGPU device: {0}", message);
+            LogCore::critical("Failed to request WebGPU device: {0}", message.data);
         }
 
         data->requestEnded = true;
     };
 
-    auto onDeviceError = [](WGPUErrorType type, char const* message, void* userData) {
-        LogCore::error("Uncaptured device error: type {0} ({1})", magic_enum::enum_name(type), message);
+    const WGPUUncapturedErrorCallback onDeviceError = [](WGPUDevice const * device,
+                                                            const WGPUErrorType type,
+                                                            WGPUStringView message,
+                                                            WGPU_NULLABLE void* userdata1,
+                                                            WGPU_NULLABLE void* userdata2)
+    {
+        LogCore::error("Uncaptured device error: type {0} ({1})", magic_enum::enum_name(type), message.data);
         // TODO: use proper error handling
 #ifdef __EMSCRIPTEN__
         emscripten_force_exit(1);
@@ -107,18 +137,23 @@ void WebGPUContext::requestDevice() {
 #endif
     };
 
-#ifdef WEBGPU_BACKEND_DAWN
+    const WGPUDeviceLostCallback deviceLostCallback = [](WGPUDevice const * device,
+                                                            const WGPUDeviceLostReason reason,
+                                                            WGPUStringView message,
+                                                            WGPU_NULLABLE void* userdata1,
+                                                            WGPU_NULLABLE void* userdata2)
+    {
+        LogCore::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message.data);
+    };
+
     WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
     deviceLostCallbackInfo.nextInChain = nullptr;
     deviceLostCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    deviceLostCallbackInfo.callback = [](const WGPUDevice* device, const WGPUDeviceLostReason reason, char const* message, void* userData) {
-        LogCore::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message);
-    };
+    deviceLostCallbackInfo.callback = deviceLostCallback;
 
     WGPUUncapturedErrorCallbackInfo uncapturedErrorCallbackInfo = {};
     uncapturedErrorCallbackInfo.nextInChain = nullptr;
     uncapturedErrorCallbackInfo.callback = onDeviceError;
-#endif
 
     const std::vector requiredFeatures = {
         WGPUFeatureName_TimestampQuery,
@@ -126,23 +161,30 @@ void WebGPUContext::requestDevice() {
 
     WGPUDeviceDescriptor descriptor = {};
     descriptor.nextInChain = nullptr;
-    descriptor.label = "WebGPU Device";
+    descriptor.label = WGPUStringView{"WebGPU Device", WGPU_STRLEN};
     descriptor.requiredFeatureCount = static_cast<uint32_t>(requiredFeatures.size());
     descriptor.requiredFeatures = requiredFeatures.data();
     descriptor.requiredLimits = nullptr;
     descriptor.defaultQueue.nextInChain = nullptr;
-    descriptor.defaultQueue.label = "WebGPU Queue";
-#ifdef WEBGPU_BACKEND_DAWN
+    descriptor.defaultQueue.label = WGPUStringView{"WebGPU Queue", WGPU_STRLEN};
     descriptor.deviceLostCallbackInfo = deviceLostCallbackInfo;
     descriptor.uncapturedErrorCallbackInfo = uncapturedErrorCallbackInfo;
-#else
-    descriptor.deviceLostCallback = [](WGPUDeviceLostReason reason, char const* message, void* userData) {
-        LogCore::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message);
-    };
-#endif
 
-    UserData userData;
-    wgpuAdapterRequestDevice(m_Adapter, &descriptor, onDeviceRequestEnded, &userData);
+    WGPURequestDeviceCallbackInfo requestDeviceCallbackInfo = {};
+    requestDeviceCallbackInfo.nextInChain = nullptr;
+    requestDeviceCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+    requestDeviceCallbackInfo.callback = onDeviceRequestEnded;
+    requestDeviceCallbackInfo.userdata1 = &userData;
+
+    WGPUFutureWaitInfo futureInfo = {};
+    futureInfo.future = wgpuAdapterRequestDevice(m_Adapter, &descriptor, requestDeviceCallbackInfo);
+
+    const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 0);
+
+    if (waitStatus != WGPUWaitStatus_Success) {
+        LogCore::critical("Failed to wait for WebGPU device request: {0}", magic_enum::enum_name(waitStatus));
+        return;
+    }
 
 #ifdef __EMSCRIPTEN__
     while (!userData.requestEnded) {
@@ -154,8 +196,4 @@ void WebGPUContext::requestDevice() {
 
     m_Device = userData.device;
     LogCore::info("WebGPU device requested: {0}", reinterpret_cast<size_t>(m_Device));
-
-#ifndef WEBGPU_BACKEND_DAWN
-    wgpuDeviceSetUncapturedErrorCallback(m_Device, onDeviceError, nullptr);
-#endif
 }

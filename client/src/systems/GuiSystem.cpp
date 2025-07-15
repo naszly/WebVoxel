@@ -176,7 +176,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
     renderPassDesc.depthStencilAttachment = nullptr;
-    renderPassDesc.label = "GuiSystem RenderPass";
+    renderPassDesc.label = WGPUStringView{"GuiSystem RenderPass", WGPU_STRLEN};
 
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);

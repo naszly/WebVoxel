@@ -68,7 +68,7 @@ WGPUTextureView Application::getNextSurfaceTextureView() const {
     // Get the surface texture
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
-    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
         LogCore::error("Failed to get current surface texture: status {0}", static_cast<int>(surfaceTexture.status));
         return nullptr;
     }
@@ -76,7 +76,7 @@ WGPUTextureView Application::getNextSurfaceTextureView() const {
     // Create a view for this surface texture
     WGPUTextureViewDescriptor viewDescriptor = {};
     viewDescriptor.nextInChain = nullptr;
-    viewDescriptor.label = "Surface texture view";
+    viewDescriptor.label = WGPUStringView{"Surface texture view", WGPU_STRLEN};
     viewDescriptor.format = wgpuTextureGetFormat(surfaceTexture.texture);
     viewDescriptor.dimension = WGPUTextureViewDimension_2D;
     viewDescriptor.baseMipLevel = 0;
@@ -101,7 +101,7 @@ void Application::render() {
     // Create a command encoder for the draw call
     WGPUCommandEncoderDescriptor encoderDesc = {};
     encoderDesc.nextInChain = nullptr;
-    encoderDesc.label = "My command encoder";
+    encoderDesc.label = WGPUStringView{"My command encoder", WGPU_STRLEN};
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
 
     // Get the next target texture view
@@ -115,7 +115,7 @@ void Application::render() {
     // Encode and submit the render pass
     WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
     cmdBufferDescriptor.nextInChain = nullptr;
-    cmdBufferDescriptor.label = "Command buffer";
+    cmdBufferDescriptor.label = WGPUStringView{"Command buffer", WGPU_STRLEN};
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
     wgpuCommandEncoderRelease(encoder);
 
