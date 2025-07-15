@@ -2,14 +2,14 @@
 
 mkdir -p publish
 
-rm -f build-web/index.*
+rm -f build-web/client/index.*
 
 emcmake cmake -B build-web
 cmake --build build-web
 
 rm -rf publish/*
 
-cp -v build-web/index.* publish/
+cp -v build-web/client/index.* publish/
 
 cat <<EOL > publish/_headers
 /*
