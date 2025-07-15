@@ -14,8 +14,6 @@ if (EMSCRIPTEN)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -matomics -mbulk-memory -pthread")
 endif()
 
-set(DAWN_USE_WAYLAND ON)
-
 include(FetchContent)
 
 # GLM
@@ -27,30 +25,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
-# GLFW
-if (NOT EMSCRIPTEN)
-    FetchContent_Declare(
-            glfw
-            GIT_REPOSITORY https://github.com/glfw/glfw
-            GIT_TAG 3.4
-            GIT_SHALLOW ON
-    )
-    FetchContent_MakeAvailable(glfw)
-endif()
-
-# WebGPU
-FetchContent_Declare(
-    webgpu
-    GIT_REPOSITORY https://github.com/eliemichel/WebGPU-distribution
-    GIT_TAG dawn
-    GIT_SHALLOW ON
-)
-FetchContent_MakeAvailable(webgpu)
-
 FetchContent_Declare(
     glfw3webgpu
     GIT_REPOSITORY https://github.com/eliemichel/glfw3webgpu
-    GIT_TAG 9a240a807a2d7cc6f16914b718d363469aaf0ed0
+    GIT_TAG main
     GIT_SHALLOW ON
 )
 FetchContent_MakeAvailable(glfw3webgpu)
@@ -77,7 +55,7 @@ FetchContent_MakeAvailable(magic_enum)
 # ImGUI
 FetchContent_Populate(
         imgui
-        URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.2-docking.zip
+        URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.1-docking.zip
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
 )
 file(GLOB IMGUI_SOURCES
@@ -109,7 +87,7 @@ FetchContent_MakeAvailable(zlib)
 FetchContent_Populate(
     opengametools
     GIT_REPOSITORY https://github.com/jpaver/opengametools
-    GIT_TAG 22e71873ffc55c3a6253d31302e4f5e2191f9a0b
+    GIT_TAG master
     GIT_SHALLOW ON
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/opengametools
 )
