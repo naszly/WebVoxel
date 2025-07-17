@@ -17,10 +17,10 @@ void Application::emscriptenMainLoop(void* arg) {
 
 void Application::start(const int width, const int height) {
     m_Window = Window::create({
-            width,
-            height,
-            "Voxel WebGPU",
-            [this](Event &event) { onEvent(event); }
+            .width=width,
+            .height=height,
+            .title="Voxel WebGPU",
+            .eventCallback=[this](Event &event) { onEvent(event); }
         });
 
     for (const auto& layer : m_Layers) {
