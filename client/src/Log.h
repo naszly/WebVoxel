@@ -52,6 +52,6 @@ namespace impl {
     };
 }
 
-typedef impl::_Log<0> LogCore;
-typedef impl::_Log<1> LogWebGPU;
-typedef impl::_Log<2> LogApp;
+using LogCore = impl::_Log<0>;
+using LogWebGPU = impl::_Log<1>;
+using LogApp = impl::_Log<2>;

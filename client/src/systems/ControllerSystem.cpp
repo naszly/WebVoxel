@@ -9,7 +9,7 @@
 #include "../KeyEvent.h"
 #include "../MouseEvent.h"
 
-typedef std::function<bool(glm::i64vec3, glm::i64vec3)> RayHitCallbackFn;
+using RayHitCallbackFn = std::function<bool(glm::i64vec3, glm::i64vec3)>;
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);
 
 void ControllerSystem::initialize() {
