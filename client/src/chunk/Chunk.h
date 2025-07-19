@@ -5,7 +5,7 @@
 #include <glm/vec3.hpp>
 
 #include "VoxelTree.h"
-#include "../Utils.h"
+#include "../common/Utils.h"
 
 #include <FastNoise/FastNoise.h>
 

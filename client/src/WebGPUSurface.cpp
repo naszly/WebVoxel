@@ -1,6 +1,6 @@
 #include "WebGPUSurface.h"
 
-#include "Log.h"
+#include "common/Log.h"
 
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>

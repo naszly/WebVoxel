@@ -2,10 +2,10 @@
 
 #include "../Application.h"
 #include "../ApplicationEvent.h"
-#include "../Timer.h"
-#include "../Log.h"
-#include "../FileSytem.h"
-#include "../Thread.h"
+#include "../common/Timer.h"
+#include "../common/Log.h"
+#include "../common/FileSystem.h"
+#include "../common/Thread.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");

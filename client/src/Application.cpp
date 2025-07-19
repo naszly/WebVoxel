@@ -1,7 +1,7 @@
 #include "Application.h"
 
-#include "Timer.h"
-#include "Log.h"
+#include "common/Timer.h"
+#include "common/Log.h"
 
 #include <chrono>
 #include <ranges>

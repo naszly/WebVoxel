@@ -3,7 +3,7 @@
 #include "KeyEvent.h"
 #include "MouseEvent.h"
 #include "ApplicationEvent.h"
-#include "Log.h"
+#include "common/Log.h"
 
 #include <GLFW/glfw3.h>
 

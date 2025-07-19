@@ -9,8 +9,8 @@ public:
 
     static void exportTimes();
 private:
-    const char* m_Name;
-    const std::chrono::time_point<std::chrono::high_resolution_clock> m_Start;
+    const char* m_name;
+    const std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
 
     [[nodiscard]] double elapsedMilliseconds() const;
 };

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "System.h"
-#include "../Thread.h"
+#include "../common/Thread.h"
 
 #include <FastNoise/FastNoise.h>
 

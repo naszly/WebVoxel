@@ -3,7 +3,7 @@
 #include "VoxelData.h"
 #include "../common/datastructures/Bitmap.h"
 #include "../common/datastructures/KTree.h"
-#include "../Utils.h"
+#include "../common/Utils.h"
 
 // depth: depth of the tree
 // size: size of the matrix of nodes

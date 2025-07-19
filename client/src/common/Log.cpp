@@ -1,5 +1,6 @@
 #include "Log.h"
 
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -54,7 +55,7 @@ static std::shared_ptr<spdlog::logger> createLogger(const char* name) {
     return logger;
 }
 
-namespace impl {
+namespace Impl {
     static std::shared_ptr<spdlog::logger> loggers[] = {
         createLogger("CORE"),
         createLogger("WEBGPU"),

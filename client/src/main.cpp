@@ -2,7 +2,7 @@
 #include <emscripten/emscripten.h>
 #endif
 
-#include "Log.h"
+#include "common/Log.h"
 #include "Application.h"
 #include "systems/ChunkManagementSystem.h"
 #include "systems/ControllerSystem.h"

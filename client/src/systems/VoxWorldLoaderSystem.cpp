@@ -1,7 +1,7 @@
 #include "VoxWorldLoaderSystem.h"
 
-#include "../FileSytem.h"
-#include "../Log.h"
+#include "../common/FileSystem.h"
+#include "../common/Log.h"
 
 #define OGT_VOX_IMPLEMENTATION
 #include "ogt_vox.h"

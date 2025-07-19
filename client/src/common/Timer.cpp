@@ -2,7 +2,7 @@
 #include "Timer.h"
 
 #include "Log.h"
-#include "FileSytem.h"
+#include "FileSystem.h"
 
 #include <unordered_map>
 #include <string>
@@ -10,12 +10,12 @@
 
 std::unordered_map<std::string, std::vector<double>> savedTimes;
 
-Timer::Timer(const char *name): m_Name(name),  m_Start(std::chrono::high_resolution_clock::now()) {}
+Timer::Timer(const char *name): m_name(name),  m_start(std::chrono::high_resolution_clock::now()) {}
 
 Timer::~Timer() {
     const double ms = elapsedMilliseconds();
-    LogApp::info("{}: {} ms", m_Name, ms);
-    savedTimes[m_Name].push_back(ms);
+    LogApp::info("{}: {} ms", m_name, ms);
+    savedTimes[m_name].push_back(ms);
 }
 
 void Timer::exportTimes() {
@@ -38,5 +38,5 @@ void Timer::exportTimes() {
 
 double Timer::elapsedMilliseconds() const {
     const auto end = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration<double, std::milli>(end - m_Start).count();
+    return std::chrono::duration<double, std::milli>(end - m_start).count();
 }

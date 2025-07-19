@@ -1,6 +1,6 @@
 #include "ChunkMap.h"
 
-#include "../Log.h"
+#include "../common/Log.h"
 
 Chunk & ChunkMap::getChunk(const glm::ivec3 key) {
     if (const auto chunk = tryGetChunk(key)) {

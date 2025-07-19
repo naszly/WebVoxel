@@ -2,7 +2,7 @@
 
 #include <magic_enum.hpp>
 
-#include "Log.h"
+#include "common/Log.h"
 
 WebGPUContext::WebGPUContext() {
     createInstance();
