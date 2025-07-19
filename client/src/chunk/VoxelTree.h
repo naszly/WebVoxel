@@ -34,6 +34,29 @@ public:
         return m_bitmap.test(i);
     }
 
+    void serialize(std::ostringstream& os) const {
+        m_tree.serialize(os);
+    }
+
+    void deserialize(std::istringstream& is) {
+        m_tree.deserialize(is);
+        m_bitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>{};
+        for (uint32_t x = 0; x < SIZE; x++) {
+            for (uint32_t y = 0; y < SIZE; y++) {
+                for (uint32_t z = 0; z < SIZE; z++) {
+                    if (!getVoxel(x, y, z).isEmpty()) {
+                        uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
+                        m_bitmap.set(i);
+                    }
+                }
+            }
+        }
+    }
+
+    [[nodiscard]] auto getBitmap() const {
+        return m_bitmap;
+    }
+
     struct Neighbours {
         const VoxelTree& xMinus;
         const VoxelTree& xPlus;
