@@ -10,9 +10,9 @@
 #include "../Utils.h"
 
 
-template<uint32_t Layer, uint32_t NodeSize, typename TData, std::enable_if_t<std::is_class_v<TData>, int> = 0>
+template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData, std::enable_if_t<std::is_class_v<TData>, int> = 0>
 class KTreeNode {
-    friend class KTreeNode<Layer + 1, NodeSize, TData>;
+    friend class KTreeNode<Layer + 1, NodeCountPerAxis, TData>;
 public:
     KTreeNode() {
         initialize();
@@ -125,14 +125,14 @@ public:
 private:
     static constexpr TData EMPTY{};
     static constexpr bool IS_LEAF = Layer == 0;
-    static constexpr uint32_t TREE_SIZE = Utils::pow(NodeSize, Layer);
-    using KTreeChildNode = KTreeNode<Layer - 1, NodeSize, TData>;
+    static constexpr uint32_t TREE_SIZE = Utils::pow(NodeCountPerAxis, Layer);
+    using KTreeChildNode = KTreeNode<Layer - 1, NodeCountPerAxis, TData>;
     using NodeType = std::conditional_t<IS_LEAF, TData, KTreeChildNode*>;
 
-    NodeType m_nodes[NodeSize][NodeSize][NodeSize]{};
+    NodeType m_nodes[NodeCountPerAxis][NodeCountPerAxis][NodeCountPerAxis]{};
 
     [[nodiscard]] static constexpr bool isInBounds(const uint32_t x, const uint32_t y, const uint32_t z) {
-        return x < NodeSize && y < NodeSize && z < NodeSize;
+        return x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis;
     }
 
     void initialize() {
@@ -145,9 +145,9 @@ private:
 
     void clear() {
         if constexpr (!IS_LEAF) {
-            for (uint32_t x = 0; x < NodeSize; ++x)
-                for (uint32_t y = 0; y < NodeSize; ++y)
-                    for (uint32_t z = 0; z < NodeSize; ++z)
+            for (uint32_t x = 0; x < NodeCountPerAxis; ++x)
+                for (uint32_t y = 0; y < NodeCountPerAxis; ++y)
+                    for (uint32_t z = 0; z < NodeCountPerAxis; ++z)
                         delete std::exchange(m_nodes[x][y][z], nullptr);
         }
     }
@@ -157,9 +157,9 @@ private:
             std::copy_n(&other.m_nodes[0][0][0], NODE_COUNT, &m_nodes[0][0][0]);
         } else {
             std::fill_n(&m_nodes[0][0][0], NODE_COUNT, nullptr);
-            for (uint32_t x = 0; x < NodeSize; ++x)
-                for (uint32_t y = 0; y < NodeSize; ++y)
-                    for (uint32_t z = 0; z < NodeSize; ++z)
+            for (uint32_t x = 0; x < NodeCountPerAxis; ++x)
+                for (uint32_t y = 0; y < NodeCountPerAxis; ++y)
+                    for (uint32_t z = 0; z < NodeCountPerAxis; ++z)
                         if (const auto* otherChild = other.m_nodes[x][y][z]) {
                             m_nodes[x][y][z] = new KTreeChildNode(*otherChild);
                         }
@@ -175,5 +175,5 @@ private:
         }
     }
 
-    static constexpr uint32_t NODE_COUNT = NodeSize * NodeSize * NodeSize;
+    static constexpr uint32_t NODE_COUNT = NodeCountPerAxis * NodeCountPerAxis * NodeCountPerAxis;
 };
