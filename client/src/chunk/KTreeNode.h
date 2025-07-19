@@ -6,8 +6,8 @@
 #include <spanstream>
 #include <utility>
 
+#include "Bitmap.h"
 #include "../Utils.h"
-
 
 template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData, std::enable_if_t<std::is_class_v<TData>, int> = 0>
 class KTreeNode {
@@ -91,13 +91,18 @@ public:
         if constexpr (IS_LEAF) {
             os.write(reinterpret_cast<const char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
         } else {
+            NodeBitmap hasChildrenBitmap;
+
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                const auto* child = (&m_nodes[0][0][0])[idx];
-                bool hasChild = (child != nullptr);
-                os.write(reinterpret_cast<const char*>(&hasChild), sizeof(bool));
-                if (hasChild) {
+                if ((&m_nodes[0][0][0])[idx] != nullptr)
+                    hasChildrenBitmap.set(idx);
+            }
+
+            os.write(hasChildrenBitmap.data(), hasChildrenBitmap.size());
+
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (const auto* child = (&m_nodes[0][0][0])[idx])
                     child->serialize(os);
-                }
             }
         }
     }
@@ -106,11 +111,11 @@ public:
         if constexpr (IS_LEAF) {
             is.read(reinterpret_cast<char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
         } else {
-            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                bool hasChild = false;
-                is.read(reinterpret_cast<char*>(&hasChild), sizeof(bool));
+            NodeBitmap hasChildrenBitmap;
+            is.read(hasChildrenBitmap.data(), hasChildrenBitmap.size());
 
-                if (hasChild) {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (hasChildrenBitmap.test(idx)) {
                     auto*& child = (&m_nodes[0][0][0])[idx];
                     if (!child) {
                         child = new KTreeChildNode();
@@ -125,14 +130,13 @@ public:
         if constexpr (IS_LEAF) {
             return NODE_COUNT * sizeof(TData);
         } else {
-            size_t size = 0;
+            size_t size = NodeBitmap::size();
+
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                if (const auto* child = (&m_nodes[0][0][0])[idx]) {
-                    size += sizeof(bool) + child->getSerializedSize();
-                } else {
-                    size += sizeof(bool);
-                }
+                if (const auto* child = (&m_nodes[0][0][0])[idx])
+                    size += child->getSerializedSize();
             }
+
             return size;
         }
     }
@@ -141,8 +145,10 @@ private:
     static constexpr TData EMPTY{};
     static constexpr bool IS_LEAF = Layer == 0;
     static constexpr uint32_t TREE_SIZE = Utils::pow(NodeCountPerAxis, Layer);
+    static constexpr uint32_t NODE_COUNT = NodeCountPerAxis * NodeCountPerAxis * NodeCountPerAxis;
     using KTreeChildNode = KTreeNode<Layer - 1, NodeCountPerAxis, TData>;
     using NodeType = std::conditional_t<IS_LEAF, TData, KTreeChildNode*>;
+    using NodeBitmap = Bitmap<NODE_COUNT, uint8_t>;
 
     NodeType m_nodes[NodeCountPerAxis][NodeCountPerAxis][NodeCountPerAxis]{};
 
@@ -189,6 +195,4 @@ private:
             std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, nullptr);
         }
     }
-
-    static constexpr uint32_t NODE_COUNT = NodeCountPerAxis * NodeCountPerAxis * NodeCountPerAxis;
 };
