@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iosfwd>
+#include <istream>
+#include <ostream>
 #include <utility>
 
 #include "../Utils.h"
@@ -81,6 +84,40 @@ public:
 
             if (child) {
                 child->set(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE, tData);
+            }
+        }
+    }
+
+    void serialize(std::ostream& os) const {
+        if constexpr (IS_LEAF) {
+            os.write(reinterpret_cast<const char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
+        } else {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                const auto* child = (&m_nodes[0][0][0])[idx];
+                bool hasChild = (child != nullptr);
+                os.write(reinterpret_cast<const char*>(&hasChild), sizeof(bool));
+                if (hasChild) {
+                    child->serialize(os);
+                }
+            }
+        }
+    }
+
+    void deserialize(std::istream& is) {
+        if constexpr (IS_LEAF) {
+            is.read(reinterpret_cast<char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
+        } else {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                bool hasChild = false;
+                is.read(reinterpret_cast<char*>(&hasChild), sizeof(bool));
+
+                if (hasChild) {
+                    auto*& child = (&m_nodes[0][0][0])[idx];
+                    if (!child) {
+                        child = new KTreeChildNode();
+                    }
+                    child->deserialize(is);
+                }
             }
         }
     }
