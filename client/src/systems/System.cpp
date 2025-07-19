@@ -1,5 +1,5 @@
-#include "System.h"
-#include "../Application.h"
+#include "core/System.h"
+#include "Application.h"
 
 Camera& System::GetCamera() {
     return Application::GetInstance().getCamera();

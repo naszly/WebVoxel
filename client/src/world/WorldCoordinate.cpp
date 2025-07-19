@@ -1,6 +1,6 @@
 #include "WorldCoordinate.h"
-#include "../chunk/Chunk.h"
-#include "../common/Utils.h"
+#include "chunk/Chunk.h"
+#include "common/Utils.h"
 
 constexpr auto CHUNK_SIZE = glm::i64vec3(Chunk::WIDTH);
 

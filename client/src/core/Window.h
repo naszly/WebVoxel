@@ -2,10 +2,10 @@
 
 #include <memory>
 
-#include "WebGPUContext.h"
-#include "WebGPUSurface.h"
+#include "webgpu/WebGPUContext.h"
+#include "webgpu/WebGPUSurface.h"
 #include "Input.h"
-#include "Event.h"
+#include "events/Event.h"
 
 struct GLFWwindow;
 

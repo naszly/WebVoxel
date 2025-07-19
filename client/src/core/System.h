@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../Window.h"
-#include "../Camera.h"
-#include "../world/World.h"
+#include "Window.h"
+#include "Camera.h"
+#include "world/World.h"
 
 class System {
 public:

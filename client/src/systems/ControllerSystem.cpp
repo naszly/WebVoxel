@@ -5,9 +5,9 @@
 #include <emscripten/html5.h>
 #endif
 
-#include "../Application.h"
-#include "../KeyEvent.h"
-#include "../MouseEvent.h"
+#include "Application.h"
+#include "core/events/KeyEvent.h"
+#include "core/events/MouseEvent.h"
 
 using RayHitCallbackFn = std::function<bool(glm::i64vec3, glm::i64vec3)>;
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);

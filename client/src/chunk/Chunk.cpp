@@ -1,9 +1,9 @@
-#include "../chunk/Chunk.h"
+#include "Chunk.h"
 
-#include "../Application.h"
-#include "../common/Timer.h"
-#include "../common/Log.h"
-#include "../common/FileSystem.h"
+#include "Application.h"
+#include "common/Timer.h"
+#include "common/Log.h"
+#include "common/FileSystem.h"
 
 void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
     const Timer timer("Chunk::generate");

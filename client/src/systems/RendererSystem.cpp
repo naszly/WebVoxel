@@ -1,11 +1,11 @@
 #include "RendererSystem.h"
 
-#include "../Application.h"
-#include "../ApplicationEvent.h"
-#include "../common/Timer.h"
-#include "../common/Log.h"
-#include "../common/FileSystem.h"
-#include "../common/Thread.h"
+#include "Application.h"
+#include "core/events/ApplicationEvent.h"
+#include "common/Timer.h"
+#include "common/Log.h"
+#include "common/FileSystem.h"
+#include "common/Thread.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");

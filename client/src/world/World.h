@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../chunk/Chunk.h"
+#include "chunk/Chunk.h"
 #include "ChunkMap.h"
 
 class World {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Event.h"
-#include "KeyCode.h"
+#include "core/KeyCode.h"
 
 class KeyEvent : public Event {
 public:

@@ -3,10 +3,10 @@
 #include <vector>
 #include <memory>
 
-#include "layers/Layer.h"
-#include "Window.h"
+#include "core/Camera.h"
+#include "core/Layer.h"
+#include "core/Window.h"
 #include "world/World.h"
-#include "Camera.h"
 
 struct ApplicationData {
     glm::vec4 placedVoxelColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);

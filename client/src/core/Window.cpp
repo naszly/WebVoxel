@@ -1,8 +1,8 @@
 #include "Window.h"
 
-#include "KeyEvent.h"
-#include "MouseEvent.h"
-#include "ApplicationEvent.h"
+#include "events/KeyEvent.h"
+#include "events/MouseEvent.h"
+#include "events/ApplicationEvent.h"
 #include "common/Log.h"
 
 #include <GLFW/glfw3.h>
