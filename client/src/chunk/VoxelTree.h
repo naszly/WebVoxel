@@ -1,10 +1,8 @@
 #pragma once
 
-#include <cassert>
-
 #include "VoxelData.h"
-#include "Bitmap.h"
-#include "KTree.h"
+#include "../common/datastructures/Bitmap.h"
+#include "../common/datastructures/KTree.h"
 #include "../Utils.h"
 
 // depth: depth of the tree

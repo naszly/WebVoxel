@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "Bitmap.h"
-#include "../Utils.h"
+#include "../../Utils.h"
 
 template<typename T>
 concept HasIsEmpty = requires(T t) {
