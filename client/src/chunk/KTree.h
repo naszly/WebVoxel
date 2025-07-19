@@ -3,6 +3,7 @@
 #include "KTreeNode.h"
 
 template<uint32_t Layers, uint32_t NodeCountPerAxis, typename TData>
+    requires std::is_class_v<TData> && HasIsEmpty<TData>
 class KTree {
 public:
     const TData& get(uint32_t x, uint32_t y, uint32_t z) const { return m_root.get(x, y, z); }

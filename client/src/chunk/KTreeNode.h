@@ -9,7 +9,13 @@
 #include "Bitmap.h"
 #include "../Utils.h"
 
-template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData, std::enable_if_t<std::is_class_v<TData>, int> = 0>
+template<typename T>
+concept HasIsEmpty = requires(T t) {
+    { t.isEmpty() } -> std::convertible_to<bool>;
+};
+
+template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData>
+    requires std::is_class_v<TData> && HasIsEmpty<TData>
 class KTreeNode {
     friend class KTreeNode<Layer + 1, NodeCountPerAxis, TData>;
 public:
