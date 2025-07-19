@@ -172,10 +172,9 @@ private:
 
     void clear() {
         if constexpr (!IS_LEAF) {
-            for (uint32_t x = 0; x < NodeCountPerAxis; ++x)
-                for (uint32_t y = 0; y < NodeCountPerAxis; ++y)
-                    for (uint32_t z = 0; z < NodeCountPerAxis; ++z)
-                        delete std::exchange(m_nodes[x][y][z], nullptr);
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                delete std::exchange((&m_nodes[0][0][0])[idx], nullptr);
+            }
         }
     }
 
@@ -183,13 +182,13 @@ private:
         if constexpr (IS_LEAF) {
             std::copy_n(&other.m_nodes[0][0][0], NODE_COUNT, &m_nodes[0][0][0]);
         } else {
-            std::fill_n(&m_nodes[0][0][0], NODE_COUNT, nullptr);
-            for (uint32_t x = 0; x < NodeCountPerAxis; ++x)
-                for (uint32_t y = 0; y < NodeCountPerAxis; ++y)
-                    for (uint32_t z = 0; z < NodeCountPerAxis; ++z)
-                        if (const auto* otherChild = other.m_nodes[x][y][z]) {
-                            m_nodes[x][y][z] = new KTreeChildNode(*otherChild);
-                        }
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (const auto* otherChild = (&other.m_nodes[0][0][0])[idx]) {
+                    (&m_nodes[0][0][0])[idx] = new KTreeChildNode(*otherChild);
+                } else {
+                    (&m_nodes[0][0][0])[idx] = nullptr;
+                }
+            }
         }
     }
 
