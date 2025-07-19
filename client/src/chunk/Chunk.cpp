@@ -48,10 +48,13 @@ bool Chunk::fileExists() const {
 void Chunk::save() const {
     const std::string &fileName = getFileName();
 
-    std::ostringstream oss;
-    m_Data.serialize(oss);
+    std::vector<char> buffer;
+    buffer.resize(m_Data.getSerializedSize() + 1);
 
-    FileSystem::WriteFile(fileName, oss.str().data(), oss.str().size());
+    std::ospanstream outStream{buffer};
+    m_Data.serialize(outStream);
+
+    FileSystem::WriteFile(fileName, outStream.span().data(), outStream.span().size());
 }
 
 void Chunk::load() {
@@ -60,10 +63,10 @@ void Chunk::load() {
     const std::string &fileName = getFileName();
     const std::vector<char> data = FileSystem::ReadFile(fileName);
 
-    std::istringstream iss(std::string(data.begin(), data.end()));
-    m_Data.deserialize(iss);
+    std::ispanstream inStream{data};
+    m_Data.deserialize(inStream);
 
-    if (iss.fail()) {
+    if (inStream.fail()) {
         LogCore::error("Failed to deserialize chunk data from file: {}", fileName);
     } else {
         LogCore::info("Chunk data loaded from file: {}", fileName);

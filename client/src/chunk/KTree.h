@@ -9,9 +9,11 @@ public:
 
     void set(uint32_t x, uint32_t y, uint32_t z, const TData& tData) { m_root.set(x, y, z, tData); }
 
-    void serialize(std::ostringstream& os) const { m_root.serialize(os); }
+    void serialize(std::ospanstream& os) const { m_root.serialize(os); }
 
-    void deserialize(std::istringstream& is) { m_root.deserialize(is); }
+    void deserialize(std::ispanstream& is) { m_root.deserialize(is); }
+
+    [[nodiscard]] size_t getSerializedSize() const { return m_root.getSerializedSize(); }
 
 private:
     KTreeNode<Layers, NodeCountPerAxis, TData> m_root;

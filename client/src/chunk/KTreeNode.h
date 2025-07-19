@@ -3,8 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iosfwd>
-#include <istream>
-#include <ostream>
+#include <spanstream>
 #include <utility>
 
 #include "../Utils.h"
@@ -88,7 +87,7 @@ public:
         }
     }
 
-    void serialize(std::ostream& os) const {
+    void serialize(std::ospanstream& os) const {
         if constexpr (IS_LEAF) {
             os.write(reinterpret_cast<const char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
         } else {
@@ -103,7 +102,7 @@ public:
         }
     }
 
-    void deserialize(std::istream& is) {
+    void deserialize(std::ispanstream& is) {
         if constexpr (IS_LEAF) {
             is.read(reinterpret_cast<char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
         } else {
@@ -119,6 +118,22 @@ public:
                     child->deserialize(is);
                 }
             }
+        }
+    }
+
+    [[nodiscard]] size_t getSerializedSize() const {
+        if constexpr (IS_LEAF) {
+            return NODE_COUNT * sizeof(TData);
+        } else {
+            size_t size = 0;
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (const auto* child = (&m_nodes[0][0][0])[idx]) {
+                    size += sizeof(bool) + child->getSerializedSize();
+                } else {
+                    size += sizeof(bool);
+                }
+            }
+            return size;
         }
     }
 
