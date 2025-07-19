@@ -2,6 +2,7 @@
 
 #include "../Application.h"
 #include "../ApplicationEvent.h"
+#include "../Timer.h"
 #include "../Log.h"
 #include "../FileSytem.h"
 #include "../Thread.h"

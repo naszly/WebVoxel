@@ -1,7 +1,8 @@
-#include "Chunk.h"
+#include "../chunk/Chunk.h"
 
 #include "../Application.h"
 #include "../Timer.h"
+#include "../Log.h"
 #include "../FileSytem.h"
 
 #include <zlib.h>

@@ -4,7 +4,7 @@
 #include <glm/gtx/hash.hpp>
 #include <unordered_map>
 
-#include "Chunk.h"
+#include "../chunk/Chunk.h"
 #include "WorldCoordinate.h"
 
 class ChunkMap {

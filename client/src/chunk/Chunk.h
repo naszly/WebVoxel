@@ -1,13 +1,11 @@
 #pragma once
 
 #include <cassert>
-#include <functional>
 #include <random>
 #include <glm/vec3.hpp>
 
-#include "SparseVoxelTree.h"
+#include "VoxelTree.h"
 #include "../Utils.h"
-#include "../WebGPUContext.h"
 
 #include <FastNoise/FastNoise.h>
 
@@ -102,7 +100,7 @@ public:
 class Chunk {
     static constexpr size_t DEPTH = 6;
     static constexpr size_t NODE_SIZE = 2;
-    using SparseVoxelOctTree = SparseVoxelTree<DEPTH, NODE_SIZE>;
+    using SparseVoxelOctTree = VoxelTree<DEPTH, NODE_SIZE>;
 public:
     static constexpr size_t SIZE = Utils::pow(NODE_SIZE, DEPTH);
     static_assert(SIZE >= 16 && SIZE <= 256, "SIZE must be between 16 and 256");
