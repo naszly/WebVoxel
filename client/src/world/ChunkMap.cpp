@@ -109,19 +109,19 @@ void ChunkMap::setNeighboursDirtyIfEdge(const glm::ivec3 &key, const glm::ivec3 
     if (pos.x == 0) {
         setChunkDirty(key + glm::ivec3(-1, 0, 0));
     }
-    if (pos.x == Chunk::SIZE - 1) {
+    if (pos.x == Chunk::WIDTH - 1) {
         setChunkDirty(key + glm::ivec3(1, 0, 0));
     }
     if (pos.y == 0) {
         setChunkDirty(key + glm::ivec3(0, -1, 0));
     }
-    if (pos.y == Chunk::SIZE - 1) {
+    if (pos.y == Chunk::WIDTH - 1) {
         setChunkDirty(key + glm::ivec3(0, 1, 0));
     }
     if (pos.z == 0) {
         setChunkDirty(key + glm::ivec3(0, 0, -1));
     }
-    if (pos.z == Chunk::SIZE - 1) {
+    if (pos.z == Chunk::WIDTH - 1) {
         setChunkDirty(key + glm::ivec3(0, 0, 1));
     }
 }

@@ -127,9 +127,9 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
             continue;
         }
 
-        const auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::SIZE) + glm::vec3(Chunk::SIZE / 2.0f);
+        const auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::WIDTH) + glm::vec3(Chunk::WIDTH / 2.0f);
 
-        const float chunkSphereRadius = std::sqrt(3.0f) * static_cast<float>(Chunk::SIZE) / 2.0f;
+        const float chunkSphereRadius = std::sqrt(3.0f) * static_cast<float>(Chunk::WIDTH) / 2.0f;
 
         if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
             continue;
@@ -446,7 +446,7 @@ void RendererSystem::createRenderPipeline() {
     constexpr std::array vertexConstants{
         WGPUConstantEntry{
             .key = WGPUStringView{"CHUNK_SIZE", WGPU_STRLEN},
-            .value = Chunk::SIZE,
+            .value = Chunk::WIDTH,
         }
     };
 
@@ -813,7 +813,7 @@ void RendererSystem::getVertices(const ChunkBitmap &bitmap,
             const uint8_t vy = y-1;
             const uint8_t vz = z-1;
 
-            if (vx < Chunk::SIZE && vy < Chunk::SIZE && vz < Chunk::SIZE) {
+            if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
                 const auto& voxel = getVoxel(vx, vy, vz);
 
                 if constexpr (std::is_same_v<VertexT, VertexDataAO>) {

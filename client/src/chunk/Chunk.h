@@ -98,12 +98,12 @@ public:
 };
 
 class Chunk {
-    static constexpr size_t DEPTH = 6;
-    static constexpr size_t NODE_SIZE = 2;
-    using SparseVoxelOctTree = VoxelTree<DEPTH, NODE_SIZE>;
+    static constexpr size_t TREE_DEPTH = 6;
+    static constexpr size_t NODE_COUNT_PER_AXIS = 2;
+    using SparseVoxelOctTree = VoxelTree<TREE_DEPTH, NODE_COUNT_PER_AXIS>;
 public:
-    static constexpr size_t SIZE = Utils::pow(NODE_SIZE, DEPTH);
-    static_assert(SIZE >= 16 && SIZE <= 256, "SIZE must be between 16 and 256");
+    static constexpr size_t WIDTH = Utils::pow(NODE_COUNT_PER_AXIS, TREE_DEPTH);
+    static_assert(WIDTH >= 16 && WIDTH <= 256, "SIZE must be between 16 and 256");
 
     explicit Chunk(const glm::ivec3 position) : m_Position(position) {}
     explicit Chunk(const int x, const int y, const int z) : m_Position(x, y, z) {}
@@ -184,7 +184,7 @@ private:
         return std::to_string(m_Position.x) + "."
             + std::to_string(m_Position.y) + "."
             + std::to_string(m_Position.z) + "."
-            + std::to_string(SIZE) + ".chunk";
+            + std::to_string(WIDTH) + ".chunk";
     }
 
     static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChunkNeighbours &chunkNeighbours);

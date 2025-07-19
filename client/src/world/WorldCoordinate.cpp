@@ -2,7 +2,7 @@
 #include "../chunk/Chunk.h"
 #include "../Utils.h"
 
-constexpr auto CHUNK_SIZE = glm::i64vec3(Chunk::SIZE);
+constexpr auto CHUNK_SIZE = glm::i64vec3(Chunk::WIDTH);
 
 static auto divideRoundDown(const glm::i64vec3 &numerator, const glm::i64vec3 &denominator) {
     return glm::i64vec3(Utils::divideRoundDown(numerator.x, denominator.x),

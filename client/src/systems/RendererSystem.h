@@ -87,7 +87,7 @@ private:
 
     static constexpr float FOV = glm::radians(66.0);
 
-    static constexpr uint32_t BITMAP_SIZE = Chunk::SIZE + 2;
+    static constexpr uint32_t BITMAP_SIZE = Chunk::WIDTH + 2;
     using ChunkBitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
 
     std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk) const;

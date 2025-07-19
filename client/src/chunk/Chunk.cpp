@@ -10,18 +10,18 @@
 void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
     const Timer timer("Chunk::generate");
 
-    if (m_Position.y >= 0 && m_Position.y * SIZE < 256) {
-        std::vector<float> noise(SIZE * SIZE);
+    if (m_Position.y >= 0 && m_Position.y * WIDTH < 256) {
+        std::vector<float> noise(WIDTH * WIDTH);
 
-        const size_t xStart = m_Position.z * SIZE;
-        const size_t yStart = m_Position.x * SIZE;
-        fnGenerator->GenUniformGrid2D(noise.data(), xStart, yStart, SIZE, SIZE, 0.0004f, 0);
+        const size_t xStart = m_Position.z * WIDTH;
+        const size_t yStart = m_Position.x * WIDTH;
+        fnGenerator->GenUniformGrid2D(noise.data(), xStart, yStart, WIDTH, WIDTH, 0.0004f, 0);
 
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                for (int k = 0; k < SIZE; k++) {
-                    const int noiseValue = static_cast<int>((noise[i * SIZE + k] * 0.5 + 0.5) * 255);
-                    const int height = m_Position.y * SIZE + j;
+        for (int i = 0; i < WIDTH; i++) {
+            for (int j = 0; j < WIDTH; j++) {
+                for (int k = 0; k < WIDTH; k++) {
+                    const int noiseValue = static_cast<int>((noise[i * WIDTH + k] * 0.5 + 0.5) * 255);
+                    const int height = m_Position.y * WIDTH + j;
                     if (noiseValue == height) {
                         m_Data.setVoxel(i, j, k, VoxelData(0, 160 + (random() % 64), 0));
                     } else if (noiseValue > height) {
@@ -31,9 +31,9 @@ void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
             }
         }
     } else if (m_Position.y < 0) {
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                for (int k = 0; k < SIZE; k++) {
+        for (int i = 0; i < WIDTH; i++) {
+            for (int j = 0; j < WIDTH; j++) {
+                for (int k = 0; k < WIDTH; k++) {
                     m_Data.setVoxel(i, j, k, VoxelData(66 + (random() % 8), 67 + (random() % 8), 69 + (random() % 10)));
                 }
             }
@@ -79,13 +79,13 @@ bool Chunk::fileExists() const {
 void Chunk::save() const {
     const std::string &fileName = getFileName();
 
-    std::vector<char> data(SIZE * SIZE * SIZE * sizeof(VoxelData));
+    std::vector<char> data(WIDTH * WIDTH * WIDTH * sizeof(VoxelData));
     const auto voxels = reinterpret_cast<VoxelData*>(data.data());
 
-    for (uint32_t x = 0; x < SIZE; x++) {
-        for (uint32_t y = 0; y < SIZE; y++) {
-            for (uint32_t z = 0; z < SIZE; z++) {
-                const auto index = x * SIZE * SIZE + y * SIZE + z;
+    for (uint32_t x = 0; x < WIDTH; x++) {
+        for (uint32_t y = 0; y < WIDTH; y++) {
+            for (uint32_t z = 0; z < WIDTH; z++) {
+                const auto index = x * WIDTH * WIDTH + y * WIDTH + z;
                 voxels[index] = getVoxel(x, y, z);
             }
         }
@@ -105,16 +105,16 @@ void Chunk::load() {
 
     const std::vector<char> compressedData = FileSystem::ReadFile(fileName);
 
-    std::vector<char> data(SIZE * SIZE * SIZE * sizeof(VoxelData));
+    std::vector<char> data(WIDTH * WIDTH * WIDTH * sizeof(VoxelData));
 
     decompress_vector(compressedData, data);
 
     const auto voxels = reinterpret_cast<const VoxelData*>(data.data());
 
-    for (uint32_t x = 0; x < SIZE; x++) {
-        for (uint32_t y = 0; y < SIZE; y++) {
-            for (uint32_t z = 0; z < SIZE; z++) {
-                const auto index = x * SIZE * SIZE + y * SIZE + z;
+    for (uint32_t x = 0; x < WIDTH; x++) {
+        for (uint32_t y = 0; y < WIDTH; y++) {
+            for (uint32_t z = 0; z < WIDTH; z++) {
+                const auto index = x * WIDTH * WIDTH + y * WIDTH + z;
                 setVoxel(voxels[index], x, y, z);
             }
         }
