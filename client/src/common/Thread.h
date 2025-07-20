@@ -17,7 +17,7 @@
 namespace Threading {
 
     static void Sleep(const int64_t milliseconds) {
-#ifdef __EMSRIPTEN__
+#ifdef __EMSCRIPTEN__
         emscripten_thread_sleep(milliseconds);
 #else
         std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
