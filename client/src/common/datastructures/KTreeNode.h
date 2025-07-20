@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <iosfwd>
-#include <spanstream>
+#include <istream>
+#include <ostream>
 #include <utility>
 
 #include "Bitmap.h"
@@ -93,7 +94,7 @@ public:
         }
     }
 
-    void serialize(std::ospanstream& os) const {
+    void serialize(std::ostream& os) const {
         if constexpr (IS_LEAF) {
             os.write(reinterpret_cast<const char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
         } else {
@@ -113,7 +114,7 @@ public:
         }
     }
 
-    void deserialize(std::ispanstream& is) {
+    void deserialize(std::istream& is) {
         if constexpr (IS_LEAF) {
             is.read(reinterpret_cast<char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));
         } else {

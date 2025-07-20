@@ -32,11 +32,11 @@ public:
         return m_bitmap.test(i);
     }
 
-    void serialize(std::ospanstream& os) const {
+    void serialize(std::ostringstream& os) const {
         m_tree.serialize(os);
     }
 
-    void deserialize(std::ispanstream& is) {
+    void deserialize(std::istringstream& is) {
         m_tree.deserialize(is);
         m_bitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>{};
         for (uint32_t x = 0; x < SIZE; x++) {
@@ -49,10 +49,6 @@ public:
                 }
             }
         }
-    }
-
-    [[nodiscard]] size_t getSerializedSize() const {
-        return m_tree.getSerializedSize();
     }
 
     [[nodiscard]] auto getBitmap() const {
