@@ -3,10 +3,10 @@
 #include "events/KeyEvent.h"
 #include "events/MouseEvent.h"
 #include "events/ApplicationEvent.h"
+#include "common/Exception.h"
 #include "common/Log.h"
 
 #include <GLFW/glfw3.h>
-
 
 Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.eventCallback) {
 
@@ -15,8 +15,7 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
     });
 
     if (!glfwInit()) {
-        LogCore::critical("Failed to initialize GLFW");
-        return;
+        throw Exception("Failed to initialize GLFW");
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -25,8 +24,7 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
 
     if (!m_Window) {
         glfwTerminate();
-        LogCore::critical("Failed to create GLFW window");
-        return;
+        throw Exception("Failed to create GLFW window");
     }
 
     m_Input = std::make_unique<Input>(m_Window);

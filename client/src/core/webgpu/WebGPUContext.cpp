@@ -2,6 +2,7 @@
 
 #include <magic_enum.hpp>
 
+#include "common/Exception.h"
 #include "common/Log.h"
 
 WebGPUContext::WebGPUContext() {
@@ -38,8 +39,7 @@ void WebGPUContext::createInstance() {
     m_Instance = wgpuCreateInstance(&desc);
 
     if (!m_Instance) {
-        LogCore::critical("Failed to create WebGPU instance");
-        return;
+        throw Exception("Failed to create WebGPU instance");
     }
 
     LogCore::info("WebGPU instance created: {0}", reinterpret_cast<size_t>(m_Instance));
@@ -52,7 +52,7 @@ void onAdapterRequest(const WGPURequestAdapterStatus status, WGPUAdapter adapter
     if (status == WGPURequestAdapterStatus_Success) {
         *data = adapter;
     } else {
-        LogCore::critical("Failed to request WebGPU adapter: {0}", message.data);
+        throw Exception("Failed to request WebGPU adapter: {0}", message.data);
     }
 }
 
@@ -71,8 +71,7 @@ void WebGPUContext::requestAdapter() {
     const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 6e+10);
 
     if (waitStatus != WGPUWaitStatus_Success) {
-        LogCore::critical("Failed to wait for WebGPU adapter request: {0}", magic_enum::enum_name(waitStatus));
-        return;
+        throw Exception("Failed to wait for WebGPU adapter request: {0}", magic_enum::enum_name(waitStatus));
     }
 
     LogCore::info("WebGPU adapter requested: {0}", reinterpret_cast<size_t>(m_Adapter));
@@ -85,7 +84,7 @@ void onDeviceRequest(const WGPURequestDeviceStatus status, WGPUDevice device, WG
     if (status == WGPURequestDeviceStatus_Success) {
         *data = device;
     } else {
-        LogCore::critical("Failed to request WebGPU device: {0}", message.data);
+        throw Exception("Failed to request WebGPU device: {0}", message.data);
     }
 }
 
@@ -136,8 +135,7 @@ void WebGPUContext::requestDevice() {
     const auto waitStatus = wgpuInstanceWaitAny(m_Instance, 1, &futureInfo, 6e+10);
 
     if (waitStatus != WGPUWaitStatus_Success) {
-        LogCore::critical("Failed to wait for WebGPU device request: {0}", magic_enum::enum_name(waitStatus));
-        return;
+        throw Exception("Failed to wait for WebGPU device request: {0}", magic_enum::enum_name(waitStatus));
     }
 
     LogCore::info("WebGPU device requested: {0}", reinterpret_cast<size_t>(m_Device));

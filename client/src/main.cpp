@@ -68,7 +68,12 @@ int main(const int argc, char** argv) {
 
     app.pushLayer(guiLayer);
 
-    app.start(width, height);
+    try {
+        app.start(width, height);
+    } catch (const std::exception& e) {
+        LogCore::critical("Application encountered an error: {}", e.what());
+        return 1;
+    }
 
     return 0;
 }

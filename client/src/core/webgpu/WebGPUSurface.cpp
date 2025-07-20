@@ -1,5 +1,6 @@
 #include "WebGPUSurface.h"
 
+#include "common/Exception.h"
 #include "common/Log.h"
 
 #include <GLFW/glfw3.h>
@@ -15,8 +16,7 @@ WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUCon
     m_Surface = glfwCreateWindowWGPUSurface(context->getInstance(), window);
 
     if (!m_Surface) {
-        LogCore::critical("Failed to create WebGPU surface");
-        return;
+        throw Exception("Failed to create WebGPU surface");
     }
 
     WGPUSurfaceCapabilities capabilities = {};
