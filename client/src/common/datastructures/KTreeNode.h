@@ -54,16 +54,16 @@ public:
 
     [[nodiscard]] const TData& get(uint32_t x, uint32_t y, uint32_t z) const {
         if constexpr (IS_LEAF) {
-            assert(isInBounds(x, y, z));
-            [[assume(isInBounds(x, y, z))]];
+            assert(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis);
+            [[assume(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis)]];
             return m_nodes[x][y][z];
         } else {
             const uint32_t nodeX = x / TREE_SIZE;
             const uint32_t nodeY = y / TREE_SIZE;
             const uint32_t nodeZ = z / TREE_SIZE;
 
-            assert(isInBounds(nodeX, nodeY, nodeZ));
-            [[assume(isInBounds(nodeX, nodeY, nodeZ))]];
+            assert(nodeX < NodeCountPerAxis && nodeY < NodeCountPerAxis && nodeZ < NodeCountPerAxis);
+            [[assume(nodeX < NodeCountPerAxis && nodeY < NodeCountPerAxis && nodeZ < NodeCountPerAxis)]];
 
             const auto* child = m_nodes[nodeX][nodeY][nodeZ];
             return child ? child->get(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE) : EMPTY;
@@ -72,16 +72,16 @@ public:
 
     void set(uint32_t x, uint32_t y, uint32_t z, const TData& tData) {
         if constexpr (IS_LEAF) {
-            assert(isInBounds(x, y, z));
-            [[assume(isInBounds(x, y, z))]];
+            assert(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis);
+            [[assume(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis)]];
             m_nodes[x][y][z] = tData;
         } else {
             const uint32_t nodeX = x / TREE_SIZE;
             const uint32_t nodeY = y / TREE_SIZE;
             const uint32_t nodeZ = z / TREE_SIZE;
 
-            assert(isInBounds(nodeX, nodeY, nodeZ));
-            [[assume(isInBounds(nodeX, nodeY, nodeZ))]];
+            assert(nodeX < NodeCountPerAxis && nodeY < NodeCountPerAxis && nodeZ < NodeCountPerAxis);
+            [[assume(nodeX < NodeCountPerAxis && nodeY < NodeCountPerAxis && nodeZ < NodeCountPerAxis)]];
 
             auto*& child = m_nodes[nodeX][nodeY][nodeZ];
             if (!child && !tData.isEmpty()) {
@@ -158,10 +158,6 @@ private:
     using NodeBitmap = Bitmap<NODE_COUNT, uint8_t>;
 
     NodeType m_nodes[NodeCountPerAxis][NodeCountPerAxis][NodeCountPerAxis]{};
-
-    [[nodiscard]] static constexpr bool isInBounds(const uint32_t x, const uint32_t y, const uint32_t z) {
-        return x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis;
-    }
 
     void initialize() {
         if constexpr (IS_LEAF) {
