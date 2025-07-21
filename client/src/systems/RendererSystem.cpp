@@ -322,12 +322,22 @@ void RendererSystem::exportTimestamps() const {
     };
 
     WGPUQueueWorkDoneCallbackInfo workDoneInfo = {};
+    workDoneInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     workDoneInfo.callback = onWorkDoneCallback;
     workDoneInfo.userdata1 = const_cast<RendererSystem *>(this);
     workDoneInfo.userdata2 = nullptr;
     workDoneInfo.nextInChain = nullptr;
 
-    wgpuQueueOnSubmittedWorkDone(queue, workDoneInfo);
+    WGPUFutureWaitInfo futureInfo = {};
+    futureInfo.future = wgpuQueueOnSubmittedWorkDone(queue, workDoneInfo);
+
+    const WGPUInstance& instance = getWebGpuContext().getInstance();
+
+    const auto waitStatus = wgpuInstanceWaitAny(instance, 1, &futureInfo, 6e+10);
+
+    if (waitStatus != WGPUWaitStatus_Success) {
+        LogApp::error("Failed to wait for work done: {0}", magic_enum::enum_name(waitStatus));
+    }
 }
 
 void RendererSystem::createRenderPipeline() {
@@ -667,7 +677,6 @@ void RendererSystem::exportTimestampsInternal() const {
         WGPUBuffer buffer;
         uint64_t size;
         std::vector<uint64_t> durations;
-        bool requestEnded = false;
     };
 
     auto callback = [](const WGPUMapAsyncStatus status,
@@ -689,22 +698,25 @@ void RendererSystem::exportTimestampsInternal() const {
         } else {
             LogApp::error("Failed to map query read buffer: {0}", magic_enum::enum_name(status));
         }
-        data->requestEnded = true;
     };
 
     UserData userData{m_queryReadBuffer, m_queryReadBufferSize};
 
     auto callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     callbackInfo.callback = callback;
     callbackInfo.userdata1 = &userData;
 
-    wgpuBufferMapAsync(m_queryReadBuffer, WGPUMapMode_Read, 0, m_queryReadBufferCapacity, callbackInfo);
+    WGPUFutureWaitInfo futureInfo = {};
+    futureInfo.future = wgpuBufferMapAsync(m_queryReadBuffer, WGPUMapMode_Read, 0, m_queryReadBufferCapacity, callbackInfo);
 
-    getWebGpuContext().pollEvents();
+    const WGPUInstance& instance = getWebGpuContext().getInstance();
 
-    while (!userData.requestEnded) {
-        Threading::sleep(30);
-        getWebGpuContext().pollEvents();
+    const auto waitStatus = wgpuInstanceWaitAny(instance, 1, &futureInfo, 6e+10);
+
+    if (waitStatus != WGPUWaitStatus_Success) {
+        LogApp::error("Failed to wait for buffer map async: {0}", magic_enum::enum_name(waitStatus));
+        return;
     }
 
     if (!userData.durations.empty()) {
