@@ -73,7 +73,7 @@ void DownloadFile_Emscripten(const char* fileName, const char* downloadName) {
 }
 #endif
 
-bool FileSystem::FileExists(const std::string& fileName) {
+bool FileSystem::fileExists(const std::string& fileName) {
 #if defined(__EMSCRIPTEN__)
     const auto filePath = "/workdir/" + fileName;
     bool result = FileExists_Emscripten(filePath.c_str());
@@ -84,18 +84,18 @@ bool FileSystem::FileExists(const std::string& fileName) {
 #endif
 }
 
-std::vector<char> FileSystem::ReadFile(const std::string& fileName) {
+std::vector<char> FileSystem::readFile(const std::string& fileName) {
 #if defined(__EMSCRIPTEN__)
     const auto filePath = "/workdir/" + fileName;
     std::vector<char> buffer;
     ReadFile_Emscripten(filePath.c_str(), &buffer);
     return buffer;
 #else
-    return ReadFileNative(fileName);
+    return readFileNative(fileName);
 #endif
 }
 
-std::vector<char> FileSystem::ReadFileNative(const std::string &fileName) {
+std::vector<char> FileSystem::readFileNative(const std::string &fileName) {
     std::ifstream file(fileName, std::ios::binary);
     if (!file) {
         LogCore::error("Failed to open file for reading: {0}", fileName);
@@ -113,7 +113,7 @@ std::vector<char> FileSystem::ReadFileNative(const std::string &fileName) {
     return buffer;
 }
 
-void FileSystem::CleanFiles(const std::string& extension) {
+void FileSystem::cleanFiles(const std::string& extension) {
     std::string ext = extension;
     if (!ext.empty() && ext.front() != '.')
         ext.insert(ext.begin(), '.');      // make sure it starts with '.'
@@ -134,14 +134,14 @@ void FileSystem::CleanFiles(const std::string& extension) {
     }, ext.c_str());
 
 #else
-    namespace fs = std::filesystem;
+    namespace Fs = std::filesystem;
 
     try {
-        for (const auto& entry : fs::directory_iterator(fs::current_path())) {
+        for (const auto& entry : Fs::directory_iterator(Fs::current_path())) {
             if (!entry.is_regular_file()) continue;
             if (entry.path().extension() == ext) {
                 std::error_code ec;
-                fs::remove(entry, ec);
+                Fs::remove(entry, ec);
                 if (ec) {
                     LogCore::warning("Failed to remove {0}: {1}", entry.path().string(), ec.message());
                 }
@@ -155,7 +155,7 @@ void FileSystem::CleanFiles(const std::string& extension) {
 }
 
 
-void FileSystem::WriteFile(const std::string& fileName, const char* buffer, const size_t size) {
+void FileSystem::writeFile(const std::string& fileName, const char* buffer, const size_t size) {
 #if defined(__EMSCRIPTEN__)
     const auto filePath = "/workdir/" + fileName;
     WriteFile_Emscripten(filePath.c_str(), buffer, size);
@@ -171,7 +171,7 @@ void FileSystem::WriteFile(const std::string& fileName, const char* buffer, cons
 #endif
 }
 
-void FileSystem::Download(const std::string& fileName, const std::string& downloadName) {
+void FileSystem::download(const std::string& fileName, const std::string& downloadName) {
 #if defined(__EMSCRIPTEN__)
     const auto filePath = "/workdir/" + fileName;
     DownloadFile_Emscripten(filePath.c_str(), downloadName.c_str());

@@ -41,7 +41,7 @@ int main(const int argc, char** argv) {
 
     LogCore::info("Hello, World!");
 
-    Application& app = Application::GetInstance();
+    Application& app = Application::getInstance();
 
     const auto layer = std::make_shared<Layer>();
 

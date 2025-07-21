@@ -11,21 +11,21 @@ Chunk & ChunkMap::getChunk(const glm::ivec3 key) {
 }
 
 Chunk * ChunkMap::tryGetChunk(const glm::ivec3 key) {
-    const auto it = m_Chunks.find(key);
-    return it != m_Chunks.end() ? &it->second : nullptr;
+    const auto it = m_chunks.find(key);
+    return it != m_chunks.end() ? &it->second : nullptr;
 }
 
 const Chunk * ChunkMap::tryGetChunk(const glm::ivec3 key) const {
-    const auto it = m_Chunks.find(key);
-    return it != m_Chunks.end() ? &it->second : nullptr;
+    const auto it = m_chunks.find(key);
+    return it != m_chunks.end() ? &it->second : nullptr;
 }
 
 bool ChunkMap::hasChunk(const glm::ivec3 key) const {
-    return m_Chunks.contains(key);
+    return m_chunks.contains(key);
 }
 
 Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
-    auto [it, success] = m_Chunks.try_emplace(key, key);
+    auto [it, success] = m_chunks.try_emplace(key, key);
 
     if (success) {
         LogApp::info("Created chunk at ({}, {}, {})", key.x, key.y, key.z);
@@ -40,12 +40,12 @@ Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
 
 void ChunkMap::moveChunk(Chunk &chunk) {
     const auto key = chunk.getPosition();
-    m_Chunks.try_emplace(key, std::move(chunk));
+    m_chunks.try_emplace(key, std::move(chunk));
     setNeighboursDirty(key);
 }
 
 void ChunkMap::removeChunk(const glm::ivec3 key) {
-    m_Chunks.erase(key);
+    m_chunks.erase(key);
 }
 
 VoxelData ChunkMap::getVoxel(const WorldCoordinate &coord) const {

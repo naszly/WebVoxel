@@ -16,7 +16,7 @@
 
 namespace Threading {
 
-    static void Sleep(const int64_t milliseconds) {
+    static void sleep(const int64_t milliseconds) {
 #ifdef __EMSCRIPTEN__
         emscripten_thread_sleep(milliseconds);
 #else

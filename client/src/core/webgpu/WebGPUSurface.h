@@ -7,44 +7,44 @@
 
 struct GLFWwindow;
 
-class WebGPUSurface {
+class WebGpuSurface {
 public:
-    WebGPUSurface(GLFWwindow* window, const std::shared_ptr<WebGPUContext>& context);
-    ~WebGPUSurface();
+    WebGpuSurface(GLFWwindow* window, const std::shared_ptr<WebGpuContext>& context);
+    ~WebGpuSurface();
 
-    WebGPUSurface(const WebGPUSurface&) = delete;
-    WebGPUSurface(WebGPUSurface&&) = delete;
-    WebGPUSurface& operator=(const WebGPUSurface&) = delete;
-    WebGPUSurface& operator=(WebGPUSurface&&) = delete;
+    WebGpuSurface(const WebGpuSurface&) = delete;
+    WebGpuSurface(WebGpuSurface&&) = delete;
+    WebGpuSurface& operator=(const WebGpuSurface&) = delete;
+    WebGpuSurface& operator=(WebGpuSurface&&) = delete;
 
     void resize() {
         configureSurface();
     }
 
     [[nodiscard]] const WGPUSurface& getSurface() const {
-        return m_Surface;
+        return m_surface;
     }
 
     [[nodiscard]] const WGPUTextureFormat& getSurfaceFormat() const {
-        return m_SurfaceFormat;
+        return m_surfaceFormat;
     }
 
     [[nodiscard]] int getWidth() const {
-        return m_Width;
+        return m_width;
     }
 
     [[nodiscard]] int getHeight() const {
-        return m_Height;
+        return m_height;
     }
 
 private:
-    std::shared_ptr<WebGPUContext> m_Context;
-    GLFWwindow* m_Window{};
-    int m_Width{}, m_Height{};
+    std::shared_ptr<WebGpuContext> m_context;
+    GLFWwindow* m_window{};
+    int m_width{}, m_height{};
 
-    WGPUSurface m_Surface{};
-    WGPUTextureFormat m_SurfaceFormat{};
-    WGPUPresentMode m_PresentMode;
+    WGPUSurface m_surface{};
+    WGPUTextureFormat m_surfaceFormat{};
+    WGPUPresentMode m_presentMode;
 
     void configureSurface();
 

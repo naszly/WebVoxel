@@ -31,9 +31,9 @@ public:
 
     void removeChunk(glm::ivec3 key);
 
-    [[nodiscard]] auto getChunks() { return m_Chunks | std::ranges::views::values; }
+    [[nodiscard]] auto getChunks() { return m_chunks | std::ranges::views::values; }
 
-    [[nodiscard]] size_t countChunks() const { return m_Chunks.size(); }
+    [[nodiscard]] size_t countChunks() const { return m_chunks.size(); }
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 
@@ -44,7 +44,7 @@ public:
     void removeVoxel(const WorldCoordinate &coord);
 
 private:
-    std::unordered_map<glm::ivec3, Chunk> m_Chunks;
+    std::unordered_map<glm::ivec3, Chunk> m_chunks;
 
     void setChunkDirty(const glm::ivec3& key);
 

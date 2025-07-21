@@ -13,7 +13,7 @@ using RayHitCallbackFn = std::function<bool(glm::i64vec3, glm::i64vec3)>;
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);
 
 void ControllerSystem::initialize() {
-    Camera& camera = GetCamera();
+    Camera& camera = getCamera();
 
     camera.setDirection({0,0,1});
     camera.setPosition({0,150,0});
@@ -24,8 +24,8 @@ void ControllerSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextu
 }
 
 void ControllerSystem::update(const float dt) {
-    const Input& input = GetInput();
-    Camera& camera = GetCamera();
+    const Input& input = getInput();
+    Camera& camera = getCamera();
 
     if (m_isMouseCaptured) {
         updateCamera(dt, input, camera);
@@ -33,10 +33,10 @@ void ControllerSystem::update(const float dt) {
 }
 
 void ControllerSystem::onEvent(Event &event) {
-    Camera& camera = GetCamera();
-    World& world = GetWorld();
-    const Input& input = GetInput();
-    const ApplicationData &appData = Application::GetInstance().getApplicationData();
+    Camera& camera = getCamera();
+    World& world = getWorld();
+    const Input& input = getInput();
+    const ApplicationData &appData = Application::getInstance().getApplicationData();
 
     EventDispatcher dispatcher(event);
 

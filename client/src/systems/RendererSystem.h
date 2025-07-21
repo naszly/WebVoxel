@@ -14,7 +14,7 @@ public:
     explicit RendererSystem() : System() {}
 
     [[nodiscard]] bool getAmbientOcclusion() const {
-        return m_ambient_occlusion;
+        return m_ambientOcclusion;
     }
 
     void setAmbientOcclusion(bool ambientOcclusion);
@@ -34,7 +34,7 @@ public:
     void exportTimestamps() const;
 
 private:
-    bool m_ambient_occlusion = false;
+    bool m_ambientOcclusion = false;
     bool m_lighting = false;
     bool m_fog = false;
     const int m_sampleCount = 1;
@@ -50,38 +50,38 @@ private:
     };
     static_assert(sizeof(Uniforms) % 16 == 0);
 
-    WGPUTexture m_DepthTexture{};
-    WGPUTextureView m_DepthTextureView{};
-    WGPUTexture m_MultisampleColorTexture{};
-    WGPUTextureView m_MultisampleColorTextureView{};
-    unsigned int m_ViewportWidth{}, m_ViewportHeight{};
+    WGPUTexture m_depthTexture{};
+    WGPUTextureView m_depthTextureView{};
+    WGPUTexture m_multisampleColorTexture{};
+    WGPUTextureView m_multisampleColorTextureView{};
+    unsigned int m_viewportWidth{}, m_viewportHeight{};
 
-    WGPUQueue m_Queue{};
-    WGPURenderPipeline m_RenderPipeline{};
-    WGPUBuffer m_BillboardVertexBuffer{};
-    WGPUBuffer m_BillboardIndexBuffer{};
-    uint32_t m_BillboardIndexCount{};
-    WGPUBuffer m_UniformBuffer{};
-    Uniforms m_UniformData{};
-    WGPUBindGroup m_UniformBindGroup{};
+    WGPUQueue m_queue{};
+    WGPURenderPipeline m_renderPipeline{};
+    WGPUBuffer m_billboardVertexBuffer{};
+    WGPUBuffer m_billboardIndexBuffer{};
+    uint32_t m_billboardIndexCount{};
+    WGPUBuffer m_uniformBuffer{};
+    Uniforms m_uniformData{};
+    WGPUBindGroup m_uniformBindGroup{};
 
     struct ChunkVertexBuffer {
         WGPUBuffer buffer{nullptr};
         size_t vertexCount{0};
     };
 
-    std::unordered_map<glm::ivec3, ChunkVertexBuffer> m_ChunkVertexBuffers;
+    std::unordered_map<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
 
-    WGPUQuerySet m_QuerySet{};
-    WGPUBuffer m_QueryResolveBuffer{};
-    WGPUBuffer m_QueryReadBuffer{};
-    const uint64_t m_QueryReadBufferCapacity = 524288 * sizeof(uint64_t);
-    uint64_t m_QueryReadBufferSize{};
+    WGPUQuerySet m_querySet{};
+    WGPUBuffer m_queryResolveBuffer{};
+    WGPUBuffer m_queryReadBuffer{};
+    const uint64_t m_queryReadBufferCapacity = 524288 * sizeof(uint64_t);
+    uint64_t m_queryReadBufferSize{};
 
     void createRenderPipeline();
     void createDepthTexture();
-    static std::string LoadShader(const char* filename);
-    void InitializeBuffers();
+    static std::string loadShader(const char* filename);
+    void initializeBuffers();
 
     void exportTimestampsInternal() const;
 

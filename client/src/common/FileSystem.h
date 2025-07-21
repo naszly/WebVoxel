@@ -5,9 +5,9 @@
 
 namespace FileSystem {
 
-    bool FileExists(const std::string& fileName);
+    bool fileExists(const std::string& fileName);
 
-    void WriteFile(const std::string& fileName, const char* buffer, size_t size);
+    void writeFile(const std::string& fileName, const char* buffer, size_t size);
 
     /**
      * @brief Reads the contents of a file into a buffer.
@@ -18,7 +18,7 @@ namespace FileSystem {
      * @param fileName The name of the file to read.
      * @return A vector containing the file's contents.
      */
-    std::vector<char> ReadFile(const std::string& fileName);
+    std::vector<char> readFile(const std::string& fileName);
 
     /**
      * @brief Reads the contents of a file into a buffer.
@@ -30,9 +30,9 @@ namespace FileSystem {
      * @param fileName The name of the file to read.
      * @return A vector containing the file's contents.
      */
-    std::vector<char> ReadFileNative(const std::string& fileName);
+    std::vector<char> readFileNative(const std::string& fileName);
 
-    void CleanFiles(const std::string& extension);
+    void cleanFiles(const std::string& extension);
 
     /**
      * @brief Downloads a file from the filesystem.
@@ -43,5 +43,5 @@ namespace FileSystem {
      * @param fileName The name of the file to download.
      * @param downloadName The name to use for the downloaded file.
      */
-    void Download(const std::string& fileName, const std::string& downloadName);
+    void download(const std::string& fileName, const std::string& downloadName);
 };

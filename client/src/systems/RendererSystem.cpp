@@ -10,27 +10,27 @@
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
 
-    m_Queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
+    m_queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
 
-    m_ViewportWidth = GetWebGPUSurface().getWidth();
-    m_ViewportHeight = GetWebGPUSurface().getHeight();
+    m_viewportWidth = getWebGpuSurface().getWidth();
+    m_viewportHeight = getWebGpuSurface().getHeight();
 
-    Camera &camera = Application::GetInstance().getCamera();
+    Camera &camera = Application::getInstance().getCamera();
 
-    camera.setPerspective(FOV, static_cast<float>(m_ViewportWidth) / static_cast<float>(m_ViewportHeight));
+    camera.setPerspective(FOV, static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
-    InitializeBuffers();
+    initializeBuffers();
     createDepthTexture();
     createRenderPipeline();
 
     // Initialize GPUQuerySet for benchmarking
-    if (wgpuAdapterHasFeature(GetWebGPUContext().getAdapter(), WGPUFeatureName_TimestampQuery)) {
-        const auto device = GetWebGPUContext().getDevice();
+    if (wgpuAdapterHasFeature(getWebGpuContext().getAdapter(), WGPUFeatureName_TimestampQuery)) {
+        const auto device = getWebGpuContext().getDevice();
 
         WGPUQuerySetDescriptor querySetDesc = {};
         querySetDesc.count = 2;
         querySetDesc.type = WGPUQueryType_Timestamp;
-        m_QuerySet = wgpuDeviceCreateQuerySet(device, &querySetDesc);
+        m_querySet = wgpuDeviceCreateQuerySet(device, &querySetDesc);
 
         // 1. Query resolve buffer (GPU-only)
         WGPUBufferDescriptor resolveBufferDesc = {};
@@ -38,33 +38,33 @@ void RendererSystem::initialize() {
         resolveBufferDesc.usage = WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc;
         resolveBufferDesc.mappedAtCreation = false;
         resolveBufferDesc.label = WGPUStringView{"Query Resolve Buffer", WGPU_STRLEN};
-        m_QueryResolveBuffer = wgpuDeviceCreateBuffer(device, &resolveBufferDesc);
+        m_queryResolveBuffer = wgpuDeviceCreateBuffer(device, &resolveBufferDesc);
 
         // 2. Read buffer (CPU-visible)
         WGPUBufferDescriptor readBufferDesc = {};
-        readBufferDesc.size = m_QueryReadBufferCapacity;
+        readBufferDesc.size = m_queryReadBufferCapacity;
         readBufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
         readBufferDesc.mappedAtCreation = false;
         readBufferDesc.label = WGPUStringView{"Query Read Buffer", WGPU_STRLEN};
-        m_QueryReadBuffer = wgpuDeviceCreateBuffer(device, &readBufferDesc);
+        m_queryReadBuffer = wgpuDeviceCreateBuffer(device, &readBufferDesc);
     } else {
         LogCore::warning("TimestampQuery feature not supported");
     }
 }
 
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
-    const Camera &camera = Application::GetInstance().getCamera();
+    const Camera &camera = Application::getInstance().getCamera();
 
-    m_UniformData.transposedProjectionViewMatrix = glm::transpose(camera.getProjectionViewMatrix());
-    m_UniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
-    m_UniformData.cameraPosition = camera.getPosition();
-    m_UniformData.fov = FOV;
-    m_UniformData.viewportSize = {m_ViewportWidth, m_ViewportHeight};
-    m_UniformData.nearPlane = Camera::NEAR;
-    m_UniformData.farPlane = Camera::FAR;
+    m_uniformData.transposedProjectionViewMatrix = glm::transpose(camera.getProjectionViewMatrix());
+    m_uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
+    m_uniformData.cameraPosition = camera.getPosition();
+    m_uniformData.fov = FOV;
+    m_uniformData.viewportSize = {m_viewportWidth, m_viewportHeight};
+    m_uniformData.nearPlane = Camera::NEAR;
+    m_uniformData.farPlane = Camera::FAR;
 
     // Update uniform buffer data
-    wgpuQueueWriteBuffer(m_Queue, m_UniformBuffer, 0, &m_UniformData, sizeof(Uniforms));
+    wgpuQueueWriteBuffer(m_queue, m_uniformBuffer, 0, &m_uniformData, sizeof(Uniforms));
 
     // Create the render pass that clears the screen with our color
     WGPURenderPassDescriptor renderPassDesc = {};
@@ -72,7 +72,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     // The attachment part of the render pass descriptor describes the target texture of the pass
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = m_sampleCount > 1 ? m_MultisampleColorTextureView : targetView;
+    renderPassColorAttachment.view = m_sampleCount > 1 ? m_multisampleColorTextureView : targetView;
     renderPassColorAttachment.resolveTarget = m_sampleCount > 1 ? targetView : nullptr;
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
@@ -82,7 +82,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 #endif // NOT WEBGPU_BACKEND_WGPU
 
     WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
-    depthStencilAttachment.view = m_DepthTextureView;
+    depthStencilAttachment.view = m_depthTextureView;
     depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
     depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.depthClearValue = 1.0f;
@@ -91,7 +91,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     depthStencilAttachment.stencilClearValue = 0;
 
     WGPUPassTimestampWrites timestampWrites = {};
-    timestampWrites.querySet = m_QuerySet;
+    timestampWrites.querySet = m_querySet;
     timestampWrites.beginningOfPassWriteIndex = 0;
     timestampWrites.endOfPassWriteIndex = 1;
 
@@ -102,26 +102,26 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     renderPassDesc.label = WGPUStringView{"RendererSystem RenderPass", WGPU_STRLEN};
 
-    Application &app = Application::GetInstance();
+    Application &app = Application::getInstance();
     auto &appData = app.getApplicationData();
 
     const WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
     // Select which render pipeline to use
-    wgpuRenderPassEncoderSetPipeline(renderPass, m_RenderPipeline);
+    wgpuRenderPassEncoderSetPipeline(renderPass, m_renderPipeline);
 
     // Set the bind group
-    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_UniformBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_uniformBindGroup, 0, nullptr);
 
     // Set vertex buffer while encoding the render pass
-    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_BillboardVertexBuffer, 0, wgpuBufferGetSize(m_BillboardVertexBuffer));
+    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
 
     // Set index buffer
-    wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_BillboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_BillboardIndexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
 
     std::vector<std::pair<glm::vec3, ChunkVertexBuffer>> sortedChunks;
 
-    for (auto &[position, chunkVertexBuffer] : m_ChunkVertexBuffers) {
+    for (auto &[position, chunkVertexBuffer] : m_chunkVertexBuffers) {
 
         if (chunkVertexBuffer.vertexCount == 0) {
             continue;
@@ -164,27 +164,27 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, wgpuBufferGetSize(buffer) - sizeof(glm::vec4), sizeof(glm::vec4));
 
         // Use instanced drawing
-        wgpuRenderPassEncoderDrawIndexed(renderPass, m_BillboardIndexCount, vertexCount, 0, 0, 0);
+        wgpuRenderPassEncoderDrawIndexed(renderPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
     }
     wgpuRenderPassEncoderEnd(renderPass);
     wgpuRenderPassEncoderRelease(renderPass);
 
-    if (wgpuBufferGetMapState(m_QueryReadBuffer) == WGPUBufferMapState_Unmapped) {
+    if (wgpuBufferGetMapState(m_queryReadBuffer) == WGPUBufferMapState_Unmapped) {
         constexpr uint64_t bufferSize = 2 * sizeof(uint64_t);
 
-        wgpuCommandEncoderResolveQuerySet(encoder, m_QuerySet, 0, 2, m_QueryResolveBuffer, 0);
+        wgpuCommandEncoderResolveQuerySet(encoder, m_querySet, 0, 2, m_queryResolveBuffer, 0);
 
-        if (m_QueryReadBufferSize >= m_QueryReadBufferCapacity) {
-            m_QueryReadBufferSize = 0;
+        if (m_queryReadBufferSize >= m_queryReadBufferCapacity) {
+            m_queryReadBufferSize = 0;
         }
 
-        m_QueryReadBufferSize += bufferSize;
+        m_queryReadBufferSize += bufferSize;
 
         wgpuCommandEncoderCopyBufferToBuffer(encoder,
-                                             m_QueryResolveBuffer,
+                                             m_queryResolveBuffer,
                                              0,
-                                             m_QueryReadBuffer,
-                                             m_QueryReadBufferSize - bufferSize,
+                                             m_queryReadBuffer,
+                                             m_queryReadBufferSize - bufferSize,
                                              bufferSize);
     } else {
         LogCore::warning("Query read buffer is mapped, skipping copy");
@@ -192,11 +192,11 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 }
 
 void RendererSystem::update(float dt) {
-    const std::string timerName = "RendererSystem::update ao: " + std::to_string(m_ambient_occlusion);
+    const std::string timerName = "RendererSystem::update ao: " + std::to_string(m_ambientOcclusion);
     Timer timer(timerName.c_str());
 
-    World &world = GetWorld();
-    const glm::vec3 playerPosition = GetCamera().getPosition();
+    World &world = getWorld();
+    const glm::vec3 playerPosition = getCamera().getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
     const auto chunks = world.getChunks();
@@ -233,22 +233,22 @@ void RendererSystem::update(float dt) {
             return chunk.getVoxel(x, y, z);
         };
 
-        if (m_ambient_occlusion) {
-            buffer = createChunkVertexBuffer<VertexDataAO>(position, bitmap.value(), getVoxelLambda);
+        if (m_ambientOcclusion) {
+            buffer = createChunkVertexBuffer<VertexDataAo>(position, bitmap.value(), getVoxelLambda);
         } else {
             buffer = createChunkVertexBuffer<VertexData>(position, bitmap.value(), getVoxelLambda);
         }
 
-        auto it = m_ChunkVertexBuffers.find(position);
-        if (it != m_ChunkVertexBuffers.end()) {
+        auto it = m_chunkVertexBuffers.find(position);
+        if (it != m_chunkVertexBuffers.end()) {
             wgpuBufferRelease(it->second.buffer);
             if (buffer.vertexCount > 0) {
                 it->second = buffer;
             } else {
-                m_ChunkVertexBuffers.erase(it);
+                m_chunkVertexBuffers.erase(it);
             }
         } else if (buffer.vertexCount > 0) {
-            m_ChunkVertexBuffers.insert({position, buffer});
+            m_chunkVertexBuffers.insert({position, buffer});
         }
 
         chunk.resetDirty();
@@ -265,31 +265,31 @@ void RendererSystem::onEvent(Event &event) {
     dispatcher.dispatch<WindowResizedEvent>([&](const WindowResizedEvent &windowResizedEvent) {
         LogApp::info("WindowResizedEvent: {0}, {1}", windowResizedEvent.getWidth(), windowResizedEvent.getHeight());
 
-        m_ViewportWidth = windowResizedEvent.getWidth();
-        m_ViewportHeight = windowResizedEvent.getHeight();
+        m_viewportWidth = windowResizedEvent.getWidth();
+        m_viewportHeight = windowResizedEvent.getHeight();
 
         createDepthTexture();
 
-        Camera &camera = Application::GetInstance().getCamera();
-        camera.setPerspective(FOV, static_cast<float>(m_ViewportWidth) / static_cast<float>(m_ViewportHeight));
+        Camera &camera = Application::getInstance().getCamera();
+        camera.setPerspective(FOV, static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
         return true;
     });
 }
 
 void RendererSystem::setAmbientOcclusion(const bool ambientOcclusion) {
-    if (m_ambient_occlusion != ambientOcclusion) {
+    if (m_ambientOcclusion != ambientOcclusion) {
         // Buffers and pipeline needs to be recreated because the vertex format is different
-        for (auto &[position, vertexBuffer] : m_ChunkVertexBuffers ) {
+        for (auto &[position, vertexBuffer] : m_chunkVertexBuffers ) {
             wgpuBufferRelease(vertexBuffer.buffer);
-            if (const auto chunk = GetWorld().tryGetChunk(position)) {
+            if (const auto chunk = getWorld().tryGetChunk(position)) {
                 chunk->setDirty();
             }
         }
-        m_ChunkVertexBuffers.clear();
-        wgpuRenderPipelineRelease(m_RenderPipeline);
+        m_chunkVertexBuffers.clear();
+        wgpuRenderPipelineRelease(m_renderPipeline);
 
-        m_ambient_occlusion = ambientOcclusion;
+        m_ambientOcclusion = ambientOcclusion;
         createRenderPipeline();
     }
 }
@@ -309,7 +309,7 @@ void RendererSystem::setFog(const bool fog) {
 }
 
 void RendererSystem::exportTimestamps() const {
-    const auto queue = wgpuDeviceGetQueue(GetWebGPUContext().getDevice());
+    const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
 
     WGPUQueueWorkDoneCallback onWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
         const auto rendererSystem = static_cast<const RendererSystem*>(userdata1);
@@ -331,12 +331,12 @@ void RendererSystem::exportTimestamps() const {
 }
 
 void RendererSystem::createRenderPipeline() {
-    const auto device = GetWebGPUContext().getDevice();
-    const auto surfaceFormat = GetWebGPUSurface().getSurfaceFormat();
+    const auto device = getWebGpuContext().getDevice();
+    const auto surfaceFormat = getWebGpuSurface().getSurfaceFormat();
 
     // Load the shader module
     WGPUShaderModuleDescriptor shaderDesc{};
-    std::string shaderCode = LoadShader("shaders/shader.wgsl");
+    std::string shaderCode = loadShader("shaders/shader.wgsl");
 
     WGPUShaderSourceWGSL shaderCodeDesc{};
     shaderCodeDesc.chain.next = nullptr;
@@ -361,7 +361,7 @@ void RendererSystem::createRenderPipeline() {
     // Create the bind group
     WGPUBindGroupEntry bgEntry{};
     bgEntry.binding = 0;
-    bgEntry.buffer = m_UniformBuffer;
+    bgEntry.buffer = m_uniformBuffer;
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
@@ -369,7 +369,7 @@ void RendererSystem::createRenderPipeline() {
     bgDesc.layout = bindGroupLayout;
     bgDesc.entryCount = 1;
     bgDesc.entries = &bgEntry;
-    m_UniformBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
+    m_uniformBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
 
     // Create the pipeline layout
     WGPUPipelineLayoutDescriptor pipelineLayoutDesc{};
@@ -416,7 +416,7 @@ void RendererSystem::createRenderPipeline() {
             .shaderLocation = 4,
         }
     };
-    uint32_t voxelAttributeCount = m_ambient_occlusion ? 3 : 2;
+    uint32_t voxelAttributeCount = m_ambientOcclusion ? 3 : 2;
 
     voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
@@ -453,7 +453,7 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.bufferCount = bufferLayouts.size();
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
-    if (m_ambient_occlusion) {
+    if (m_ambientOcclusion) {
         pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMainAo", WGPU_STRLEN};
     } else {
         pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
@@ -482,7 +482,7 @@ void RendererSystem::createRenderPipeline() {
     const std::array fragmentConstants{
         WGPUConstantEntry{
             .key = WGPUStringView{"AO", WGPU_STRLEN},
-            .value = static_cast<double>(m_ambient_occlusion),
+            .value = static_cast<double>(m_ambientOcclusion),
         },
         WGPUConstantEntry{
             .key = WGPUStringView{"LIGHTING", WGPU_STRLEN},
@@ -520,7 +520,7 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.multisample.mask = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
-    m_RenderPipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+    m_renderPipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
 
     wgpuShaderModuleRelease(shaderModule);
     wgpuBindGroupLayoutRelease(bindGroupLayout);
@@ -528,22 +528,22 @@ void RendererSystem::createRenderPipeline() {
 }
 
 void RendererSystem::createDepthTexture() {
-    const auto device = GetWebGPUContext().getDevice();
+    const auto device = getWebGpuContext().getDevice();
 
-    if (m_DepthTexture) {
-        wgpuTextureRelease(m_DepthTexture);
-        wgpuTextureViewRelease(m_DepthTextureView);
+    if (m_depthTexture) {
+        wgpuTextureRelease(m_depthTexture);
+        wgpuTextureViewRelease(m_depthTextureView);
     }
 
-    if (m_MultisampleColorTexture) {
-        wgpuTextureRelease(m_MultisampleColorTexture);
-        wgpuTextureViewRelease(m_MultisampleColorTextureView);
+    if (m_multisampleColorTexture) {
+        wgpuTextureRelease(m_multisampleColorTexture);
+        wgpuTextureViewRelease(m_multisampleColorTextureView);
     }
 
     // Create the depth texture
     WGPUTextureDescriptor depthTextureDesc = {};
-    depthTextureDesc.size.width = m_ViewportWidth;
-    depthTextureDesc.size.height = m_ViewportHeight;
+    depthTextureDesc.size.width = m_viewportWidth;
+    depthTextureDesc.size.height = m_viewportHeight;
     depthTextureDesc.size.depthOrArrayLayers = 1;
     depthTextureDesc.mipLevelCount = 1;
     depthTextureDesc.sampleCount = m_sampleCount;
@@ -551,8 +551,8 @@ void RendererSystem::createDepthTexture() {
     depthTextureDesc.format = WGPUTextureFormat_Depth24PlusStencil8;
     depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
 
-    m_DepthTexture = wgpuDeviceCreateTexture(device, &depthTextureDesc);
-    if (!m_DepthTexture) {
+    m_depthTexture = wgpuDeviceCreateTexture(device, &depthTextureDesc);
+    if (!m_depthTexture) {
         LogCore::error("Failed to create depth texture");
         return;
     }
@@ -566,31 +566,31 @@ void RendererSystem::createDepthTexture() {
     depthViewDesc.arrayLayerCount = 1;
     depthViewDesc.aspect = WGPUTextureAspect_All;
 
-    m_DepthTextureView = wgpuTextureCreateView(m_DepthTexture, &depthViewDesc);
-    if (!m_DepthTextureView) {
+    m_depthTextureView = wgpuTextureCreateView(m_depthTexture, &depthViewDesc);
+    if (!m_depthTextureView) {
         LogCore::error("Failed to create depth texture view");
-        wgpuTextureRelease(m_DepthTexture);
+        wgpuTextureRelease(m_depthTexture);
     }
 
     // Create the color texture
     WGPUTextureDescriptor colorTextureDesc = {};
-    colorTextureDesc.size.width = m_ViewportWidth;
-    colorTextureDesc.size.height = m_ViewportHeight;
+    colorTextureDesc.size.width = m_viewportWidth;
+    colorTextureDesc.size.height = m_viewportHeight;
     colorTextureDesc.size.depthOrArrayLayers = 1;
     colorTextureDesc.mipLevelCount = 1;
     colorTextureDesc.sampleCount = m_sampleCount;
     colorTextureDesc.dimension = WGPUTextureDimension_2D;
-    colorTextureDesc.format = GetWebGPUSurface().getSurfaceFormat();
+    colorTextureDesc.format = getWebGpuSurface().getSurfaceFormat();
     colorTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
 
-    m_MultisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
-    if (!m_MultisampleColorTexture) {
+    m_multisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
+    if (!m_multisampleColorTexture) {
         LogCore::error("Failed to create color texture");
         return;
     }
 
     WGPUTextureViewDescriptor colorViewDesc = {};
-    colorViewDesc.format = GetWebGPUSurface().getSurfaceFormat();
+    colorViewDesc.format = getWebGpuSurface().getSurfaceFormat();
     colorViewDesc.dimension = WGPUTextureViewDimension_2D;
     colorViewDesc.baseMipLevel = 0;
     colorViewDesc.mipLevelCount = 1;
@@ -598,23 +598,23 @@ void RendererSystem::createDepthTexture() {
     colorViewDesc.arrayLayerCount = 1;
     colorViewDesc.aspect = WGPUTextureAspect_All;
 
-    m_MultisampleColorTextureView = wgpuTextureCreateView(m_MultisampleColorTexture, &colorViewDesc);
-    if (!m_MultisampleColorTextureView) {
+    m_multisampleColorTextureView = wgpuTextureCreateView(m_multisampleColorTexture, &colorViewDesc);
+    if (!m_multisampleColorTextureView) {
         LogCore::error("Failed to create color texture view");
-        wgpuTextureRelease(m_MultisampleColorTexture);
+        wgpuTextureRelease(m_multisampleColorTexture);
     }
 }
 
-std::string RendererSystem::LoadShader(const char *filename) {
-    auto shaderBuffer = FileSystem::ReadFileNative(filename);
+std::string RendererSystem::loadShader(const char *filename) {
+    auto shaderBuffer = FileSystem::readFileNative(filename);
 
     std::string shaderCode(shaderBuffer.begin(), shaderBuffer.end());
 
     return shaderCode;
 }
 
-void RendererSystem::InitializeBuffers() {
-    const auto device = GetWebGPUContext().getDevice();
+void RendererSystem::initializeBuffers() {
+    const auto device = getWebGpuContext().getDevice();
 
     // Vertex buffer data
     constexpr std::array vertexData{
@@ -630,17 +630,17 @@ void RendererSystem::InitializeBuffers() {
     bufferDesc.size = vertexData.size() * sizeof(float);
     bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex; // Vertex usage here!
     bufferDesc.mappedAtCreation = false;
-    m_BillboardVertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+    m_billboardVertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
 
     // Upload geometry data to the buffer
-    wgpuQueueWriteBuffer(m_Queue, m_BillboardVertexBuffer, 0, vertexData.data(), bufferDesc.size);
+    wgpuQueueWriteBuffer(m_queue, m_billboardVertexBuffer, 0, vertexData.data(), bufferDesc.size);
 
     // Index buffer data
     constexpr std::array<uint16_t, 6> indexData{
         0, 1, 2,
         0, 2, 3,
     };
-    m_BillboardIndexCount = static_cast<uint32_t>(indexData.size());
+    m_billboardIndexCount = static_cast<uint32_t>(indexData.size());
 
     // Create index buffer
     WGPUBufferDescriptor indexBufferDesc{};
@@ -648,10 +648,10 @@ void RendererSystem::InitializeBuffers() {
     indexBufferDesc.size = indexData.size() * sizeof(uint16_t);
     indexBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
     indexBufferDesc.mappedAtCreation = false;
-    m_BillboardIndexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDesc);
+    m_billboardIndexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDesc);
 
     // Upload index data to the buffer
-    wgpuQueueWriteBuffer(m_Queue, m_BillboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
+    wgpuQueueWriteBuffer(m_queue, m_billboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
 
     // Create uniform buffer
     WGPUBufferDescriptor uniformBufferDesc{};
@@ -659,7 +659,7 @@ void RendererSystem::InitializeBuffers() {
     uniformBufferDesc.size = sizeof(Uniforms);
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
-    m_UniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
+    m_uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
 }
 
 void RendererSystem::exportTimestampsInternal() const {
@@ -692,19 +692,19 @@ void RendererSystem::exportTimestampsInternal() const {
         data->requestEnded = true;
     };
 
-    UserData userData{m_QueryReadBuffer, m_QueryReadBufferSize};
+    UserData userData{m_queryReadBuffer, m_queryReadBufferSize};
 
     auto callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
     callbackInfo.callback = callback;
     callbackInfo.userdata1 = &userData;
 
-    wgpuBufferMapAsync(m_QueryReadBuffer, WGPUMapMode_Read, 0, m_QueryReadBufferCapacity, callbackInfo);
+    wgpuBufferMapAsync(m_queryReadBuffer, WGPUMapMode_Read, 0, m_queryReadBufferCapacity, callbackInfo);
 
-    GetWebGPUContext().pollEvents();
+    getWebGpuContext().pollEvents();
 
     while (!userData.requestEnded) {
-        Threading::Sleep(30);
-        GetWebGPUContext().pollEvents();
+        Threading::sleep(30);
+        getWebGpuContext().pollEvents();
     }
 
     if (!userData.durations.empty()) {
@@ -713,10 +713,10 @@ void RendererSystem::exportTimestampsInternal() const {
             ss << duration << "\n";
         }
         const std::string fileName = std::format("timestamps_{}.txt", std::chrono::high_resolution_clock::now().time_since_epoch().count());
-        FileSystem::WriteFile(fileName, ss.str().c_str(), ss.str().size());
+        FileSystem::writeFile(fileName, ss.str().c_str(), ss.str().size());
         LogApp::info("Timestamps saved to file: {0}", fileName);
 
-        FileSystem::Download(fileName, fileName);
+        FileSystem::download(fileName, fileName);
     } else {
         LogApp::warning("No timestamps to save");
     }
@@ -725,7 +725,7 @@ void RendererSystem::exportTimestampsInternal() const {
 std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World &world, const Chunk &chunk) const {
     const auto chunkPosition = chunk.getPosition();
 
-    if (m_ambient_occlusion) {
+    if (m_ambientOcclusion) {
         const auto neighbours = world.getExtendedChunkNeighbours(chunkPosition);
 
         if (neighbours.hasAllNeighbours()) {
@@ -759,7 +759,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
         return vertexBuffer;
     }
 
-    const auto device = GetWebGPUContext().getDevice();
+    const auto device = getWebGpuContext().getDevice();
     const auto queue = wgpuDeviceGetQueue(device);
 
     const auto chunkPosition = glm::vec4(position, 0.0f);
@@ -816,7 +816,7 @@ void RendererSystem::getVertices(const ChunkBitmap &bitmap,
             if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
                 const auto& voxel = getVoxel(vx, vy, vz);
 
-                if constexpr (std::is_same_v<VertexT, VertexDataAO>) {
+                if constexpr (std::is_same_v<VertexT, VertexDataAo>) {
                     const auto ao = getAmbientOcclusion(bitmap, x, y, z);
                     vertices.emplace_back(VertexData{vx, vy, vz, 1, voxel}, ao);
                 } else {

@@ -32,7 +32,7 @@ void Timer::exportTimes() {
             ss << line << "\n";
         }
 
-        FileSystem::WriteFile(fileName, ss.str().c_str(), ss.str().size());
+        FileSystem::writeFile(fileName, ss.str().c_str(), ss.str().size());
     }
 }
 

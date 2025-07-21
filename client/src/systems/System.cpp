@@ -1,26 +1,26 @@
 #include "core/System.h"
 #include "Application.h"
 
-Camera& System::GetCamera() {
-    return Application::GetInstance().getCamera();
+Camera& System::getCamera() {
+    return Application::getInstance().getCamera();
 }
 
-const Input& System::GetInput() {
-    return Application::GetInstance().getInput();
+const Input& System::getInput() {
+    return Application::getInstance().getInput();
 }
 
-World& System::GetWorld() {
-    return Application::GetInstance().getWorld();
+World& System::getWorld() {
+    return Application::getInstance().getWorld();
 }
 
-const WebGPUContext& System::GetWebGPUContext() {
-    return *Application::GetInstance().getWebGPUContext();
+const WebGpuContext& System::getWebGpuContext() {
+    return *Application::getInstance().getWebGpuContext();
 }
 
-const WebGPUSurface& System::GetWebGPUSurface() {
-    return Application::GetInstance().getWebGPUSurface();
+const WebGpuSurface& System::getWebGpuSurface() {
+    return Application::getInstance().getWebGpuSurface();
 }
 
-GLFWwindow * System::GetGLFWWindow() {
-    return Application::GetInstance().getGLFWWindow();
+GLFWwindow * System::getGlfwWindow() {
+    return Application::getInstance().getGlfwWindow();
 }

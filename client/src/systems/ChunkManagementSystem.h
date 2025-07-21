@@ -17,10 +17,10 @@ public:
 
     void saveAllChunks();
 
-    [[nodiscard]] bool isSaveInProgress() const { return m_SaveInProgress; }
+    [[nodiscard]] bool isSaveInProgress() const { return m_saveInProgress; }
 
     ~ChunkManagementSystem() override {
-        m_ShouldExit = true;
+        m_shouldExit = true;
     }
 
 private:
@@ -30,17 +30,17 @@ private:
 
     const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
 
-    std::vector<glm::ivec3> m_LoadQueue;
-    std::vector<Chunk> m_LoadedChunks;
+    std::vector<glm::ivec3> m_loadQueue;
+    std::vector<Chunk> m_loadedChunks;
 
-    std::vector<std::unique_ptr<Threading::Worker>> m_LoadChunksWorkers{2};
+    std::vector<std::unique_ptr<Threading::Worker>> m_loadChunksWorkers{2};
 
-    std::unique_ptr<Threading::Worker> m_SaveChunksWorker;
+    std::unique_ptr<Threading::Worker> m_saveChunksWorker;
 
-    Threading::Lock m_Lock;
-    bool m_ShouldExit = false;
+    Threading::Lock m_lock;
+    bool m_shouldExit = false;
 
-    bool m_SaveInProgress = false;
+    bool m_saveInProgress = false;
 
     void loadChunks(const Camera &camera, World &world);
 

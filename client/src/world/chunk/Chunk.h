@@ -105,8 +105,8 @@ public:
     static constexpr size_t WIDTH = Utils::pow(NODE_COUNT_PER_AXIS, TREE_DEPTH);
     static_assert(WIDTH >= 16 && WIDTH <= 256, "SIZE must be between 16 and 256");
 
-    explicit Chunk(const glm::ivec3 position) : m_Position(position) {}
-    explicit Chunk(const int x, const int y, const int z) : m_Position(x, y, z) {}
+    explicit Chunk(const glm::ivec3 position) : m_position(position) {}
+    explicit Chunk(const int x, const int y, const int z) : m_position(x, y, z) {}
 
     ~Chunk() = default;
 
@@ -115,16 +115,16 @@ public:
     Chunk& operator=(const Chunk&) = delete;
 
     Chunk(Chunk&& other) noexcept {
-        m_Position = other.m_Position;
-        m_Data = std::move(other.m_Data);
-        m_Dirty = other.m_Dirty;
+        m_position = other.m_position;
+        m_data = std::move(other.m_data);
+        m_dirty = other.m_dirty;
     }
 
     Chunk& operator=(Chunk&& other) noexcept {
         if (this != &other) {
-            m_Position = other.m_Position;
-            m_Data = std::move(other.m_Data);
-            m_Dirty = other.m_Dirty;
+            m_position = other.m_position;
+            m_data = std::move(other.m_data);
+            m_dirty = other.m_dirty;
         }
         return *this;
     }
@@ -132,40 +132,40 @@ public:
     void generate(const FastNoise::SmartNode<> &fnGenerator);
 
     [[nodiscard]] glm::ivec3 getPosition() const {
-        return m_Position;
+        return m_position;
     }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        return m_Data.getVoxel(x, y, z);
+        return m_data.getVoxel(x, y, z);
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        return m_Data.hasVoxel(x, y, z);
+        return m_data.hasVoxel(x, y, z);
     }
 
     void setVoxel(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
-        m_Data.setVoxel(x, y, z, voxel);
-        m_Dirty = true;
+        m_data.setVoxel(x, y, z, voxel);
+        m_dirty = true;
     }
 
     [[nodiscard]] bool isDirty() const {
-        return m_Dirty;
+        return m_dirty;
     }
 
     void setDirty() {
-        m_Dirty = true;
+        m_dirty = true;
     }
 
     void resetDirty() {
-        m_Dirty = false;
+        m_dirty = false;
     }
 
     [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
-        return m_Data.getBitmap(getNeighbours(chunkNeighbours));
+        return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
     [[nodiscard]] auto getBitmap(const ExtendedChukNeighbours& chunkNeighbours) const {
-        return m_Data.getBitmap(getNeighbours(chunkNeighbours));
+        return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
     [[nodiscard]] bool fileExists() const;
@@ -174,16 +174,16 @@ public:
 
     void load();
 
-    static void CleanFs();
+    static void cleanFs();
 private:
-    glm::ivec3 m_Position{};
-    SparseVoxelOctTree m_Data{};
-    bool m_Dirty{true};
+    glm::ivec3 m_position{};
+    SparseVoxelOctTree m_data{};
+    bool m_dirty{true};
 
     [[nodiscard]] std::string getFileName() const {
-        return std::to_string(m_Position.x) + "."
-            + std::to_string(m_Position.y) + "."
-            + std::to_string(m_Position.z) + "."
+        return std::to_string(m_position.x) + "."
+            + std::to_string(m_position.y) + "."
+            + std::to_string(m_position.z) + "."
             + std::to_string(WIDTH) + ".chunk";
     }
 

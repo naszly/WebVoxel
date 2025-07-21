@@ -19,47 +19,47 @@ struct ApplicationData {
 
 class Application {
 public:
-    static Application& GetInstance();
+    static Application& getInstance();
 
     void start(int width, int height);
 
     void stop();
 
     void pushLayer(std::shared_ptr<Layer> layer) {
-        m_Layers.push_back(std::move(layer));
+        m_layers.push_back(std::move(layer));
     }
 
-    [[nodiscard]] std::shared_ptr<WebGPUContext> getWebGPUContext() const {
-        return m_Window->getWebGPUContext();
+    [[nodiscard]] std::shared_ptr<WebGpuContext> getWebGpuContext() const {
+        return m_window->getWebGpuContext();
     }
 
-    [[nodiscard]] const WebGPUSurface& getWebGPUSurface() const {
-        return m_Window->getWebGPUSurface();
+    [[nodiscard]] const WebGpuSurface& getWebGpuSurface() const {
+        return m_window->getWebGpuSurface();
     }
 
     [[nodiscard]] const Input& getInput() const {
-        return m_Window->getInput();
+        return m_window->getInput();
     }
 
-    [[nodiscard]] GLFWwindow* getGLFWWindow() const {
-        return m_Window->getGLFWWindow();
+    [[nodiscard]] GLFWwindow* getGlfwWindow() const {
+        return m_window->getGlfwWindow();
     }
 
     [[nodiscard]] World& getWorld() {
-        return m_World;
+        return m_world;
     }
 
     Camera& getCamera() {
-        return m_Camera;
+        return m_camera;
     }
 
     ApplicationData& getApplicationData() {
-        return m_ApplicationData;
+        return m_applicationData;
     }
 
     template<typename T>
     std::shared_ptr<T> getSystem() {
-        for (const auto& layer : m_Layers) {
+        for (const auto& layer : m_layers) {
             if (auto system = layer->getSystem<T>()) {
                 return system;
             }
@@ -70,12 +70,12 @@ public:
 private:
     Application() = default;
 
-    std::vector<std::shared_ptr<Layer>> m_Layers;
-    std::unique_ptr<Window> m_Window;
-    World m_World;
-    Camera m_Camera;
+    std::vector<std::shared_ptr<Layer>> m_layers;
+    std::unique_ptr<Window> m_window;
+    World m_world;
+    Camera m_camera;
 
-    ApplicationData m_ApplicationData;
+    ApplicationData m_applicationData;
 
     void onEvent(Event &event);
 

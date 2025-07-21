@@ -12,8 +12,8 @@ public:
 
     void onEvent(Event &event) override;
 
-    explicit VoxWorldLoaderSystem(const int modelIndex) : System(), m_ModelIndex(modelIndex) { }
+    explicit VoxWorldLoaderSystem(const int modelIndex) : System(), m_modelIndex(modelIndex) { }
 
 private:
-    int m_ModelIndex;
+    int m_modelIndex;
 };

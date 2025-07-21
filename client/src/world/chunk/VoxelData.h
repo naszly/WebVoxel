@@ -64,6 +64,6 @@ inline AmbientOcclusion& operator&=(AmbientOcclusion& a, const AmbientOcclusion 
     return a;
 }
 
-struct VertexDataAO : VertexData {
+struct VertexDataAo : VertexData {
     AmbientOcclusion ambientOcclusion{};
 };

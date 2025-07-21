@@ -20,10 +20,10 @@ public:
     virtual void onEvent(Event& event) = 0;
 
 protected:
-    static Camera& GetCamera();
-    static const Input& GetInput();
-    static World& GetWorld();
-    static const WebGPUContext& GetWebGPUContext();
-    static const WebGPUSurface& GetWebGPUSurface();
-    static GLFWwindow* GetGLFWWindow();
+    static Camera& getCamera();
+    static const Input& getInput();
+    static World& getWorld();
+    static const WebGpuContext& getWebGpuContext();
+    static const WebGpuSurface& getWebGpuSurface();
+    static GLFWwindow* getGlfwWindow();
 };

@@ -10,28 +10,28 @@
 #include <emscripten/emscripten.h>
 #endif
 
-class WebGPUContext {
+class WebGpuContext {
 public:
-    WebGPUContext();
-    ~WebGPUContext();
+    WebGpuContext();
+    ~WebGpuContext();
 
-    WebGPUContext(const WebGPUContext&) = delete;
-    WebGPUContext(WebGPUContext&&) = delete;
-    WebGPUContext& operator=(const WebGPUContext&) = delete;
-    WebGPUContext& operator=(WebGPUContext&&) = delete;
+    WebGpuContext(const WebGpuContext&) = delete;
+    WebGpuContext(WebGpuContext&&) = delete;
+    WebGpuContext& operator=(const WebGpuContext&) = delete;
+    WebGpuContext& operator=(WebGpuContext&&) = delete;
 
-    [[nodiscard]] const WGPUInstance& getInstance() const { return m_Instance; }
+    [[nodiscard]] const WGPUInstance& getInstance() const { return m_instance; }
 
-    [[nodiscard]] const WGPUAdapter& getAdapter() const { return m_Adapter; }
+    [[nodiscard]] const WGPUAdapter& getAdapter() const { return m_adapter; }
 
-    [[nodiscard]] const WGPUDevice& getDevice() const { return m_Device; }
+    [[nodiscard]] const WGPUDevice& getDevice() const { return m_device; }
 
     void pollEvents() const;
 
 private:
-    WGPUInstance m_Instance{};
-    WGPUAdapter m_Adapter{};
-    WGPUDevice m_Device{};
+    WGPUInstance m_instance{};
+    WGPUAdapter m_adapter{};
+    WGPUDevice m_device{};
 
     void createInstance();
     void requestAdapter();

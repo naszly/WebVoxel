@@ -52,5 +52,5 @@ namespace Impl {
 }
 
 using LogCore = Impl::Log<0>;
-using LogWebGPU = Impl::Log<1>;
+using LogWebGpu = Impl::Log<1>;
 using LogApp = Impl::Log<2>;

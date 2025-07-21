@@ -13,15 +13,15 @@ public:
     World& operator=(const World&) = delete;
     World& operator=(World&&) = delete;
 
-    [[nodiscard]] auto getChunks() { return m_Chunks.getChunks(); }
+    [[nodiscard]] auto getChunks() { return m_chunks.getChunks(); }
 
-    Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_Chunks.tryGetChunk(chunkPos); }
+    Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
 
     ChunkNeighbours getChunkNeighbours(const glm::ivec3 &chunkPos) const;
 
     ExtendedChukNeighbours getExtendedChunkNeighbours(const glm::ivec3 &chunkPos) const;
 
-    [[nodiscard]] auto countChunks() const { return m_Chunks.countChunks(); }
+    [[nodiscard]] auto countChunks() const { return m_chunks.countChunks(); }
 
     [[nodiscard]] bool hasChunk(const glm::ivec3 &chunkPos) const;
 
@@ -44,5 +44,5 @@ public:
     void removeVoxel(const WorldCoordinate &coord, int64_t radius, bool isSphere = true);
 
 private:
-    ChunkMap m_Chunks;
+    ChunkMap m_chunks;
 };

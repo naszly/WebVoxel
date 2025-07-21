@@ -20,21 +20,21 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    m_Window = glfwCreateWindow(config.width, config.height, config.title, nullptr, nullptr);
+    m_window = glfwCreateWindow(config.width, config.height, config.title, nullptr, nullptr);
 
-    if (!m_Window) {
+    if (!m_window) {
         glfwTerminate();
         throw Exception("Failed to create GLFW window");
     }
 
-    m_Input = std::make_unique<Input>(m_Window);
+    m_input = std::make_unique<Input>(m_window);
 
-    glfwSetWindowUserPointer(m_Window, this);
+    glfwSetWindowUserPointer(m_window, this);
 
-    m_WebGPUContext = std::make_shared<WebGPUContext>();
-    m_WebGPUSurface = std::make_unique<WebGPUSurface>(m_Window, m_WebGPUContext);
+    m_webGpuContext = std::make_shared<WebGpuContext>();
+    m_webGpuSurface = std::make_unique<WebGpuSurface>(m_window, m_webGpuContext);
 
-    glfwSetKeyCallback(m_Window, [](GLFWwindow *glfwWindow, const int key, const int scancode, const int action, const int mods) {
+    glfwSetKeyCallback(m_window, [](GLFWwindow *glfwWindow, const int key, const int scancode, const int action, const int mods) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         switch (action) {
@@ -60,7 +60,7 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
         }
     });
 
-    glfwSetMouseButtonCallback(m_Window, [](GLFWwindow *glfwWindow, const int button, const int action, const int mods) {
+    glfwSetMouseButtonCallback(m_window, [](GLFWwindow *glfwWindow, const int button, const int action, const int mods) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         switch (action) {
@@ -81,24 +81,24 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
         }
     });
 
-    glfwSetScrollCallback(m_Window, [](GLFWwindow *glfwWindow, const double xOffset, const double yOffset) {
+    glfwSetScrollCallback(m_window, [](GLFWwindow *glfwWindow, const double xOffset, const double yOffset) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         MouseScrolledEvent event(static_cast<float>(xOffset), static_cast<float>(yOffset));
         window->m_eventCallback(event);
     });
 
-    glfwSetCursorPosCallback(m_Window, [](GLFWwindow *glfwWindow, const double xPos, const double yPos) {
+    glfwSetCursorPosCallback(m_window, [](GLFWwindow *glfwWindow, const double xPos, const double yPos) {
         const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         MouseMovedEvent event(static_cast<float>(xPos), static_cast<float>(yPos));
         window->m_eventCallback(event);
     });
 
-    glfwSetWindowSizeCallback(m_Window, [](GLFWwindow *glfwWindow, const int width, const int height) {
+    glfwSetWindowSizeCallback(m_window, [](GLFWwindow *glfwWindow, const int width, const int height) {
         Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
-        window->m_WebGPUSurface->resize();
+        window->m_webGpuSurface->resize();
 
         WindowResizedEvent event(width, height);
         window->m_eventCallback(event);
@@ -106,17 +106,17 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
 }
 
 Window::~Window() {
-    m_WebGPUSurface = nullptr;
-    glfwDestroyWindow(m_Window);
+    m_webGpuSurface = nullptr;
+    glfwDestroyWindow(m_window);
     glfwTerminate();
 }
 
 bool Window::shouldClose() {
-    return glfwWindowShouldClose(m_Window) == GLFW_TRUE;
+    return glfwWindowShouldClose(m_window) == GLFW_TRUE;
 }
 
 void Window::close() {
-    glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
+    glfwSetWindowShouldClose(m_window, GLFW_TRUE);
 }
 
 void Window::pollEvents() {

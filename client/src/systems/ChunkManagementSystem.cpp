@@ -1,17 +1,17 @@
 #include "ChunkManagementSystem.h"
 
 void ChunkManagementSystem::initialize() {
-    for (auto& worker : m_LoadChunksWorkers) {
+    for (auto& worker : m_loadChunksWorkers) {
         worker = std::make_unique<Threading::Worker>();
         worker->start(ChunkManagementSystem::worker, this);
     }
 }
 
 void ChunkManagementSystem::update(float dt) {
-    const Camera& camera = GetCamera();
-    World& world = GetWorld();
+    const Camera& camera = getCamera();
+    World& world = getWorld();
 
-    if (!m_SaveInProgress) {
+    if (!m_saveInProgress) {
         loadChunks(camera, world);
 
         unloadChunks(camera, world);
@@ -19,25 +19,25 @@ void ChunkManagementSystem::update(float dt) {
 }
 
 void ChunkManagementSystem::saveAllChunks() {
-    Threading::ScopedLock lock(&m_Lock);
+    Threading::ScopedLock lock(&m_lock);
 
-    if (m_SaveInProgress)
+    if (m_saveInProgress)
         return;
 
-    m_SaveInProgress = true;
+    m_saveInProgress = true;
 
-    m_SaveChunksWorker = std::make_unique<Threading::Worker>();
+    m_saveChunksWorker = std::make_unique<Threading::Worker>();
 
-    m_SaveChunksWorker->start(saveAllChunksWorker, this);
+    m_saveChunksWorker->start(saveAllChunksWorker, this);
 }
 
 void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
-    Threading::ScopedLock lock(&m_Lock);
+    Threading::ScopedLock lock(&m_lock);
 
-    for (auto& chunk : m_LoadedChunks) {
+    for (auto& chunk : m_loadedChunks) {
         world.moveChunk(chunk);
     }
-    m_LoadedChunks.clear();
+    m_loadedChunks.clear();
 
     updateLoadQueue(camera, world);
 }
@@ -62,7 +62,7 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
         return getChunkDistance(playerPosition, a) < getChunkDistance(playerPosition, b);
     });
 
-    m_LoadQueue = chunksToLoad;
+    m_loadQueue = chunksToLoad;
 }
 
 void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
@@ -93,16 +93,16 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
 void* ChunkManagementSystem::worker(void *arg) {
     const auto system = static_cast<ChunkManagementSystem*>(arg);
     std::optional<glm::ivec3> chunkToLoad = std::nullopt;
-    while (!system->m_ShouldExit) {
+    while (!system->m_shouldExit) {
         {
-            Threading::ScopedLock lock(&system->m_Lock);
-            if (!system->m_LoadQueue.empty()) {
-                chunkToLoad = system->m_LoadQueue.front();
+            Threading::ScopedLock lock(&system->m_lock);
+            if (!system->m_loadQueue.empty()) {
+                chunkToLoad = system->m_loadQueue.front();
             }
         }
 
         if (!chunkToLoad.has_value()) {
-            Threading::Sleep(200);
+            Threading::sleep(200);
         } else {
             const auto chunkPos = chunkToLoad.value();
             Chunk chunk(chunkPos);
@@ -118,11 +118,11 @@ void* ChunkManagementSystem::worker(void *arg) {
 
             chunkToLoad = std::nullopt;
 
-            Threading::ScopedLock lock(&system->m_Lock);
+            Threading::ScopedLock lock(&system->m_lock);
 
-            system->m_LoadedChunks.emplace_back(std::move(chunk));
-            if (auto it = std::ranges::find(system->m_LoadQueue, chunkPos); it != system->m_LoadQueue.end()) {
-                system->m_LoadQueue.erase(it);
+            system->m_loadedChunks.emplace_back(std::move(chunk));
+            if (auto it = std::ranges::find(system->m_loadQueue, chunkPos); it != system->m_loadQueue.end()) {
+                system->m_loadQueue.erase(it);
             }
         }
     }
@@ -133,11 +133,11 @@ void* ChunkManagementSystem::worker(void *arg) {
 void* ChunkManagementSystem::saveAllChunksWorker(void *arg) {
     const auto system = static_cast<ChunkManagementSystem*>(arg);
 
-    World& world = GetWorld();
+    World& world = getWorld();
     std::vector<glm::ivec3 > chunksToSave;
 
     {
-        Threading::ScopedLock lock(&system->m_Lock);
+        Threading::ScopedLock lock(&system->m_lock);
 
         for (auto& chunk : world.getChunks()) {
             chunksToSave.push_back(chunk.getPosition());
@@ -151,7 +151,7 @@ void* ChunkManagementSystem::saveAllChunksWorker(void *arg) {
         }
     }
 
-    system->m_SaveInProgress = false;
+    system->m_saveInProgress = false;
 
     return nullptr;
 }

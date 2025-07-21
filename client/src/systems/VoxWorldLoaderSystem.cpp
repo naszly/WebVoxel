@@ -22,7 +22,7 @@ void VoxWorldLoaderSystem::initialize() {
         {0,46,0},
     };
 
-    const std::vector<char> buffer = FileSystem::ReadFileNative(models[m_ModelIndex]);
+    const std::vector<char> buffer = FileSystem::readFileNative(models[m_modelIndex]);
     const ogt_vox_scene* scene = ogt_vox_read_scene(reinterpret_cast<const uint8_t *>(buffer.data()), buffer.size());
 
     if (!scene) {
@@ -36,7 +36,7 @@ void VoxWorldLoaderSystem::initialize() {
     LogApp::info("scene->num_groups: {0}", scene->num_groups);
     LogApp::info("scene->num_cameras: {0}", scene->num_cameras);
 
-    World& world = GetWorld();
+    World& world = getWorld();
 
     for (uint32_t i = 0; i < scene->num_instances; ++i) {
         const ogt_vox_instance& instance = scene->instances[i];
@@ -46,7 +46,7 @@ void VoxWorldLoaderSystem::initialize() {
 
         const auto magicOffset = glm::ivec3(instance.transform.m30 - model->size_x / 2.0,
                                             instance.transform.m32 - model->size_z / 2.0,
-                                            instance.transform.m31 - model->size_y / 2.0) - offsets[m_ModelIndex];
+                                            instance.transform.m31 - model->size_y / 2.0) - offsets[m_modelIndex];
 
         const auto size = glm::ivec3(model->size_x, model->size_z, model->size_y);
 

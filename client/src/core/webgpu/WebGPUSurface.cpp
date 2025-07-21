@@ -11,67 +11,67 @@
 
 #include <magic_enum.hpp>
 
-WebGPUSurface::WebGPUSurface(GLFWwindow *window, const std::shared_ptr<WebGPUContext>& context) : m_Context(context), m_Window(window) {
+WebGpuSurface::WebGpuSurface(GLFWwindow *window, const std::shared_ptr<WebGpuContext>& context) : m_context(context), m_window(window) {
 
-    m_Surface = glfwCreateWindowWGPUSurface(context->getInstance(), window);
+    m_surface = glfwCreateWindowWGPUSurface(context->getInstance(), window);
 
-    if (!m_Surface) {
+    if (!m_surface) {
         throw Exception("Failed to create WebGPU surface");
     }
 
     WGPUSurfaceCapabilities capabilities = {};
-    wgpuSurfaceGetCapabilities(m_Surface, context->getAdapter(), &capabilities);
+    wgpuSurfaceGetCapabilities(m_surface, context->getAdapter(), &capabilities);
 
     const auto preferredFormats = {
         WGPUTextureFormat_BGRA8Unorm, WGPUTextureFormat_RGBA8Unorm
     };
 
-    m_SurfaceFormat = getPreferredFormat(capabilities, preferredFormats);
+    m_surfaceFormat = getPreferredFormat(capabilities, preferredFormats);
 
-    m_PresentMode = WGPUPresentMode_Fifo;
+    m_presentMode = WGPUPresentMode_Fifo;
     for (uint32_t i = 0; i < capabilities.presentModeCount; ++i) {
         if (capabilities.presentModes[i] == WGPUPresentMode_Immediate) {
-            m_PresentMode = WGPUPresentMode_Immediate;
+            m_presentMode = WGPUPresentMode_Immediate;
             break;
         }
         if (capabilities.presentModes[i] == WGPUPresentMode_Mailbox) {
-            m_PresentMode = WGPUPresentMode_Mailbox;
+            m_presentMode = WGPUPresentMode_Mailbox;
         }
     }
 
     configureSurface();
 
     LogCore::info("WebGPU surface created: {0}, format: {1}, present mode: {2}",
-              reinterpret_cast<size_t>(m_Surface),
-              magic_enum::enum_name(m_SurfaceFormat),
-              magic_enum::enum_name(m_PresentMode));
+              reinterpret_cast<size_t>(m_surface),
+              magic_enum::enum_name(m_surfaceFormat),
+              magic_enum::enum_name(m_presentMode));
 }
 
-WebGPUSurface::~WebGPUSurface() {
-    auto surface = reinterpret_cast<size_t>(m_Surface);
-    wgpuSurfaceRelease(m_Surface);
+WebGpuSurface::~WebGpuSurface() {
+    auto surface = reinterpret_cast<size_t>(m_surface);
+    wgpuSurfaceRelease(m_surface);
     LogCore::info("WebGPU surface released: {0}", surface);
 }
 
-void WebGPUSurface::configureSurface() {
-    glfwGetFramebufferSize(m_Window, &m_Width, &m_Height);
+void WebGpuSurface::configureSurface() {
+    glfwGetFramebufferSize(m_window, &m_width, &m_height);
 
     WGPUSurfaceConfiguration config = {};
     config.nextInChain = nullptr;
-    config.device = m_Context->getDevice();
-    config.format = m_SurfaceFormat;
+    config.device = m_context->getDevice();
+    config.format = m_surfaceFormat;
     config.usage = WGPUTextureUsage_RenderAttachment;
     config.viewFormatCount = 0;
     config.viewFormats = nullptr;
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
-    config.width = m_Width;
-    config.height = m_Height;
-    config.presentMode = m_PresentMode;
+    config.width = m_width;
+    config.height = m_height;
+    config.presentMode = m_presentMode;
 
-    wgpuSurfaceConfigure(m_Surface, &config);
+    wgpuSurfaceConfigure(m_surface, &config);
 }
 
-WGPUTextureFormat WebGPUSurface::getPreferredFormat(const WGPUSurfaceCapabilities &capabilities,
+WGPUTextureFormat WebGpuSurface::getPreferredFormat(const WGPUSurfaceCapabilities &capabilities,
                                                     const std::initializer_list<WGPUTextureFormat> preferredFormats) {
     std::vector availableFormats(capabilities.formats, capabilities.formats + capabilities.formatCount);
 

@@ -6,7 +6,7 @@
 #include <chrono>
 #include <ranges>
 
-Application & Application::GetInstance() {
+Application & Application::getInstance() {
     static Application instance;
     return instance;
 }
@@ -19,21 +19,21 @@ void Application::emscriptenMainLoop(void* arg) {
 #endif
 
 void Application::start(const int width, const int height) {
-    m_Window = Window::create({
+    m_window = Window::create({
             .width=width,
             .height=height,
             .title="Voxel WebGPU",
             .eventCallback=[this](Event &event) { onEvent(event); }
         });
 
-    for (const auto& layer : m_Layers) {
+    for (const auto& layer : m_layers) {
         layer->initialize();
     }
 
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(Application::emscriptenMainLoop, this, 0, true);
 #else
-    while (!m_Window->shouldClose()) {
+    while (!m_window->shouldClose()) {
         mainLoop();
     }
 #endif
@@ -45,12 +45,12 @@ void Application::stop() {
 #if defined(__EMSCRIPTEN__)
     emscripten_cancel_main_loop();
 #else
-    m_Window->close();
+    m_window->close();
 #endif
 }
 
 void Application::onEvent(Event &event) {
-    for (const auto & layer : std::ranges::reverse_view(m_Layers)) {
+    for (const auto & layer : std::ranges::reverse_view(m_layers)) {
         layer->onEvent(event);
         if (event.handled) {
             break;
@@ -59,15 +59,15 @@ void Application::onEvent(Event &event) {
 }
 
 void Application::update(const float deltaTime) {
-    m_Window->pollEvents();
+    m_window->pollEvents();
 
-    for (const auto& layer : m_Layers) {
+    for (const auto& layer : m_layers) {
         layer->update(deltaTime);
     }
 }
 
 WGPUTextureView Application::getNextSurfaceTextureView() const {
-    const auto surface = getWebGPUSurface().getSurface();
+    const auto surface = getWebGpuSurface().getSurface();
     // Get the surface texture
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
@@ -97,8 +97,8 @@ WGPUTextureView Application::getNextSurfaceTextureView() const {
 }
 
 void Application::render() {
-    auto device = getWebGPUContext()->getDevice();
-    const auto surface = getWebGPUSurface().getSurface();
+    auto device = getWebGpuContext()->getDevice();
+    const auto surface = getWebGpuSurface().getSurface();
     const auto queue = wgpuDeviceGetQueue(device);
 
     // Create a command encoder for the draw call
@@ -111,7 +111,7 @@ void Application::render() {
     WGPUTextureView targetView = getNextSurfaceTextureView();
     if (!targetView) return;
 
-    for (const auto& layer : m_Layers) {
+    for (const auto& layer : m_layers) {
         layer->render(encoder, targetView);
     }
 

@@ -36,26 +36,26 @@ public:
 
     void pollEvents();
 
-    [[nodiscard]] std::shared_ptr<WebGPUContext> getWebGPUContext() const {
-        return m_WebGPUContext;
+    [[nodiscard]] std::shared_ptr<WebGpuContext> getWebGpuContext() const {
+        return m_webGpuContext;
     }
 
-    [[nodiscard]] const WebGPUSurface& getWebGPUSurface() const {
-        return *m_WebGPUSurface;
+    [[nodiscard]] const WebGpuSurface& getWebGpuSurface() const {
+        return *m_webGpuSurface;
     }
 
     [[nodiscard]] const Input& getInput() const {
-        return *m_Input;
+        return *m_input;
     }
 
-    [[nodiscard]] GLFWwindow* getGLFWWindow() const {
-        return m_Window;
+    [[nodiscard]] GLFWwindow* getGlfwWindow() const {
+        return m_window;
     }
 
 private:
-    GLFWwindow* m_Window;
-    std::shared_ptr<WebGPUContext> m_WebGPUContext;
-    std::unique_ptr<WebGPUSurface> m_WebGPUSurface;
-    std::unique_ptr<Input> m_Input;
+    GLFWwindow* m_window;
+    std::shared_ptr<WebGpuContext> m_webGpuContext;
+    std::unique_ptr<WebGpuSurface> m_webGpuSurface;
+    std::unique_ptr<Input> m_input;
     EventCallbackFn m_eventCallback;
 };

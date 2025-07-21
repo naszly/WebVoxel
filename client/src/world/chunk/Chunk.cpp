@@ -8,31 +8,31 @@
 void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
     const Timer timer("Chunk::generate");
 
-    if (m_Position.y >= 0 && m_Position.y * WIDTH < 256) {
+    if (m_position.y >= 0 && m_position.y * WIDTH < 256) {
         std::vector<float> noise(WIDTH * WIDTH);
 
-        const size_t xStart = m_Position.z * WIDTH;
-        const size_t yStart = m_Position.x * WIDTH;
+        const size_t xStart = m_position.z * WIDTH;
+        const size_t yStart = m_position.x * WIDTH;
         fnGenerator->GenUniformGrid2D(noise.data(), xStart, yStart, WIDTH, WIDTH, 0.0004f, 0);
 
         for (int i = 0; i < WIDTH; i++) {
             for (int j = 0; j < WIDTH; j++) {
                 for (int k = 0; k < WIDTH; k++) {
                     const int noiseValue = static_cast<int>((noise[i * WIDTH + k] * 0.5 + 0.5) * 255);
-                    const int height = m_Position.y * WIDTH + j;
+                    const int height = m_position.y * WIDTH + j;
                     if (noiseValue == height) {
-                        m_Data.setVoxel(i, j, k, VoxelData(0, 160 + (random() % 64), 0));
+                        m_data.setVoxel(i, j, k, VoxelData(0, 160 + (random() % 64), 0));
                     } else if (noiseValue > height) {
-                        m_Data.setVoxel(i, j, k, VoxelData(135 + (random() % 20 - 10), 69 + (random() % 20 - 10), 19 + (random() % 20 - 10)));
+                        m_data.setVoxel(i, j, k, VoxelData(135 + (random() % 20 - 10), 69 + (random() % 20 - 10), 19 + (random() % 20 - 10)));
                     }
                 }
             }
         }
-    } else if (m_Position.y < 0) {
+    } else if (m_position.y < 0) {
         for (int i = 0; i < WIDTH; i++) {
             for (int j = 0; j < WIDTH; j++) {
                 for (int k = 0; k < WIDTH; k++) {
-                    m_Data.setVoxel(i, j, k, VoxelData(66 + (random() % 8), 67 + (random() % 8), 69 + (random() % 10)));
+                    m_data.setVoxel(i, j, k, VoxelData(66 + (random() % 8), 67 + (random() % 8), 69 + (random() % 10)));
                 }
             }
         }
@@ -42,26 +42,26 @@ void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
 bool Chunk::fileExists() const {
     const std::string &fileName = getFileName();
 
-    return FileSystem::FileExists(fileName);
+    return FileSystem::fileExists(fileName);
 }
 
 void Chunk::save() {
     const std::string &fileName = getFileName();
 
     std::ostringstream oss;
-    m_Data.serialize(oss);
+    m_data.serialize(oss);
 
-    FileSystem::WriteFile(fileName, oss.str().data(), oss.str().size());
+    FileSystem::writeFile(fileName, oss.str().data(), oss.str().size());
 }
 
 void Chunk::load() {
     Timer timer("Chunk::load");
 
     const std::string &fileName = getFileName();
-    const std::vector<char> data = FileSystem::ReadFile(fileName);
+    const std::vector<char> data = FileSystem::readFile(fileName);
 
     std::istringstream iss(std::string(data.begin(), data.end()));
-    m_Data.deserialize(iss);
+    m_data.deserialize(iss);
 
     if (iss.fail()) {
         LogCore::error("Failed to deserialize chunk data from file: {}", fileName);
@@ -70,8 +70,8 @@ void Chunk::load() {
     }
 }
 
-void Chunk::CleanFs() {
-    FileSystem::CleanFiles(".chunk");
+void Chunk::cleanFs() {
+    FileSystem::cleanFiles(".chunk");
 }
 
 std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const ChunkNeighbours &chunkNeighbours) {
@@ -79,12 +79,12 @@ std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const 
         return std::nullopt;
     }
     return SparseVoxelOctTree::Neighbours{
-        .xMinus = chunkNeighbours.xMinus->m_Data,
-        .xPlus = chunkNeighbours.xPlus->m_Data,
-        .yMinus = chunkNeighbours.yMinus->m_Data,
-        .yPlus = chunkNeighbours.yPlus->m_Data,
-        .zMinus = chunkNeighbours.zMinus->m_Data,
-        .zPlus = chunkNeighbours.zPlus->m_Data,
+        .xMinus = chunkNeighbours.xMinus->m_data,
+        .xPlus = chunkNeighbours.xPlus->m_data,
+        .yMinus = chunkNeighbours.yMinus->m_data,
+        .yPlus = chunkNeighbours.yPlus->m_data,
+        .zMinus = chunkNeighbours.zMinus->m_data,
+        .zPlus = chunkNeighbours.zPlus->m_data,
     };
 }
 
@@ -93,33 +93,33 @@ std::optional<Chunk::SparseVoxelOctTree::ExtendedNeighbours> Chunk::getNeighbour
         return std::nullopt;
     }
     return SparseVoxelOctTree::ExtendedNeighbours{
-        .xMinus = chunkNeighbours.xMinus->m_Data,
-        .xPlus = chunkNeighbours.xPlus->m_Data,
-        .yMinus = chunkNeighbours.yMinus->m_Data,
-        .yPlus = chunkNeighbours.yPlus->m_Data,
-        .zMinus = chunkNeighbours.zMinus->m_Data,
-        .zPlus = chunkNeighbours.zPlus->m_Data,
+        .xMinus = chunkNeighbours.xMinus->m_data,
+        .xPlus = chunkNeighbours.xPlus->m_data,
+        .yMinus = chunkNeighbours.yMinus->m_data,
+        .yPlus = chunkNeighbours.yPlus->m_data,
+        .zMinus = chunkNeighbours.zMinus->m_data,
+        .zPlus = chunkNeighbours.zPlus->m_data,
 
-        .xMinusYMinus = chunkNeighbours.xMinusYMinus->m_Data,
-        .xMinusYPlus = chunkNeighbours.xMinusYPlus->m_Data,
-        .xMinusZMinus = chunkNeighbours.xMinusZMinus->m_Data,
-        .xMinusZPlus = chunkNeighbours.xMinusZPlus->m_Data,
-        .xPlusYMinus = chunkNeighbours.xPlusYMinus->m_Data,
-        .xPlusYPlus = chunkNeighbours.xPlusYPlus->m_Data,
-        .xPlusZMinus = chunkNeighbours.xPlusZMinus->m_Data,
-        .xPlusZPlus = chunkNeighbours.xPlusZPlus->m_Data,
-        .yMinusZMinus = chunkNeighbours.yMinusZMinus->m_Data,
-        .yMinusZPlus = chunkNeighbours.yMinusZPlus->m_Data,
-        .yPlusZMinus = chunkNeighbours.yPlusZMinus->m_Data,
-        .yPlusZPlus = chunkNeighbours.yPlusZPlus->m_Data,
+        .xMinusYMinus = chunkNeighbours.xMinusYMinus->m_data,
+        .xMinusYPlus = chunkNeighbours.xMinusYPlus->m_data,
+        .xMinusZMinus = chunkNeighbours.xMinusZMinus->m_data,
+        .xMinusZPlus = chunkNeighbours.xMinusZPlus->m_data,
+        .xPlusYMinus = chunkNeighbours.xPlusYMinus->m_data,
+        .xPlusYPlus = chunkNeighbours.xPlusYPlus->m_data,
+        .xPlusZMinus = chunkNeighbours.xPlusZMinus->m_data,
+        .xPlusZPlus = chunkNeighbours.xPlusZPlus->m_data,
+        .yMinusZMinus = chunkNeighbours.yMinusZMinus->m_data,
+        .yMinusZPlus = chunkNeighbours.yMinusZPlus->m_data,
+        .yPlusZMinus = chunkNeighbours.yPlusZMinus->m_data,
+        .yPlusZPlus = chunkNeighbours.yPlusZPlus->m_data,
 
-        .xMinusYMinusZMinus = chunkNeighbours.xMinusYMinusZMinus->m_Data,
-        .xMinusYMinusZPlus = chunkNeighbours.xMinusYMinusZPlus->m_Data,
-        .xMinusYPlusZMinus = chunkNeighbours.xMinusYPlusZMinus->m_Data,
-        .xMinusYPlusZPlus = chunkNeighbours.xMinusYPlusZPlus->m_Data,
-        .xPlusYMinusZMinus = chunkNeighbours.xPlusYMinusZMinus->m_Data,
-        .xPlusYMinusZPlus = chunkNeighbours.xPlusYMinusZPlus->m_Data,
-        .xPlusYPlusZMinus = chunkNeighbours.xPlusYPlusZMinus->m_Data,
-        .xPlusYPlusZPlus = chunkNeighbours.xPlusYPlusZPlus->m_Data,
+        .xMinusYMinusZMinus = chunkNeighbours.xMinusYMinusZMinus->m_data,
+        .xMinusYMinusZPlus = chunkNeighbours.xMinusYMinusZPlus->m_data,
+        .xMinusYPlusZMinus = chunkNeighbours.xMinusYPlusZMinus->m_data,
+        .xMinusYPlusZPlus = chunkNeighbours.xMinusYPlusZPlus->m_data,
+        .xPlusYMinusZMinus = chunkNeighbours.xPlusYMinusZMinus->m_data,
+        .xPlusYMinusZPlus = chunkNeighbours.xPlusYMinusZPlus->m_data,
+        .xPlusYPlusZMinus = chunkNeighbours.xPlusYPlusZMinus->m_data,
+        .xPlusYPlusZPlus = chunkNeighbours.xPlusYPlusZPlus->m_data,
     };
 }

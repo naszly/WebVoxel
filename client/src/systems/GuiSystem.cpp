@@ -29,7 +29,7 @@ void GuiSystem::initialize() {
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
 
-    GLFWwindow *window = GetGLFWWindow();
+    GLFWwindow *window = getGlfwWindow();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOther(window, true);
@@ -37,8 +37,8 @@ void GuiSystem::initialize() {
     ImGui_ImplGlfw_InstallEmscriptenCallbacks(window, "#canvas");
 #endif
     ImGui_ImplWGPU_InitInfo initInfo{};
-    initInfo.Device = GetWebGPUContext().getDevice();
-    initInfo.RenderTargetFormat = GetWebGPUSurface().getSurfaceFormat();
+    initInfo.Device = getWebGpuContext().getDevice();
+    initInfo.RenderTargetFormat = getWebGpuSurface().getSurfaceFormat();
     ImGui_ImplWGPU_Init(&initInfo);
 
 #ifdef __EMSCRIPTEN__
@@ -47,16 +47,16 @@ void GuiSystem::initialize() {
     io.IniFilename = nullptr;
 #endif
 
-    if (const auto rendererSystem = Application::GetInstance().getSystem<RendererSystem>()) {
-        m_ambient_occlusion = rendererSystem->getAmbientOcclusion();
+    if (const auto rendererSystem = Application::getInstance().getSystem<RendererSystem>()) {
+        m_ambientOcclusion = rendererSystem->getAmbientOcclusion();
     }
 }
 
 void GuiSystem::setImGuiDisplaySize() {
     ImGuiIO& io = ImGui::GetIO();
 
-    const int surfaceWidth = GetWebGPUSurface().getWidth();
-    const int surfaceHeight = GetWebGPUSurface().getHeight();
+    const int surfaceWidth = getWebGpuSurface().getWidth();
+    const int surfaceHeight = getWebGpuSurface().getHeight();
 
     io.DisplaySize = ImVec2(static_cast<float>(surfaceWidth), static_cast<float>(surfaceHeight));
     io.DisplayFramebufferScale = ImVec2(1, 1);
@@ -74,8 +74,8 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     // Draw crosshair in the center of the screen
     {
         ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-        const int screenWidth = GetWebGPUSurface().getWidth();
-        const int screenHeight = GetWebGPUSurface().getHeight();
+        const int screenWidth = getWebGpuSurface().getWidth();
+        const int screenHeight = getWebGpuSurface().getHeight();
         const float centerX = static_cast<float>(screenWidth) / 2.0f;
         const float centerY = static_cast<float>(screenHeight) / 2.0f;
 
@@ -106,7 +106,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::End();
 
-    ApplicationData &appData = Application::GetInstance().getApplicationData();
+    ApplicationData &appData = Application::getInstance().getApplicationData();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
@@ -118,19 +118,19 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     const double frameTime = currentTime - lastTime;
     lastTime = currentTime;
     ImGui::Text("Frame Time: %.3f ms", frameTime * 1000.0f);
-    ImGui::Text("Chunks: %zu", GetWorld().countChunks());
+    ImGui::Text("Chunks: %zu", getWorld().countChunks());
     ImGui::Text("Rendered Chunks: %zu", appData.renderedChunks);
     ImGui::Text("Rendered Voxels: %zu", appData.renderedVoxels);
-    const auto position = GetCamera().getPosition();
-    const auto direction = GetCamera().getDirection();
+    const auto position = getCamera().getPosition();
+    const auto direction = getCamera().getDirection();
     ImGui::Text("Position: (%.2f, %.2f, %.2f)", position.x, position.y, position.z);
     ImGui::Text("Direction: (%.2f, %.2f, %.2f)", direction.x, direction.y, direction.z);
 
     if (ImGui::Button("Clean FS")) {
-        Chunk::CleanFs();
+        Chunk::cleanFs();
     }
 
-    if (const auto chunkManager = Application::GetInstance().getSystem<ChunkManagementSystem>()) {
+    if (const auto chunkManager = Application::getInstance().getSystem<ChunkManagementSystem>()) {
         ImGui::SameLine();
         ImGui::BeginDisabled(chunkManager->isSaveInProgress());
         if (ImGui::Button("Save All Chunks")) {
@@ -139,13 +139,13 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         ImGui::EndDisabled();
     }
 
-    if (const auto renderer = Application::GetInstance().getSystem<RendererSystem>()) {
+    if (const auto renderer = Application::getInstance().getSystem<RendererSystem>()) {
         if (ImGui::Button("Export timestamps")) {
             renderer->exportTimestamps();
         }
     }
 
-    ImGui::Checkbox("Ambient occlusion", &m_ambient_occlusion);
+    ImGui::Checkbox("Ambient occlusion", &m_ambientOcclusion);
     ImGui::Checkbox("Lighting", &m_lighting);
     ImGui::Checkbox("Fog", &m_fog);
 
@@ -185,9 +185,9 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 }
 
 void GuiSystem::update(float dt) {
-    if (const auto rendererSystem = Application::GetInstance().getSystem<RendererSystem>()) {
-        if (rendererSystem->getAmbientOcclusion() != m_ambient_occlusion) {
-            rendererSystem->setAmbientOcclusion(m_ambient_occlusion);
+    if (const auto rendererSystem = Application::getInstance().getSystem<RendererSystem>()) {
+        if (rendererSystem->getAmbientOcclusion() != m_ambientOcclusion) {
+            rendererSystem->setAmbientOcclusion(m_ambientOcclusion);
         }
         if (rendererSystem->getLighting() != m_lighting) {
             rendererSystem->setLighting(m_lighting);
