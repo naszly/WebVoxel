@@ -146,7 +146,7 @@ void* ChunkManagementSystem::saveAllChunksWorker(void *arg) {
 
     // this might give a segfault in rare cases...
     for (auto& chunkPos : chunksToSave) {
-        if (const Chunk* chunk = world.tryGetChunk(chunkPos)) {
+        if (Chunk* chunk = world.tryGetChunk(chunkPos)) {
             chunk->save();
         }
     }

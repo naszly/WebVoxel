@@ -170,7 +170,7 @@ public:
 
     [[nodiscard]] bool fileExists() const;
 
-    void save() const;
+    void save();
 
     void load();
 

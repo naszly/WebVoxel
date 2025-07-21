@@ -32,7 +32,7 @@ public:
         return m_bitmap.test(i);
     }
 
-    void serialize(std::ostringstream& os) const {
+    void serialize(std::ostringstream& os) {
         m_tree.serialize(os);
     }
 

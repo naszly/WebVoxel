@@ -45,7 +45,7 @@ bool Chunk::fileExists() const {
     return FileSystem::FileExists(fileName);
 }
 
-void Chunk::save() const {
+void Chunk::save() {
     const std::string &fileName = getFileName();
 
     std::ostringstream oss;

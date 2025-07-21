@@ -133,18 +133,18 @@ public:
         }
     }
 
-    [[nodiscard]] size_t getSerializedSize() const {
-        if constexpr (IS_LEAF) {
-            return NODE_COUNT * sizeof(TData);
-        } else {
-            size_t size = NodeBitmap::size();
-
+    void removeEmptyNodes() {
+        if constexpr (!IS_LEAF) {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                if (const auto* child = (&m_nodes[0][0][0])[idx])
-                    size += child->getSerializedSize();
+                if (auto* child = (&m_nodes[0][0][0])[idx]) {
+                    if (child->isEmpty()) {
+                        delete child;
+                        (&m_nodes[0][0][0])[idx] = nullptr;
+                    } else {
+                        child->removeEmptyNodes();
+                    }
+                }
             }
-
-            return size;
         }
     }
 
@@ -195,6 +195,18 @@ private:
             std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, EMPTY);
         } else {
             std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, nullptr);
+        }
+    }
+
+    [[nodiscard]] bool isEmpty() const {
+        if constexpr (IS_LEAF) {
+            return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const TData& node) {
+                return node.isEmpty();
+            });
+        } else {
+            return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const KTreeChildNode* child) {
+                return child == nullptr || child->isEmpty();
+            });
         }
     }
 };
