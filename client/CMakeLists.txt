@@ -152,7 +152,8 @@ if (EMSCRIPTEN)
             -sPTHREAD_POOL_SIZE=4
             -sFORCE_FILESYSTEM=1
             -lidbfs.js
-            -sEXPORTED_RUNTIME_METHODS=requestFullscreen
+            -sEXPORTED_RUNTIME_METHODS=requestFullscreen,ccall,cwrap
+            -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished
     )
 
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${PROJECT_SOURCE_DIR}/shell.html")

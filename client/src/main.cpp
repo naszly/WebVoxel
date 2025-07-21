@@ -4,6 +4,7 @@
 
 #include "common/Log.h"
 #include "Application.h"
+#include "common/FileSystem.h"
 #include "systems/ChunkManagementSystem.h"
 #include "systems/ControllerSystem.h"
 #include "systems/GuiSystem.h"
@@ -12,34 +13,9 @@
 
 int main(const int argc, char** argv) {
 
-#if defined(__EMSCRIPTEN__)
-    EM_ASM(
-        let pathInfo = FS.analyzePath("/workdir");
-
-        if (!pathInfo.exists) {
-            FS.mkdir('/workdir');
-            console.log("Created /workdir directory");
-        }
-
-        FS.mount(IDBFS, { autoPersist: true }, '/workdir');
-
-        FS.syncfs(true, function (err) {
-            console.log(FS.readdir('/workdir'));
-            if (err) {
-                console.error(err);
-            } else {
-                console.log("Synced file system");
-            }
-        });
-
-        // log files in /workdir
-        FS.readdir('/workdir').forEach(function (file) {
-            console.log(file);
-        });
-    );
-#endif
-
     LogCore::info("Hello, World!");
+
+    FileSystem::initialize();
 
     Application& app = Application::getInstance();
 

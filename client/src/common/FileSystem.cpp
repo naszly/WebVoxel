@@ -8,7 +8,23 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 
+bool syncfsFinished = false;
+
+extern "C" {
+    void onSyncfsFinished() {
+        syncfsFinished = true;
+    }
+}
+
+void waitInitialSyncfs() {
+    while (!syncfsFinished) {
+        emscripten_sleep(100);
+    }
+}
+
 bool FileExists_Emscripten(const char* fileName) {
+    waitInitialSyncfs();
+
     bool result = MAIN_THREAD_EM_ASM_INT({
         let fileName = UTF8ToString($0);
         try {
@@ -23,6 +39,8 @@ bool FileExists_Emscripten(const char* fileName) {
 }
 
 void ReadFile_Emscripten(const char* fileName, std::vector<char>* buffer) {
+    waitInitialSyncfs();
+
     int size = MAIN_THREAD_EM_ASM_INT({
         let size = FS.stat(UTF8ToString($0)).size;
         return size;
@@ -42,6 +60,8 @@ void ReadFile_Emscripten(const char* fileName, std::vector<char>* buffer) {
 }
 
 void WriteFile_Emscripten(const char* fileName, const char* buffer, int size) {
+    waitInitialSyncfs();
+
     MAIN_THREAD_EM_ASM({
         let fileName = UTF8ToString($0);
         let data = new Uint8Array(HEAPU8.buffer, $1, $2);
@@ -52,6 +72,8 @@ void WriteFile_Emscripten(const char* fileName, const char* buffer, int size) {
 }
 
 void DownloadFile_Emscripten(const char* fileName, const char* downloadName) {
+    waitInitialSyncfs();
+
     MAIN_THREAD_EM_ASM({
         let fileName = UTF8ToString($0);
         let downloadName = UTF8ToString($1);
@@ -72,6 +94,31 @@ void DownloadFile_Emscripten(const char* fileName, const char* downloadName) {
     }, fileName, downloadName);
 }
 #endif
+
+void FileSystem::initialize() {
+#if defined(__EMSCRIPTEN__)
+    EM_ASM(
+        let pathInfo = FS.analyzePath("/workdir");
+
+        if (!pathInfo.exists) {
+            FS.mkdir('/workdir');
+            console.log("Created /workdir directory");
+        }
+
+        FS.mount(IDBFS, { autoPersist: true }, '/workdir');
+
+        FS.syncfs(true, function (err) {
+            console.log(FS.readdir('/workdir'));
+            if (err) {
+                console.error(err);
+            } else {
+                console.log("Synced file system");
+                Module.ccall('onSyncfsFinished', 'v');
+            }
+        });
+    );
+#endif
+}
 
 bool FileSystem::fileExists(const std::string& fileName) {
 #if defined(__EMSCRIPTEN__)

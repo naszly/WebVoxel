@@ -5,6 +5,8 @@
 
 namespace FileSystem {
 
+    void initialize();
+
     bool fileExists(const std::string& fileName);
 
     void writeFile(const std::string& fileName, const char* buffer, size_t size);
