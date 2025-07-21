@@ -17,16 +17,6 @@ WebGpuContext::~WebGpuContext() {
     wgpuInstanceRelease(m_instance);
 }
 
-void WebGpuContext::pollEvents() const {
-#if defined(WEBGPU_BACKEND_DAWN)
-    wgpuDeviceTick(m_device);
-#elif defined(WEBGPU_BACKEND_WGPU)
-    wgpuDevicePoll(m_Device, false, nullptr);
-#elif defined(WEBGPU_BACKEND_EMSCRIPTEN)
-    emscripten_sleep(100);
-#endif
-}
-
 void WebGpuContext::createInstance() {
     constexpr WGPUInstanceFeatureName requiredFeatures[] = {
         WGPUInstanceFeatureName_TimedWaitAny

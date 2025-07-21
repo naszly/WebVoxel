@@ -26,8 +26,6 @@ public:
 
     [[nodiscard]] const WGPUDevice& getDevice() const { return m_device; }
 
-    void pollEvents() const;
-
 private:
     WGPUInstance m_instance{};
     WGPUAdapter m_adapter{};
