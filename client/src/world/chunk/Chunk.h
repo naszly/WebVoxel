@@ -97,8 +97,12 @@ private:
         return std::to_string(m_position.x) + "."
             + std::to_string(m_position.y) + "."
             + std::to_string(m_position.z) + "."
-            + std::to_string(WIDTH) + ".chunk";
+            + std::to_string(WIDTH) + ".compressed.chunk";
     }
+
+    static std::vector<char> compressData(const void* source, size_t sourceLength);
+
+    static std::vector<char> decompressData(const std::vector<char> &source);
 
     static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChunkNeighbours &chunkNeighbours);
 

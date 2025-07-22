@@ -51,6 +51,14 @@ public:
         }
     }
 
+    static size_t getMaxSerializedSize() {
+        return KTree<Depth, BaseSize, VoxelData>::getMaxSerializedSize();
+    }
+
+    [[nodiscard]] bool isEmpty() const {
+        return m_tree.isEmpty();
+    }
+
     [[nodiscard]] auto getBitmap() const {
         return m_bitmap;
     }

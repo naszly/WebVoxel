@@ -148,6 +148,26 @@ public:
         }
     }
 
+    static size_t getMaxSerializedSize() {
+        if constexpr (IS_LEAF) {
+            return NODE_COUNT * sizeof(TData);
+        } else {
+            return NodeBitmap::size() + NODE_COUNT * KTreeChildNode::getMaxSerializedSize();
+        }
+    }
+
+    [[nodiscard]] bool isEmpty() const {
+        if constexpr (IS_LEAF) {
+            return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const TData& node) {
+                return node.isEmpty();
+            });
+        } else {
+            return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const KTreeChildNode* child) {
+                return child == nullptr || child->isEmpty();
+            });
+        }
+    }
+
 private:
     static constexpr TData EMPTY{};
     static constexpr bool IS_LEAF = Layer == 0;
@@ -195,18 +215,6 @@ private:
             std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, EMPTY);
         } else {
             std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, nullptr);
-        }
-    }
-
-    [[nodiscard]] bool isEmpty() const {
-        if constexpr (IS_LEAF) {
-            return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const TData& node) {
-                return node.isEmpty();
-            });
-        } else {
-            return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const KTreeChildNode* child) {
-                return child == nullptr || child->isEmpty();
-            });
         }
     }
 };
