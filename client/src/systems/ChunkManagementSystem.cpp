@@ -52,7 +52,9 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
             for (int z = -LOAD_RADIUS; z <= LOAD_RADIUS; z++) {
                 const auto chunkPos = playerChunk + glm::ivec3(x, y, z);
                 if (getChunkDistance(playerPosition, chunkPos) <= LOAD_RADIUS && !world.hasChunk(chunkPos)) {
-                    chunksToLoad.push_back(chunkPos);
+                    if (m_loadingChunks.end() == std::ranges::find(m_loadingChunks, chunkPos)) {
+                        chunksToLoad.push_back(chunkPos);
+                    }
                 }
             }
         }
@@ -98,6 +100,10 @@ void* ChunkManagementSystem::worker(void *arg) {
             Threading::ScopedLock lock(&system->m_lock);
             if (!system->m_loadQueue.empty()) {
                 chunkToLoad = system->m_loadQueue.front();
+                system->m_loadQueue.erase(system->m_loadQueue.begin());
+
+                system->m_loadingChunks.push_back(chunkToLoad.value());
+                assert(system->m_loadingChunks.size() <= system->m_loadChunksWorkersCount);
             }
         }
 
@@ -107,9 +113,7 @@ void* ChunkManagementSystem::worker(void *arg) {
             const auto chunkPos = chunkToLoad.value();
             Chunk chunk(chunkPos);
 
-            const bool existingChunk = chunk.fileExists();
-
-            if (existingChunk) {
+            if (chunk.fileExists()) {
                 chunk.load();
             } else {
                 chunk.generate(system->m_fnGenerator);
@@ -121,9 +125,7 @@ void* ChunkManagementSystem::worker(void *arg) {
             Threading::ScopedLock lock(&system->m_lock);
 
             system->m_loadedChunks.emplace_back(std::move(chunk));
-            if (auto it = std::ranges::find(system->m_loadQueue, chunkPos); it != system->m_loadQueue.end()) {
-                system->m_loadQueue.erase(it);
-            }
+            std::erase(system->m_loadingChunks, chunkPos);
         }
     }
 

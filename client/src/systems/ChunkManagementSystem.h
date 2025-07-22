@@ -31,9 +31,11 @@ private:
     const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
 
     std::vector<glm::ivec3> m_loadQueue;
+    std::vector<glm::ivec3> m_loadingChunks;
     std::vector<Chunk> m_loadedChunks;
 
-    std::vector<std::unique_ptr<Threading::Worker>> m_loadChunksWorkers{2};
+    const size_t m_loadChunksWorkersCount = 3;
+    std::vector<std::unique_ptr<Threading::Worker>> m_loadChunksWorkers{m_loadChunksWorkersCount};
 
     std::unique_ptr<Threading::Worker> m_saveChunksWorker;
 
@@ -50,7 +52,7 @@ private:
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
-    static void* worker(void *system);
+    static void* worker(void *arg);
 
-    static void* saveAllChunksWorker(void *system);
+    static void* saveAllChunksWorker(void *arg);
 };
