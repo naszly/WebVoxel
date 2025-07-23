@@ -52,7 +52,7 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
             for (int z = -LOAD_RADIUS; z <= LOAD_RADIUS; z++) {
                 const auto chunkPos = playerChunk + glm::ivec3(x, y, z);
                 if (getChunkDistance(playerPosition, chunkPos) <= LOAD_RADIUS && !world.hasChunk(chunkPos)) {
-                    if (m_loadingChunks.end() == std::ranges::find(m_loadingChunks, chunkPos)) {
+                    if (!m_loadingChunks.contains(chunkPos)) {
                         chunksToLoad.push_back(chunkPos);
                     }
                 }
@@ -64,7 +64,7 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
         return getChunkDistance(playerPosition, a) < getChunkDistance(playerPosition, b);
     });
 
-    m_loadQueue = chunksToLoad;
+    m_chunksToLoad = std::queue(chunksToLoad.begin(), chunksToLoad.end());
 }
 
 void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
@@ -98,11 +98,11 @@ void* ChunkManagementSystem::worker(void *arg) {
     while (!system->m_shouldExit) {
         {
             Threading::ScopedLock lock(&system->m_lock);
-            if (!system->m_loadQueue.empty()) {
-                chunkToLoad = system->m_loadQueue.front();
-                system->m_loadQueue.erase(system->m_loadQueue.begin());
+            if (!system->m_chunksToLoad.empty()) {
+                chunkToLoad = system->m_chunksToLoad.front();
+                system->m_chunksToLoad.pop();
 
-                system->m_loadingChunks.push_back(chunkToLoad.value());
+                system->m_loadingChunks.emplace(chunkToLoad.value());
                 assert(system->m_loadingChunks.size() <= system->m_loadChunksWorkersCount);
             }
         }
@@ -125,7 +125,7 @@ void* ChunkManagementSystem::worker(void *arg) {
             Threading::ScopedLock lock(&system->m_lock);
 
             system->m_loadedChunks.emplace_back(std::move(chunk));
-            std::erase(system->m_loadingChunks, chunkPos);
+            system->m_loadingChunks.erase(chunkPos);
         }
     }
 

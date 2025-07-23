@@ -1,5 +1,8 @@
 #pragma once
 
+#include <queue>
+#include <unordered_set>
+
 #include "core/System.h"
 #include "common/Thread.h"
 
@@ -30,8 +33,8 @@ private:
 
     const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
 
-    std::vector<glm::ivec3> m_loadQueue;
-    std::vector<glm::ivec3> m_loadingChunks;
+    std::queue<glm::ivec3> m_chunksToLoad;
+    std::unordered_set<glm::ivec3> m_loadingChunks;
     std::vector<Chunk> m_loadedChunks;
 
     const size_t m_loadChunksWorkersCount = 3;
