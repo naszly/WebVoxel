@@ -10,12 +10,12 @@ public:
 
     void set(uint32_t x, uint32_t y, uint32_t z, const TData& tData) { m_root.set(x, y, z, tData); }
 
-    void serialize(std::ostringstream& os) {
+    void serialize(std::ostream& os) {
         m_root.removeEmptyNodes();
         m_root.serialize(os);
     }
 
-    void deserialize(std::istringstream& is) { m_root.deserialize(is); }
+    void deserialize(std::istream& is) { m_root.deserialize(is); }
 
     static size_t getMaxSerializedSize() {
         return KTreeNode<Layers, NodeCountPerAxis, TData>::getMaxSerializedSize();
@@ -23,6 +23,15 @@ public:
 
     [[nodiscard]] bool isEmpty() const {
         return m_root.isEmpty();
+    }
+
+    const KTreeNode<Layers, NodeCountPerAxis, TData>& getRoot() const {
+        return m_root;
+    }
+
+    template<typename TOtherData>
+    void copyFrom(const KTree<Layers, NodeCountPerAxis, TOtherData>& other) {
+        m_root.copyFrom(other.getRoot());
     }
 
 private:

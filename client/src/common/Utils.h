@@ -1,5 +1,8 @@
 #pragma once
+
 #include <climits>
+#include <cmath>
+#include <glm/vec3.hpp>
 
 namespace Utils {
     template <typename T>
@@ -13,8 +16,7 @@ namespace Utils {
     }
 
     template <typename T>
-    auto divideRoundDown(const T &numerator, const T &denominator)
-    {
+    auto divideRoundDown(const T &numerator, const T &denominator) {
         return (numerator / denominator) + ((numerator % denominator) >> (sizeof(T) * CHAR_BIT - 1));
     }
 

@@ -19,6 +19,13 @@ template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData>
     requires std::is_class_v<TData> && HasIsEmpty<TData>
 class KTreeNode {
     friend class KTreeNode<Layer + 1, NodeCountPerAxis, TData>;
+    static constexpr TData EMPTY{};
+    static constexpr bool IS_LEAF = Layer == 0;
+    static constexpr uint32_t TREE_SIZE = Utils::pow(NodeCountPerAxis, Layer);
+    static constexpr uint32_t NODE_COUNT = NodeCountPerAxis * NodeCountPerAxis * NodeCountPerAxis;
+    using KTreeChildNode = KTreeNode<Layer - 1, NodeCountPerAxis, TData>;
+    using NodeType = std::conditional_t<IS_LEAF, TData, KTreeChildNode*>;
+    using NodeBitmap = Bitmap<NODE_COUNT, uint8_t>;
 public:
     KTreeNode() {
         initialize();
@@ -168,14 +175,29 @@ public:
         }
     }
 
+    [[nodiscard]] const NodeType* getNodes() const {
+        return &m_nodes[0][0][0];
+    }
+
+    template<typename TOtherData>
+    void copyFrom(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) {
+        if constexpr (IS_LEAF) {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                (&m_nodes[0][0][0])[idx] = static_cast<TData>(other.getNodes()[idx]);
+            }
+        } else {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (const auto* otherChild = other.getNodes()[idx]) {
+                    (&m_nodes[0][0][0])[idx] = new KTreeChildNode();
+                    (&m_nodes[0][0][0])[idx]->copyFrom(*otherChild);
+                } else {
+                    (&m_nodes[0][0][0])[idx] = nullptr;
+                }
+            }
+        }
+    }
+
 private:
-    static constexpr TData EMPTY{};
-    static constexpr bool IS_LEAF = Layer == 0;
-    static constexpr uint32_t TREE_SIZE = Utils::pow(NodeCountPerAxis, Layer);
-    static constexpr uint32_t NODE_COUNT = NodeCountPerAxis * NodeCountPerAxis * NodeCountPerAxis;
-    using KTreeChildNode = KTreeNode<Layer - 1, NodeCountPerAxis, TData>;
-    using NodeType = std::conditional_t<IS_LEAF, TData, KTreeChildNode*>;
-    using NodeBitmap = Bitmap<NODE_COUNT, uint8_t>;
 
     NodeType m_nodes[NodeCountPerAxis][NodeCountPerAxis][NodeCountPerAxis]{};
 

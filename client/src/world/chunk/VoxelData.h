@@ -15,6 +15,14 @@ struct VoxelData {
     [[nodiscard]] bool isEmpty() const {
         return a == 0;
     }
+
+    bool operator==(const VoxelData& other) const {
+        return r == other.r && g == other.g && b == other.b && a == other.a;
+    }
+
+    bool operator!=(const VoxelData& other) const {
+        return !(*this == other);
+    }
 };
 
 struct VertexData {
