@@ -5,7 +5,7 @@
 #include <glm/vec3.hpp>
 
 #include "ChunkNeighbours.h"
-#include "VoxelTree.h"
+#include "BitmappedVoxelTree.h"
 #include "common/Utils.h"
 
 #include <FastNoise/FastNoise.h>
@@ -13,7 +13,7 @@
 class Chunk {
     static constexpr size_t TREE_DEPTH = 6;
     static constexpr size_t NODE_COUNT_PER_AXIS = 2;
-    using SparseVoxelOctTree = VoxelTree<TREE_DEPTH, NODE_COUNT_PER_AXIS>;
+    using SparseVoxelOctTree = BitmappedVoxelTree<TREE_DEPTH, NODE_COUNT_PER_AXIS>;
 public:
     static constexpr size_t WIDTH = Utils::pow(NODE_COUNT_PER_AXIS, TREE_DEPTH);
     static_assert(WIDTH >= 16 && WIDTH <= 256, "SIZE must be between 16 and 256");
