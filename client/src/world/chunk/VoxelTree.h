@@ -155,6 +155,8 @@ public:
     }
 
     void serialize(std::ostream& os) {
+        shrinkToMinimalIdSize();
+
         os.write(reinterpret_cast<const char*>(&m_voxelIdSize), sizeof(m_voxelIdSize));
 
         switch (m_voxelIdSize) {
@@ -181,6 +183,17 @@ public:
         const size_t maxVoxelMapSize = VoxelMapper<VoxelIdSize::U32Bit>::getMaxSerializedSize();
         const size_t maxTreeSize = KTree<Depth, BaseSize, VoxelId<VoxelIdSize::U32Bit>>::getMaxSerializedSize();
         return sizeof(m_voxelIdSize) + maxVoxelMapSize + maxTreeSize;
+    }
+
+    void shrinkToMinimalIdSize() {
+        VoxelIdSize optimalIdSize = m_voxelIdSize;
+        switch (m_voxelIdSize) {
+            case VoxelIdSize::U8Bit: optimalIdSize = m_treeByIdSize.idSize8->voxelMapper.getMinVoxelIdSize(); break;
+            case VoxelIdSize::U16Bit: optimalIdSize = m_treeByIdSize.idSize16->voxelMapper.getMinVoxelIdSize(); break;
+            case VoxelIdSize::U32Bit: optimalIdSize = m_treeByIdSize.idSize32->voxelMapper.getMinVoxelIdSize(); break;
+        }
+
+        updateIdSize(optimalIdSize);
     }
 
 private:

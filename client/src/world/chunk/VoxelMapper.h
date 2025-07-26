@@ -107,6 +107,16 @@ public:
         return sizeof(VoxelData) * MAX_VOXELS;
     }
 
+    VoxelIdSize getMinVoxelIdSize() const {
+        if (m_voxels.size() < VoxelMapper<VoxelIdSize::U8Bit>::MAX_VOXELS) {
+            return VoxelIdSize::U8Bit;
+        }
+        if (m_voxels.size() < VoxelMapper<VoxelIdSize::U16Bit>::MAX_VOXELS) {
+            return VoxelIdSize::U16Bit;
+        }
+        return VoxelIdSize::U32Bit;
+    }
+
 private:
     std::vector<VoxelData> m_voxels;
 };
