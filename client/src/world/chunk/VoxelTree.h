@@ -50,6 +50,10 @@ public:
         return *this;
     }
 
+    VoxelTree(const VoxelTree&) = delete;
+
+    VoxelTree& operator=(const VoxelTree&) = delete;
+
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: return m_treeByIdSize.u8Tree->getVoxel(x, y, z);
