@@ -10,31 +10,39 @@
 void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
     const Timer timer("Chunk::generate");
 
-    if (m_position.y >= 0 && m_position.y * WIDTH < 256) {
-        std::vector<float> noise(WIDTH * WIDTH);
+    std::vector<float> noise(WIDTH * WIDTH);
 
-        const size_t xStart = m_position.z * WIDTH;
-        const size_t yStart = m_position.x * WIDTH;
-        fnGenerator->GenUniformGrid2D(noise.data(), xStart, yStart, WIDTH, WIDTH, 0.0004f, 0);
+    const size_t xStart = m_position.z * WIDTH;
+    const size_t yStart = m_position.x * WIDTH;
+    fnGenerator->GenUniformGrid2D(noise.data(), xStart, yStart, WIDTH, WIDTH, 0.0004f, 0);
 
-        for (int i = 0; i < WIDTH; i++) {
-            for (int j = 0; j < WIDTH; j++) {
-                for (int k = 0; k < WIDTH; k++) {
+    for (int i = 0; i < WIDTH; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            for (int k = 0; k < WIDTH; k++) {
+                const uint16_t randVal = ~static_cast<uint16_t>((noise[i * WIDTH + k] + 1.0f) * UINT16_MAX)
+                    ^ (i * 69931 + m_position.x * 59393 + 17)
+                    ^ (j * 100069 + m_position.y * 88873 + 13)
+                    ^ (k * 169177 + m_position.z * 123457 + 11)
+                    ^ ((i + WIDTH) * (j + WIDTH * WIDTH) * (k + 1) * 7919)
+                    ^ ((m_position.x ^ m_position.y ^ m_position.z) * 100003);
+
+                if (m_position.y >= 0 && m_position.y * WIDTH < 256) {
                     const int noiseValue = static_cast<int>((noise[i * WIDTH + k] * 0.5 + 0.5) * 255);
                     const int height = m_position.y * WIDTH + j;
                     if (noiseValue == height) {
-                        m_data.setVoxel(i, j, k, VoxelData(0, 160 + (random() % 64), 0));
+                        const uint8_t green = 160 + (randVal % 64);
+                        m_data.setVoxel(i, j, k, VoxelData(0, green, 0));
                     } else if (noiseValue > height) {
-                        m_data.setVoxel(i, j, k, VoxelData(135 + (random() % 20 - 10), 69 + (random() % 20 - 10), 19 + (random() % 20 - 10)));
+                        const uint8_t brownR = 135 + (randVal % 21 - 10);
+                        const uint8_t brownG = 69 + (randVal % 20 - 10);
+                        const uint8_t brownB = 19 + (randVal % 19 - 10);
+                        m_data.setVoxel(i, j, k, VoxelData(brownR, brownG, brownB));
                     }
-                }
-            }
-        }
-    } else if (m_position.y < 0) {
-        for (int i = 0; i < WIDTH; i++) {
-            for (int j = 0; j < WIDTH; j++) {
-                for (int k = 0; k < WIDTH; k++) {
-                    m_data.setVoxel(i, j, k, VoxelData(66 + (random() % 8), 67 + (random() % 8), 69 + (random() % 10)));
+                } else if (m_position.y < 0) {
+                    const uint8_t baseR = 66 + (randVal % 7);
+                    const uint8_t baseG = 66 + (randVal % 9);
+                    const uint8_t baseB = 66 + (randVal % 10);
+                    m_data.setVoxel(i, j, k, VoxelData(baseR, baseG, baseB));
                 }
             }
         }
