@@ -8,9 +8,9 @@
 #include "common/Utils.h"
 
 enum class VoxelIdSize : uint8_t {
-    U8Bit = 1,
-    U16Bit = 2,
-    U32Bit = 4,
+    U8Bit = 8,
+    U16Bit = 16,
+    U20Bit = 20
 };
 
 template<VoxelIdSize Size>
@@ -45,9 +45,9 @@ template<VoxelIdSize Size>
 class VoxelMapper {
     friend class VoxelMapper<VoxelIdSize::U8Bit>;
     friend class VoxelMapper<VoxelIdSize::U16Bit>;
-    friend class VoxelMapper<VoxelIdSize::U32Bit>;
+    friend class VoxelMapper<VoxelIdSize::U20Bit>;
     using VoxelIdT = VoxelId<Size>;
-    static constexpr size_t MAX_VOXELS = Utils::pow(static_cast<size_t>(2), sizeof(VoxelIdT) * 8);
+    static constexpr size_t MAX_VOXELS = Utils::pow(static_cast<size_t>(2), static_cast<size_t>(Size));
     static constexpr VoxelData EMPTY_VOXEL{};
 public:
     VoxelMapper() {
@@ -91,7 +91,7 @@ public:
     }
 
     void serialize(std::ostream& os) const {
-        const VoxelIdT size = static_cast<VoxelIdT>(m_voxels.size());
+        const auto size = static_cast<VoxelIdT>(m_voxels.size());
         os.write(reinterpret_cast<const char*>(&size), sizeof(VoxelIdT));
         os.write(reinterpret_cast<const char*>(m_voxels.data()), size * sizeof(VoxelData));
     }
@@ -107,14 +107,14 @@ public:
         return sizeof(VoxelData) * MAX_VOXELS;
     }
 
-    VoxelIdSize getMinVoxelIdSize() const {
+    [[nodiscard]] VoxelIdSize getMinVoxelIdSize() const {
         if (m_voxels.size() < VoxelMapper<VoxelIdSize::U8Bit>::MAX_VOXELS) {
             return VoxelIdSize::U8Bit;
         }
         if (m_voxels.size() < VoxelMapper<VoxelIdSize::U16Bit>::MAX_VOXELS) {
             return VoxelIdSize::U16Bit;
         }
-        return VoxelIdSize::U32Bit;
+        return VoxelIdSize::U20Bit;
     }
 
 private:

@@ -17,7 +17,7 @@ union VoxelTreeVariant {
             tree.copyFrom(old->tree);
         }
 
-        const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
+        [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
             return voxelMapper.getVoxelData(tree.get(x, y, z));
         }
 
@@ -29,7 +29,7 @@ union VoxelTreeVariant {
             return isSuccess;
         }
 
-        bool isEmpty() const {
+        [[nodiscard]] bool isEmpty() const {
             return tree.isEmpty();
         }
 
@@ -46,5 +46,5 @@ union VoxelTreeVariant {
 
     VoxelTreeImpl<VoxelIdSize::U8Bit>* u8Tree{nullptr};
     VoxelTreeImpl<VoxelIdSize::U16Bit>* u16Tree;
-    VoxelTreeImpl<VoxelIdSize::U32Bit>* u32Tree;
+    VoxelTreeImpl<VoxelIdSize::U20Bit>* u20Tree;
 };

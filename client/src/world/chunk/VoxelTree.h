@@ -11,13 +11,13 @@ class VoxelTree {
     static constexpr uint32_t BITMAP_SIZE = SIZE + 2;
     using VoxelTree8 = typename VoxelTreeVariantT::template VoxelTreeImpl<VoxelIdSize::U8Bit>;
     using VoxelTree16 = typename VoxelTreeVariantT::template VoxelTreeImpl<VoxelIdSize::U16Bit>;
-    using VoxelTree32 = typename VoxelTreeVariantT::template VoxelTreeImpl<VoxelIdSize::U32Bit>;
+    using VoxelTree20 = typename VoxelTreeVariantT::template VoxelTreeImpl<VoxelIdSize::U20Bit>;
 public:
     VoxelTree() {
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: m_treeByIdSize.u8Tree = new VoxelTree8(); break;
             case VoxelIdSize::U16Bit: m_treeByIdSize.u16Tree = new VoxelTree16(); break;
-            case VoxelIdSize::U32Bit: m_treeByIdSize.u32Tree = new VoxelTree32(); break;
+            case VoxelIdSize::U20Bit: m_treeByIdSize.u20Tree = new VoxelTree20(); break;
         }
     }
 
@@ -25,7 +25,7 @@ public:
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: delete m_treeByIdSize.u8Tree; break;
             case VoxelIdSize::U16Bit: delete m_treeByIdSize.u16Tree; break;
-            case VoxelIdSize::U32Bit: delete m_treeByIdSize.u32Tree; break;
+            case VoxelIdSize::U20Bit: delete m_treeByIdSize.u20Tree; break;
         }
     }
 
@@ -35,7 +35,7 @@ public:
 
         other.m_treeByIdSize.u8Tree = nullptr;
         other.m_treeByIdSize.u16Tree = nullptr;
-        other.m_treeByIdSize.u32Tree = nullptr;
+        other.m_treeByIdSize.u20Tree = nullptr;
     }
 
     VoxelTree& operator=(VoxelTree&& other) noexcept {
@@ -45,7 +45,7 @@ public:
 
             other.m_treeByIdSize.u8Tree = nullptr;
             other.m_treeByIdSize.u16Tree = nullptr;
-            other.m_treeByIdSize.u32Tree = nullptr;
+            other.m_treeByIdSize.u20Tree = nullptr;
         }
         return *this;
     }
@@ -58,7 +58,7 @@ public:
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: return m_treeByIdSize.u8Tree->getVoxel(x, y, z);
             case VoxelIdSize::U16Bit: return m_treeByIdSize.u16Tree->getVoxel(x, y, z);
-            case VoxelIdSize::U32Bit: return m_treeByIdSize.u32Tree->getVoxel(x, y, z);
+            case VoxelIdSize::U20Bit: return m_treeByIdSize.u20Tree->getVoxel(x, y, z);
         }
 
         std::unreachable();
@@ -77,14 +77,14 @@ public:
             case VoxelIdSize::U16Bit: {
                 bool success = m_treeByIdSize.u16Tree->trySetVoxel(x, y, z, voxel);
                 if (!success) {
-                    updateIdSize(VoxelIdSize::U32Bit);
-                    m_treeByIdSize.u32Tree->trySetVoxel(x, y, z, voxel);
+                    updateIdSize(VoxelIdSize::U20Bit);
+                    m_treeByIdSize.u20Tree->trySetVoxel(x, y, z, voxel);
                 }
                 break;
             }
-            case VoxelIdSize::U32Bit: {
-                bool success = m_treeByIdSize.u32Tree->trySetVoxel(x, y, z, voxel);
-                assert(success && "Failed to set voxel in VoxelTree with U32Bit ID size");
+            case VoxelIdSize::U20Bit: {
+                bool success = m_treeByIdSize.u20Tree->trySetVoxel(x, y, z, voxel);
+                assert(success && "Failed to set voxel in VoxelTree with U20Bit ID size");
                 break;
             }
         }
@@ -94,7 +94,7 @@ public:
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: return m_treeByIdSize.u8Tree->isEmpty();
             case VoxelIdSize::U16Bit: return m_treeByIdSize.u16Tree->isEmpty();
-            case VoxelIdSize::U32Bit: return m_treeByIdSize.u32Tree->isEmpty();
+            case VoxelIdSize::U20Bit: return m_treeByIdSize.u20Tree->isEmpty();
         }
         std::unreachable();
     }
@@ -107,7 +107,7 @@ public:
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: m_treeByIdSize.u8Tree->serialize(os); break;
             case VoxelIdSize::U16Bit: m_treeByIdSize.u16Tree->serialize(os); break;
-            case VoxelIdSize::U32Bit: m_treeByIdSize.u32Tree->serialize(os); break;
+            case VoxelIdSize::U20Bit: m_treeByIdSize.u20Tree->serialize(os); break;
         }
     }
 
@@ -120,13 +120,13 @@ public:
         switch (idSize) {
             case VoxelIdSize::U8Bit: m_treeByIdSize.u8Tree->deserialize(is); break;
             case VoxelIdSize::U16Bit: m_treeByIdSize.u16Tree->deserialize(is); break;
-            case VoxelIdSize::U32Bit: m_treeByIdSize.u32Tree->deserialize(is); break;
+            case VoxelIdSize::U20Bit: m_treeByIdSize.u20Tree->deserialize(is); break;
         }
     }
 
     static size_t getMaxSerializedSize() {
-        const size_t maxVoxelMapSize = VoxelMapper<VoxelIdSize::U32Bit>::getMaxSerializedSize();
-        const size_t maxTreeSize = KTree<Depth, BaseSize, VoxelId<VoxelIdSize::U32Bit>>::getMaxSerializedSize();
+        const size_t maxVoxelMapSize = VoxelMapper<VoxelIdSize::U20Bit>::getMaxSerializedSize();
+        const size_t maxTreeSize = KTree<Depth, BaseSize, VoxelId<VoxelIdSize::U20Bit>>::getMaxSerializedSize();
         return sizeof(m_voxelIdSize) + maxVoxelMapSize + maxTreeSize;
     }
 
@@ -135,7 +135,7 @@ public:
         switch (m_voxelIdSize) {
             case VoxelIdSize::U8Bit: optimalIdSize = m_treeByIdSize.u8Tree->voxelMapper.getMinVoxelIdSize(); break;
             case VoxelIdSize::U16Bit: optimalIdSize = m_treeByIdSize.u16Tree->voxelMapper.getMinVoxelIdSize(); break;
-            case VoxelIdSize::U32Bit: optimalIdSize = m_treeByIdSize.u32Tree->voxelMapper.getMinVoxelIdSize(); break;
+            case VoxelIdSize::U20Bit: optimalIdSize = m_treeByIdSize.u20Tree->voxelMapper.getMinVoxelIdSize(); break;
         }
 
         updateIdSize(optimalIdSize);
@@ -159,10 +159,10 @@ private:
                         m_treeByIdSize.u16Tree = newTree;
                         break;
                     }
-                    case VoxelIdSize::U32Bit: {
-                        auto* newTree = new VoxelTree32(m_treeByIdSize.u8Tree);
+                    case VoxelIdSize::U20Bit: {
+                        auto* newTree = new VoxelTree20(m_treeByIdSize.u8Tree);
                         delete m_treeByIdSize.u8Tree;
-                        m_treeByIdSize.u32Tree = newTree;
+                        m_treeByIdSize.u20Tree = newTree;
                         break;
                     }
                     default: std::unreachable();
@@ -177,27 +177,27 @@ private:
                         m_treeByIdSize.u8Tree = newTree;
                         break;
                     }
-                    case VoxelIdSize::U32Bit: {
-                        auto* newTree = new VoxelTree32(m_treeByIdSize.u16Tree);
+                    case VoxelIdSize::U20Bit: {
+                        auto* newTree = new VoxelTree20(m_treeByIdSize.u16Tree);
                         delete m_treeByIdSize.u16Tree;
-                        m_treeByIdSize.u32Tree = newTree;
+                        m_treeByIdSize.u20Tree = newTree;
                         break;
                     }
                     default: std::unreachable();
                 }
                 break;
             }
-            case VoxelIdSize::U32Bit: {
+            case VoxelIdSize::U20Bit: {
                 switch (newIdSize) {
                     case VoxelIdSize::U8Bit: {
-                        auto* newTree = new VoxelTree8(m_treeByIdSize.u32Tree);
-                        delete m_treeByIdSize.u32Tree;
+                        auto* newTree = new VoxelTree8(m_treeByIdSize.u20Tree);
+                        delete m_treeByIdSize.u20Tree;
                         m_treeByIdSize.u8Tree = newTree;
                         break;
                     }
                     case VoxelIdSize::U16Bit: {
-                        auto* newTree = new VoxelTree16(m_treeByIdSize.u32Tree);
-                        delete m_treeByIdSize.u32Tree;
+                        auto* newTree = new VoxelTree16(m_treeByIdSize.u20Tree);
+                        delete m_treeByIdSize.u20Tree;
                         m_treeByIdSize.u16Tree = newTree;
                         break;
                     }
