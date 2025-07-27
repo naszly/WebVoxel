@@ -15,6 +15,19 @@ class BitmappedVoxelTree {
 public:
     BitmappedVoxelTree() = default;
 
+    BitmappedVoxelTree(const BitmappedVoxelTree& other) {
+        m_tree = other.m_tree;
+        m_bitmap = other.m_bitmap;
+    }
+
+    BitmappedVoxelTree& operator=(const BitmappedVoxelTree& other) {
+        if (this != &other) {
+            m_tree = other.m_tree;
+            m_bitmap = other.m_bitmap;
+        }
+        return *this;
+    }
+
     BitmappedVoxelTree(BitmappedVoxelTree&& other) noexcept
         : m_tree(std::move(other.m_tree)), m_bitmap(std::move(other.m_bitmap)) {}
 

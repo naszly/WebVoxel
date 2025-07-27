@@ -19,10 +19,6 @@ public:
 
     void onEvent(Event &event) override {}
 
-    void saveAllChunks();
-
-    [[nodiscard]] bool isSaveInProgress() const { return m_saveInProgress; }
-
     ~ChunkManagementSystem() override {
         m_shouldExit = true;
     }
@@ -38,15 +34,16 @@ private:
     std::unordered_set<glm::ivec3> m_loadingChunks;
     std::vector<Chunk> m_loadedChunks;
 
-    const size_t m_loadChunksWorkersCount = 2;
-    std::vector<std::unique_ptr<Threading::Worker>> m_loadChunksWorkers{m_loadChunksWorkersCount};
+    std::queue<Chunk> m_chunksToSave;
+    std::unordered_set<glm::ivec3> m_savingChunks;
+
+    const size_t m_chunkWorkersCount = 2;
+    std::vector<std::unique_ptr<Threading::Worker>> m_chunkWorkers{m_chunkWorkersCount};
 
     std::unique_ptr<Threading::Worker> m_saveChunksWorker;
 
     Threading::Lock m_lock;
     bool m_shouldExit = false;
-
-    bool m_saveInProgress = false;
 
     void loadChunks(const Camera &camera, World &world);
 
@@ -54,11 +51,11 @@ private:
 
     void updateLoadQueue(const Camera& camera, const World& world);
 
+    void updateSaveQueue(World &world);
+
     static void unloadChunks(const Camera &camera, World &world);
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
     static void* worker(void *arg);
-
-    static void* saveAllChunksWorker(void *arg);
 };

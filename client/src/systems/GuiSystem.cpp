@@ -126,17 +126,8 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Text("Position: (%.2f, %.2f, %.2f)", position.x, position.y, position.z);
     ImGui::Text("Direction: (%.2f, %.2f, %.2f)", direction.x, direction.y, direction.z);
 
-    if (ImGui::Button("Clean FS")) {
+    if (ImGui::Button("Clean saved chunks")) {
         Chunk::cleanFs();
-    }
-
-    if (const auto chunkManager = Application::getInstance().getSystem<ChunkManagementSystem>()) {
-        ImGui::SameLine();
-        ImGui::BeginDisabled(chunkManager->isSaveInProgress());
-        if (ImGui::Button("Save All Chunks")) {
-            chunkManager->saveAllChunks();
-        }
-        ImGui::EndDisabled();
     }
 
     if (const auto renderer = Application::getInstance().getSystem<RendererSystem>()) {

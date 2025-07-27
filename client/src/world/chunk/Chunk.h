@@ -23,14 +23,28 @@ public:
 
     ~Chunk() = default;
 
-    Chunk(const Chunk&) = delete;
+    Chunk(const Chunk& other) {
+        m_position = other.m_position;
+        m_data = other.m_data;
+        m_gpuBufferDirty = other.m_gpuBufferDirty;
+        m_saveFileDirty = other.m_saveFileDirty;
+    }
 
-    Chunk& operator=(const Chunk&) = delete;
+    Chunk& operator=(const Chunk& other) {
+        if (this != &other) {
+            m_position = other.m_position;
+            m_data = other.m_data;
+            m_gpuBufferDirty = other.m_gpuBufferDirty;
+            m_saveFileDirty = other.m_saveFileDirty;
+        }
+        return *this;
+    }
 
     Chunk(Chunk&& other) noexcept {
         m_position = other.m_position;
         m_data = std::move(other.m_data);
         m_gpuBufferDirty = other.m_gpuBufferDirty;
+        m_saveFileDirty = other.m_saveFileDirty;
     }
 
     Chunk& operator=(Chunk&& other) noexcept {
@@ -38,6 +52,7 @@ public:
             m_position = other.m_position;
             m_data = std::move(other.m_data);
             m_gpuBufferDirty = other.m_gpuBufferDirty;
+            m_saveFileDirty = other.m_saveFileDirty;
         }
         return *this;
     }
@@ -59,6 +74,7 @@ public:
     void setVoxel(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
         m_data.setVoxel(x, y, z, voxel);
         m_gpuBufferDirty = true;
+        m_saveFileDirty = true;
     }
 
     [[nodiscard]] bool isGpuBufferDirty() const {
@@ -71,6 +87,14 @@ public:
 
     void resetGpuBufferDirty() {
         m_gpuBufferDirty = false;
+    }
+
+    [[nodiscard]] bool isSaveFileDirty() const {
+        return m_saveFileDirty;
+    }
+
+    void resetSaveFileDirty() {
+        m_saveFileDirty = false;
     }
 
     [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
@@ -92,6 +116,7 @@ private:
     glm::ivec3 m_position{};
     SparseVoxelOctTree m_data{};
     bool m_gpuBufferDirty{true};
+    bool m_saveFileDirty{false};
 
     [[nodiscard]] std::string getFileName() const {
         return std::to_string(m_position.x) + "."

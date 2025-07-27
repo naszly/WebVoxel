@@ -50,9 +50,26 @@ public:
         return *this;
     }
 
-    VoxelTree(const VoxelTree&) = delete;
+    VoxelTree(const VoxelTree& other) {
+        m_voxelIdSize = other.m_voxelIdSize;
+        switch (m_voxelIdSize) {
+            case VoxelIdSize::U8Bit: m_treeByIdSize.u8Tree = new VoxelTree8(*other.m_treeByIdSize.u8Tree); break;
+            case VoxelIdSize::U16Bit: m_treeByIdSize.u16Tree = new VoxelTree16(*other.m_treeByIdSize.u16Tree); break;
+            case VoxelIdSize::U20Bit: m_treeByIdSize.u20Tree = new VoxelTree20(*other.m_treeByIdSize.u20Tree); break;
+        }
+    }
 
-    VoxelTree& operator=(const VoxelTree&) = delete;
+    VoxelTree& operator=(const VoxelTree& other) {
+        if (this != &other) {
+            m_voxelIdSize = other.m_voxelIdSize;
+            switch (m_voxelIdSize) {
+                case VoxelIdSize::U8Bit: m_treeByIdSize.u8Tree = new VoxelTree8(*other.m_treeByIdSize.u8Tree); break;
+                case VoxelIdSize::U16Bit: m_treeByIdSize.u16Tree = new VoxelTree16(*other.m_treeByIdSize.u16Tree); break;
+                case VoxelIdSize::U20Bit: m_treeByIdSize.u20Tree = new VoxelTree20(*other.m_treeByIdSize.u20Tree); break;
+            }
+        }
+        return *this;
+    }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         switch (m_voxelIdSize) {
