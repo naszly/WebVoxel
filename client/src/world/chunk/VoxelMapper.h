@@ -3,6 +3,7 @@
 #include <ostream>
 #include <istream>
 #include <vector>
+#include <unordered_map>
 
 #include "VoxelData.h"
 #include "common/Utils.h"
@@ -52,6 +53,7 @@ class VoxelMapper {
 public:
     VoxelMapper() {
         m_voxels.push_back(EMPTY_VOXEL);
+        m_voxelIdMap[EMPTY_VOXEL] = VoxelIdT(0);
     }
 
     template<VoxelIdSize OldVoxelIdSize>
@@ -75,12 +77,12 @@ public:
     }
 
     std::pair<bool, VoxelIdT> tryGetVoxelId(const VoxelData &voxel) {
-        const auto it = std::ranges::find(m_voxels, voxel);
-        if (it != m_voxels.end()) {
-            return {true, static_cast<VoxelIdT>(std::distance(m_voxels.begin(), it))};
+        if (auto it = m_voxelIdMap.find(voxel); it != m_voxelIdMap.end()) {
+            return {true, it->second};
         }
         if (m_voxels.size() < MAX_VOXELS) {
             m_voxels.push_back(voxel);
+            m_voxelIdMap[voxel] = static_cast<VoxelIdT>(m_voxels.size() - 1);
             return {true, static_cast<VoxelIdT>(m_voxels.size() - 1)};
         }
         return {false, VoxelIdT()};
@@ -101,6 +103,11 @@ public:
         is.read(reinterpret_cast<char*>(&size), sizeof(VoxelIdT));
         m_voxels.resize(size);
         is.read(reinterpret_cast<char*>(m_voxels.data()), size * sizeof(VoxelData));
+
+        m_voxelIdMap.clear();
+        for (size_t i = 0; i < m_voxels.size(); ++i) {
+            m_voxelIdMap[m_voxels[i]] = static_cast<VoxelIdT>(i);
+        }
     }
 
     static size_t getMaxSerializedSize() {
@@ -118,5 +125,12 @@ public:
     }
 
 private:
+    struct VoxelDataHasher {
+        std::size_t operator()(const VoxelData& voxel) const {
+            assert(sizeof(VoxelData) == sizeof(uint32_t) && "VoxelData must be 4 bytes for hashing");
+            return std::hash<uint32_t>()(*reinterpret_cast<const uint32_t*>(&voxel));
+        }
+    };
     std::vector<VoxelData> m_voxels;
+    std::unordered_map<VoxelData, VoxelIdT, VoxelDataHasher> m_voxelIdMap;
 };
