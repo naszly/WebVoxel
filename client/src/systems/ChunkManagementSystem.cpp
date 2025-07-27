@@ -42,27 +42,44 @@ void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
     updateLoadQueue(camera, world);
 }
 
-void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& world) {
-    const glm::vec3 playerPosition = camera.getPosition();
-    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
-
-    std::vector<glm::ivec3> chunksToLoad;
-    for (int x = -LOAD_RADIUS; x <= LOAD_RADIUS; x++) {
-        for (int y = -LOAD_RADIUS; y <= LOAD_RADIUS; y++) {
-            for (int z = -LOAD_RADIUS; z <= LOAD_RADIUS; z++) {
-                const auto chunkPos = playerChunk + glm::ivec3(x, y, z);
-                if (getChunkDistance(playerPosition, chunkPos) <= LOAD_RADIUS && !world.hasChunk(chunkPos)) {
-                    if (!m_loadingChunks.contains(chunkPos)) {
-                        chunksToLoad.push_back(chunkPos);
-                    }
+std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
+    std::vector<glm::ivec3> offsets;
+    for (int x = -LOAD_RADIUS; x <= LOAD_RADIUS; ++x) {
+        for (int y = -LOAD_RADIUS; y <= LOAD_RADIUS; ++y) {
+            for (int z = -LOAD_RADIUS; z <= LOAD_RADIUS; ++z) {
+                if (x*x + y*y + z*z <= LOAD_RADIUS*LOAD_RADIUS) {
+                    offsets.emplace_back(x, y, z);
                 }
             }
         }
     }
-
-    std::ranges::sort(chunksToLoad, [&](const glm::ivec3& a, const glm::ivec3& b) {
-        return getChunkDistance(playerPosition, a) < getChunkDistance(playerPosition, b);
+    std::ranges::sort(offsets, [](const glm::ivec3& a, const glm::ivec3& b) {
+        return a.x*a.x + a.y*a.y + a.z*a.z < b.x*b.x + b.y*b.y + b.z*b.z;
     });
+    return offsets;
+}
+
+void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& world) {
+    const glm::vec3 playerPosition = camera.getPosition();
+    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
+
+    static std::vector<glm::ivec3> offsets = generateChunkOffsets();
+
+    std::vector<glm::ivec3> chunksToLoad;
+    const size_t maxChunksToLoad = m_loadChunksWorkersCount * 3;
+    for (const auto& offset : offsets) {
+        const auto chunkPos = playerChunk + offset;
+
+        if (world.hasChunk(chunkPos) || m_loadingChunks.contains(chunkPos)) {
+            continue;
+        }
+
+        chunksToLoad.push_back(chunkPos);
+
+        if (chunksToLoad.size() >= maxChunksToLoad) {
+            break;
+        }
+    }
 
     m_chunksToLoad = std::queue(chunksToLoad.begin(), chunksToLoad.end());
 }

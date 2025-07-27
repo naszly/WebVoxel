@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <queue>
 #include <unordered_set>
 
@@ -37,7 +38,7 @@ private:
     std::unordered_set<glm::ivec3> m_loadingChunks;
     std::vector<Chunk> m_loadedChunks;
 
-    const size_t m_loadChunksWorkersCount = 3;
+    const size_t m_loadChunksWorkersCount = 2;
     std::vector<std::unique_ptr<Threading::Worker>> m_loadChunksWorkers{m_loadChunksWorkersCount};
 
     std::unique_ptr<Threading::Worker> m_saveChunksWorker;
@@ -48,6 +49,8 @@ private:
     bool m_saveInProgress = false;
 
     void loadChunks(const Camera &camera, World &world);
+
+    static std::vector<glm::ivec3> generateChunkOffsets();
 
     void updateLoadQueue(const Camera& camera, const World& world);
 
