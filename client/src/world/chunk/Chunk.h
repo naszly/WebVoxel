@@ -30,14 +30,14 @@ public:
     Chunk(Chunk&& other) noexcept {
         m_position = other.m_position;
         m_data = std::move(other.m_data);
-        m_dirty = other.m_dirty;
+        m_gpuBufferDirty = other.m_gpuBufferDirty;
     }
 
     Chunk& operator=(Chunk&& other) noexcept {
         if (this != &other) {
             m_position = other.m_position;
             m_data = std::move(other.m_data);
-            m_dirty = other.m_dirty;
+            m_gpuBufferDirty = other.m_gpuBufferDirty;
         }
         return *this;
     }
@@ -58,19 +58,19 @@ public:
 
     void setVoxel(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
         m_data.setVoxel(x, y, z, voxel);
-        m_dirty = true;
+        m_gpuBufferDirty = true;
     }
 
-    [[nodiscard]] bool isDirty() const {
-        return m_dirty;
+    [[nodiscard]] bool isGpuBufferDirty() const {
+        return m_gpuBufferDirty;
     }
 
-    void setDirty() {
-        m_dirty = true;
+    void setGpuBufferDirty() {
+        m_gpuBufferDirty = true;
     }
 
-    void resetDirty() {
-        m_dirty = false;
+    void resetGpuBufferDirty() {
+        m_gpuBufferDirty = false;
     }
 
     [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
@@ -91,7 +91,7 @@ public:
 private:
     glm::ivec3 m_position{};
     SparseVoxelOctTree m_data{};
-    bool m_dirty{true};
+    bool m_gpuBufferDirty{true};
 
     [[nodiscard]] std::string getFileName() const {
         return std::to_string(m_position.x) + "."

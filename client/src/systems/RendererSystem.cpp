@@ -204,7 +204,7 @@ void RendererSystem::update(float dt) {
     std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
 
     std::ranges::copy_if(chunks, std::back_inserter(dirtyChunks), [](const Chunk &chunk) {
-        return chunk.isDirty();
+        return chunk.isGpuBufferDirty();
     });
 
     std::ranges::sort(dirtyChunks, [&](const Chunk &a, const Chunk &b) {
@@ -251,7 +251,7 @@ void RendererSystem::update(float dt) {
             m_chunkVertexBuffers.insert({position, buffer});
         }
 
-        chunk.resetDirty();
+        chunk.resetGpuBufferDirty();
 
         if (std::chrono::high_resolution_clock::now() - start > chunkProcessingTimeLimit) {
             break;
@@ -283,7 +283,7 @@ void RendererSystem::setAmbientOcclusion(const bool ambientOcclusion) {
         for (auto &[position, vertexBuffer] : m_chunkVertexBuffers ) {
             wgpuBufferRelease(vertexBuffer.buffer);
             if (const auto chunk = getWorld().tryGetChunk(position)) {
-                chunk->setDirty();
+                chunk->setGpuBufferDirty();
             }
         }
         m_chunkVertexBuffers.clear();

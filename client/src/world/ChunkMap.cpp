@@ -92,7 +92,7 @@ void ChunkMap::removeVoxel(const WorldCoordinate &coord) {
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {
     if (const auto neighbor = tryGetChunk(key)) {
-        neighbor->setDirty();
+        neighbor->setGpuBufferDirty();
     }
 }
 
