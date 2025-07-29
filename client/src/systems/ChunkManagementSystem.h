@@ -39,10 +39,8 @@ private:
 
     std::queue<Chunk> m_chunksToUnload;
 
-    const size_t m_chunkWorkersCount = 2;
-    std::vector<std::unique_ptr<Threading::Worker>> m_chunkWorkers{m_chunkWorkersCount};
-
-    std::unique_ptr<Threading::Worker> m_saveChunksWorker;
+    size_t m_chunkWorkersCount{};
+    std::vector<std::unique_ptr<Threading::Worker>> m_chunkWorkers{};
 
     Threading::Lock m_lock;
     bool m_shouldExit = false;

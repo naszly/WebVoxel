@@ -24,6 +24,14 @@ namespace Threading {
 #endif
     }
 
+    static unsigned int hardwareConcurrency() {
+#ifdef __EMSCRIPTEN__
+        return emscripten_num_logical_cores();
+#else
+        return std::thread::hardware_concurrency();
+#endif
+    }
+
     class Worker {
     public:
         Worker() = default;

@@ -1,9 +1,18 @@
 #include "ChunkManagementSystem.h"
 
 void ChunkManagementSystem::initialize() {
-    for (auto& worker : m_chunkWorkers) {
-        worker = std::make_unique<Threading::Worker>();
-        worker->start(ChunkManagementSystem::worker, this);
+
+    const auto hardwareConcurrency = Threading::hardwareConcurrency();
+
+    m_chunkWorkersCount = 1;
+
+    if (hardwareConcurrency > 2) {
+        m_chunkWorkersCount = hardwareConcurrency / 2;
+    }
+
+    for (size_t i = 0; i < m_chunkWorkersCount; ++i) {
+        m_chunkWorkers.push_back(std::make_unique<Threading::Worker>());
+        m_chunkWorkers[i]->start(worker, this);
     }
 }
 
