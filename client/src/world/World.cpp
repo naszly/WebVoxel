@@ -52,12 +52,12 @@ void World::createChunk(const glm::ivec3 &chunkPos) {
     m_chunks.createChunk(chunkPos);
 }
 
-void World::moveChunk(Chunk &chunk) {
-    m_chunks.moveChunk(chunk);
+void World::insertChunkByMove(Chunk &chunk) {
+    m_chunks.insertChunkByMove(chunk);
 }
 
-void World::removeChunk(const glm::ivec3 &chunkPos) {
-    m_chunks.removeChunk(chunkPos);
+Chunk World::extractChunkByMove(const glm::ivec3& chunkPos) {
+    return m_chunks.extractChunkByMove(chunkPos);
 }
 
 VoxelData World::getVoxel(const WorldCoordinate &coord) const {

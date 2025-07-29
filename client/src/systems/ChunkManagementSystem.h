@@ -37,6 +37,8 @@ private:
     std::queue<Chunk> m_chunksToSave;
     std::unordered_set<glm::ivec3> m_savingChunks;
 
+    std::queue<Chunk> m_chunksToUnload;
+
     const size_t m_chunkWorkersCount = 2;
     std::vector<std::unique_ptr<Threading::Worker>> m_chunkWorkers{m_chunkWorkersCount};
 
@@ -53,7 +55,7 @@ private:
 
     void updateSaveQueue(World &world);
 
-    static void unloadChunks(const Camera &camera, World &world);
+    void unloadChunks(const Camera &camera, World &world);
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 

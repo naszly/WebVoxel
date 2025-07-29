@@ -38,14 +38,21 @@ Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
     return it->second;
 }
 
-void ChunkMap::moveChunk(Chunk &chunk) {
+void ChunkMap::insertChunkByMove(Chunk &chunk) {
     const auto key = chunk.getPosition();
     m_chunks.try_emplace(key, std::move(chunk));
     setNeighboursDirty(key);
 }
 
-void ChunkMap::removeChunk(const glm::ivec3 key) {
-    m_chunks.erase(key);
+Chunk ChunkMap::extractChunkByMove(const glm::ivec3& key) {
+    const auto it = m_chunks.find(key);
+    if (it == m_chunks.end()) {
+        LogApp::error("Chunk at ({}, {}, {}) not found for moving out", key.x, key.y, key.z);
+        return Chunk(key);
+    }
+    Chunk movedChunk = std::move(it->second);
+    m_chunks.erase(it);
+    return movedChunk;
 }
 
 VoxelData ChunkMap::getVoxel(const WorldCoordinate &coord) const {

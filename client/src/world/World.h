@@ -27,9 +27,9 @@ public:
 
     void createChunk(const glm::ivec3 &chunkPos);
 
-    void moveChunk(Chunk &chunk);
+    void insertChunkByMove(Chunk &chunk);
 
-    void removeChunk(const glm::ivec3 &chunkPos);
+    Chunk extractChunkByMove(const glm::ivec3& chunkPos);
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 

@@ -27,9 +27,9 @@ public:
 
     Chunk& createChunk(const glm::ivec3 &key);
 
-    void moveChunk(Chunk &chunk);
+    void insertChunkByMove(Chunk &chunk);
 
-    void removeChunk(glm::ivec3 key);
+    Chunk extractChunkByMove(const glm::ivec3& key);
 
     [[nodiscard]] auto getChunks() { return m_chunks | std::ranges::views::values; }
 

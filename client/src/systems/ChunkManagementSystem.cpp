@@ -22,7 +22,7 @@ void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
     Threading::ScopedLock lock(&m_lock);
 
     for (auto& chunk : m_loadedChunks) {
-        world.moveChunk(chunk);
+        world.insertChunkByMove(chunk);
     }
     m_loadedChunks.clear();
 
@@ -98,8 +98,10 @@ void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
         }
     }
 
+    Threading::ScopedLock lock(&m_lock);
+
     for (const auto &chunkPos : chunksToUnload) {
-        world.removeChunk(chunkPos);
+        m_chunksToUnload.push(world.extractChunkByMove(chunkPos));
     }
 }
 
@@ -113,6 +115,7 @@ void* ChunkManagementSystem::worker(void *arg) {
     const auto system = static_cast<ChunkManagementSystem*>(arg);
     std::optional<Chunk> chunkToSave = std::nullopt;
     std::optional<glm::ivec3> chunkToLoad = std::nullopt;
+    std::queue<Chunk> chunksToUnload;
     bool shouldExit = false;
     while (!shouldExit) {
         {
@@ -132,6 +135,15 @@ void* ChunkManagementSystem::worker(void *arg) {
                 system->m_chunksToLoad.pop();
                 system->m_loadingChunks.emplace(chunkToLoad.value());
             }
+
+            // Release memory for chunks in this thread to avoid blocking the main thread
+            if (!system->m_chunksToUnload.empty()) {
+                chunksToUnload = std::move(system->m_chunksToUnload);
+            }
+        }
+
+        while (!chunksToUnload.empty()) {
+            chunksToUnload.pop();
         }
 
         if (chunkToSave.has_value()) {
