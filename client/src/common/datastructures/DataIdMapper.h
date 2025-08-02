@@ -36,10 +36,22 @@ public:
     operator UintT() const {
         return m_id;
     }
+    bool operator==(const IdType& other) const {
+        return m_id == other.m_id;
+    }
 
 private:
     UintT m_id{0};
 };
+
+namespace std {
+    template<IdSize Size>
+    struct hash<IdType<Size>> {
+        std::size_t operator()(const IdType<Size>& id) const noexcept {
+            return std::hash<typename IdType<Size>::UintT>()(static_cast<typename IdType<Size>::UintT>(id));
+        }
+    };
+}
 
 template<typename DataT, IdSize Size>
 class DataIdMapper {
@@ -49,9 +61,18 @@ class DataIdMapper {
 public:
     static constexpr size_t MAX_DATA = Utils::pow(static_cast<size_t>(2), static_cast<size_t>(Size));
 
+    static std::vector<DataT> createEmptyDataVector() {
+        return std::vector<DataT>{EMPTY_DATA};
+    }
+
     DataIdMapper() {
-        m_dataVector.push_back(EMPTY_DATA);
+        m_dataVector = createEmptyDataVector();
         m_dataIdMap[EMPTY_DATA] = IdType(0);
+    }
+
+    explicit DataIdMapper(std::vector<DataT>&& dataVector) : m_dataVector(std::move(dataVector)) {
+        assert(m_dataVector.size() <= MAX_DATA && "DataIdMapper size exceeds maximum allowed size");
+        rebuildDataIdMap();
     }
 
     template<IdSize OtherIdSize>
@@ -77,6 +98,10 @@ public:
             return {true, static_cast<IdType>(m_dataVector.size() - 1)};
         }
         return {false, IdType()};
+    }
+
+    IdType getId(const DataT& data) const {
+        return m_dataIdMap.at(data);
     }
 
     [[nodiscard]] bool isEmpty() const {

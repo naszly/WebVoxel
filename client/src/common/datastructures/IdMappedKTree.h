@@ -1,10 +1,13 @@
 #pragma once
 
+#include <unordered_set>
+
 #include "DataIdMapper.h"
 #include "KTree.h"
 
 template<typename DataType, uint32_t Depth, uint32_t BaseSize, IdSize IdSize>
 class IdMappedKTree {
+    using DataIdMapper = ::DataIdMapper<DataType, IdSize>;
 public:
     IdMappedKTree() = default;
 
@@ -24,6 +27,13 @@ public:
         return isSuccess;
     }
 
+    void optimizeDataToIdMapping() {
+        auto activeIds = collectActiveIds();
+        auto newMapper = buildOptimizedMapper(activeIds);
+        remapTreeIds(activeIds, newMapper);
+        m_mapper = std::move(newMapper);
+    }
+
     [[nodiscard]] bool isEmpty() const {
         return m_tree.isEmpty();
     }
@@ -39,17 +49,44 @@ public:
     }
 
     static size_t getMaxSerializedSize() {
-        const size_t dataIdMapperSize = DataIdMapper<DataType, IdSize>::getMaxSerializedSize();
+        const size_t dataIdMapperSize = DataIdMapper::getMaxSerializedSize();
         const size_t kTreeSize = KTree<Depth, BaseSize, IdType<IdSize>>::getMaxSerializedSize();
         return dataIdMapperSize + kTreeSize;
     }
 
     [[nodiscard]] ::IdSize getMinIdSize() const { return m_mapper.getMinIdSize(); }
 
-    const DataIdMapper<DataType, IdSize>& getMapper() const { return m_mapper; }
+    const DataIdMapper& getMapper() const { return m_mapper; }
     const KTree<Depth, BaseSize, IdType<IdSize>>& getTree() const { return m_tree; }
 
 private:
-    DataIdMapper<DataType, IdSize> m_mapper;
+    DataIdMapper m_mapper;
     KTree<Depth, BaseSize, IdType<IdSize>> m_tree;
+
+    std::unordered_set<IdType<IdSize>> collectActiveIds() const {
+        std::unordered_set<IdType<IdSize>> activeIds;
+        m_tree.forEach([&](const IdType<IdSize>& id) {
+            activeIds.insert(id);
+        });
+        return activeIds;
+    }
+
+    DataIdMapper buildOptimizedMapper(const std::unordered_set<IdType<IdSize>>& activeIds) const {
+        std::vector<DataType> activeData = DataIdMapper::createEmptyDataVector();
+        for (const auto& id : activeIds) {
+            activeData.push_back(m_mapper.getData(id));
+        }
+        return DataIdMapper(std::move(activeData));
+    }
+
+    void remapTreeIds(const std::unordered_set<IdType<IdSize>>& activeIds, DataIdMapper& newMapper) const {
+        std::unordered_map<IdType<IdSize>, IdType<IdSize>> idRemap;
+        for (const auto& id : activeIds) {
+            const auto& data = m_mapper.getData(id);
+            idRemap[id] = newMapper.getId(data);
+        }
+        m_tree.forEach([&](IdType<IdSize>& id) {
+            id = idRemap.at(id);
+        });
+    }
 };
