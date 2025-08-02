@@ -6,6 +6,11 @@ template<uint32_t Layers, uint32_t NodeCountPerAxis, typename TData>
     requires std::is_class_v<TData> && HasIsEmpty<TData>
 class KTree {
 public:
+    KTree() = default;
+
+    template<typename TOtherData>
+    explicit KTree(const KTree<Layers, NodeCountPerAxis, TOtherData>& other) : m_root(other.getRoot()) {}
+
     [[nodiscard]] const TData& get(uint32_t x, uint32_t y, uint32_t z) const { return m_root.get(x, y, z); }
 
     void set(uint32_t x, uint32_t y, uint32_t z, const TData& tData) { m_root.set(x, y, z, tData); }
@@ -27,11 +32,6 @@ public:
 
     const KTreeNode<Layers, NodeCountPerAxis, TData>& getRoot() const {
         return m_root;
-    }
-
-    template<typename TOtherData>
-    void copyFrom(const KTree<Layers, NodeCountPerAxis, TOtherData>& other) {
-        m_root.copyFrom(other.getRoot());
     }
 
 private:

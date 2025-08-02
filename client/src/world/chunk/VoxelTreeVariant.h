@@ -12,10 +12,9 @@ union VoxelTreeVariant {
 
         VoxelTreeImpl() = default;
 
-        template<::VoxelIdSize OldVoxelIdSize>
-        explicit VoxelTreeImpl(const VoxelTreeImpl<OldVoxelIdSize>* old) : voxelMapper(old->voxelMapper) {
-            tree.copyFrom(old->tree);
-        }
+        template<::VoxelIdSize OtherVoxelIdSize>
+        explicit VoxelTreeImpl(const VoxelTreeImpl<OtherVoxelIdSize>* old)
+            : voxelMapper(old->voxelMapper), tree(old->tree) { }
 
         [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
             return voxelMapper.getVoxelData(tree.get(x, y, z));

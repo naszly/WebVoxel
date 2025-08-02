@@ -43,6 +43,11 @@ public:
         return *this;
     }
 
+    template<typename TOtherData>
+    explicit KTreeNode(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) {
+        copyFromOtherDataType(other);
+    }
+
     KTreeNode(KTreeNode&& other) noexcept {
         moveFrom(std::move(other));
     }
@@ -179,24 +184,6 @@ public:
         return &m_nodes[0][0][0];
     }
 
-    template<typename TOtherData>
-    void copyFrom(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) {
-        if constexpr (IS_LEAF) {
-            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                (&m_nodes[0][0][0])[idx] = static_cast<TData>(other.getNodes()[idx]);
-            }
-        } else {
-            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                if (const auto* otherChild = other.getNodes()[idx]) {
-                    (&m_nodes[0][0][0])[idx] = new KTreeChildNode();
-                    (&m_nodes[0][0][0])[idx]->copyFrom(*otherChild);
-                } else {
-                    (&m_nodes[0][0][0])[idx] = nullptr;
-                }
-            }
-        }
-    }
-
 private:
 
     NodeType m_nodes[NodeCountPerAxis][NodeCountPerAxis][NodeCountPerAxis]{};
@@ -223,6 +210,23 @@ private:
         } else {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                 if (const auto* otherChild = (&other.m_nodes[0][0][0])[idx]) {
+                    (&m_nodes[0][0][0])[idx] = new KTreeChildNode(*otherChild);
+                } else {
+                    (&m_nodes[0][0][0])[idx] = nullptr;
+                }
+            }
+        }
+    }
+
+    template<typename TOtherData>
+    void copyFromOtherDataType(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) {
+        if constexpr (IS_LEAF) {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                (&m_nodes[0][0][0])[idx] = static_cast<TData>(other.getNodes()[idx]);
+            }
+        } else {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (const auto* otherChild = other.getNodes()[idx]) {
                     (&m_nodes[0][0][0])[idx] = new KTreeChildNode(*otherChild);
                 } else {
                     (&m_nodes[0][0][0])[idx] = nullptr;
