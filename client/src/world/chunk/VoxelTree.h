@@ -1,17 +1,17 @@
 #pragma once
 
 #include "VoxelData.h"
-#include "VoxelTreeVariant.h"
+#include "common/datastructures/DataTreeVariant.h"
 #include "common/Utils.h"
 
 template<uint32_t Depth, uint32_t BaseSize>
 class VoxelTree {
-    using VoxelTreeVariantT = VoxelTreeVariant<Depth, BaseSize>;
+    using VoxelTreeVariant = DataTreeVariant<VoxelData, Depth, BaseSize>;
     constexpr static uint32_t SIZE = Utils::pow(BaseSize, Depth);
     static constexpr uint32_t BITMAP_SIZE = SIZE + 2;
-    using VoxelTree8 = typename VoxelTreeVariantT::template VoxelTreeImpl<IdSize::U8Bit>;
-    using VoxelTree16 = typename VoxelTreeVariantT::template VoxelTreeImpl<IdSize::U16Bit>;
-    using VoxelTree20 = typename VoxelTreeVariantT::template VoxelTreeImpl<IdSize::U20Bit>;
+    using VoxelTree8 = typename VoxelTreeVariant::template DataTreeImpl<IdSize::U8Bit>;
+    using VoxelTree16 = typename VoxelTreeVariant::template DataTreeImpl<IdSize::U16Bit>;
+    using VoxelTree20 = typename VoxelTreeVariant::template DataTreeImpl<IdSize::U20Bit>;
 public:
     VoxelTree() {
         switch (m_voxelIdSize) {
@@ -73,9 +73,9 @@ public:
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         switch (m_voxelIdSize) {
-            case IdSize::U8Bit: return m_treeByIdSize.u8Tree->getVoxel(x, y, z);
-            case IdSize::U16Bit: return m_treeByIdSize.u16Tree->getVoxel(x, y, z);
-            case IdSize::U20Bit: return m_treeByIdSize.u20Tree->getVoxel(x, y, z);
+            case IdSize::U8Bit: return m_treeByIdSize.u8Tree->getData(x, y, z);
+            case IdSize::U16Bit: return m_treeByIdSize.u16Tree->getData(x, y, z);
+            case IdSize::U20Bit: return m_treeByIdSize.u20Tree->getData(x, y, z);
         }
 
         std::unreachable();
@@ -84,23 +84,23 @@ public:
     void setVoxel(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
         switch (m_voxelIdSize) {
             case IdSize::U8Bit: {
-                bool success = m_treeByIdSize.u8Tree->trySetVoxel(x, y, z, voxel);
+                bool success = m_treeByIdSize.u8Tree->trySetData(x, y, z, voxel);
                 if (!success) {
                     updateIdSize(IdSize::U16Bit);
-                    m_treeByIdSize.u16Tree->trySetVoxel(x, y, z, voxel);
+                    m_treeByIdSize.u16Tree->trySetData(x, y, z, voxel);
                 }
                 break;
             }
             case IdSize::U16Bit: {
-                bool success = m_treeByIdSize.u16Tree->trySetVoxel(x, y, z, voxel);
+                bool success = m_treeByIdSize.u16Tree->trySetData(x, y, z, voxel);
                 if (!success) {
                     updateIdSize(IdSize::U20Bit);
-                    m_treeByIdSize.u20Tree->trySetVoxel(x, y, z, voxel);
+                    m_treeByIdSize.u20Tree->trySetData(x, y, z, voxel);
                 }
                 break;
             }
             case IdSize::U20Bit: {
-                bool success = m_treeByIdSize.u20Tree->trySetVoxel(x, y, z, voxel);
+                bool success = m_treeByIdSize.u20Tree->trySetData(x, y, z, voxel);
                 assert(success && "Failed to set voxel in VoxelTree with U20Bit ID size");
                 break;
             }
@@ -150,9 +150,9 @@ public:
     void shrinkToMinimalIdSize() {
         IdSize optimalIdSize = m_voxelIdSize;
         switch (m_voxelIdSize) {
-            case IdSize::U8Bit: optimalIdSize = m_treeByIdSize.u8Tree->voxelMapper.getMinIdSize(); break;
-            case IdSize::U16Bit: optimalIdSize = m_treeByIdSize.u16Tree->voxelMapper.getMinIdSize(); break;
-            case IdSize::U20Bit: optimalIdSize = m_treeByIdSize.u20Tree->voxelMapper.getMinIdSize(); break;
+            case IdSize::U8Bit: optimalIdSize = m_treeByIdSize.u8Tree->mapper.getMinIdSize(); break;
+            case IdSize::U16Bit: optimalIdSize = m_treeByIdSize.u16Tree->mapper.getMinIdSize(); break;
+            case IdSize::U20Bit: optimalIdSize = m_treeByIdSize.u20Tree->mapper.getMinIdSize(); break;
         }
 
         updateIdSize(optimalIdSize);
@@ -160,7 +160,7 @@ public:
 
 private:
     IdSize m_voxelIdSize{IdSize::U8Bit};
-    VoxelTreeVariantT m_treeByIdSize;
+    VoxelTreeVariant m_treeByIdSize;
 
     void updateIdSize(const IdSize newIdSize) {
         if (m_voxelIdSize == newIdSize) {
