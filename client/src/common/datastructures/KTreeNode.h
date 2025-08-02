@@ -106,6 +106,36 @@ public:
         }
     }
 
+    template<typename Func>
+    void forEach(Func&& func) {
+        if constexpr (IS_LEAF) {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                func((&m_nodes[0][0][0])[idx]);
+            }
+        } else {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (auto* child = (&m_nodes[0][0][0])[idx]) {
+                    child->forEach(func);
+                }
+            }
+        }
+    }
+
+    template<typename Func>
+    void forEach(Func&& func) const {
+        if constexpr (IS_LEAF) {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                func((&m_nodes[0][0][0])[idx]);
+            }
+        } else {
+            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                if (auto* child = (&m_nodes[0][0][0])[idx]) {
+                    child->forEach(func);
+                }
+            }
+        }
+    }
+
     void serialize(std::ostream& os) const {
         if constexpr (IS_LEAF) {
             os.write(reinterpret_cast<const char*>(&m_nodes[0][0][0]), NODE_COUNT * sizeof(TData));

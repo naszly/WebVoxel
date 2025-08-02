@@ -15,6 +15,16 @@ public:
 
     void set(uint32_t x, uint32_t y, uint32_t z, const TData& tData) { m_root.set(x, y, z, tData); }
 
+    template<typename Func>
+    void forEach(Func&& func) {
+        m_root.forEach(std::forward<Func>(func));
+    }
+
+    template<typename Func>
+    void forEach(Func&& func) const {
+        m_root.forEach(std::forward<Func>(func));
+    }
+
     void serialize(std::ostream& os) {
         m_root.removeEmptyNodes();
         m_root.serialize(os);
