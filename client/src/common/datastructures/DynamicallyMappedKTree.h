@@ -115,6 +115,7 @@ public:
     }
 
     void serialize(std::ostream& os) {
+        optimizeDataToIdMapping();
         shrinkToMinimalIdSize();
         os.write(reinterpret_cast<const char*>(&m_idSize), sizeof(m_idSize));
         switch (m_idSize) {
@@ -137,6 +138,14 @@ public:
 
     static size_t getMaxSerializedSize() {
         return Tree20::getMaxSerializedSize();
+    }
+
+    void optimizeDataToIdMapping() {
+        switch (m_idSize) {
+            case IdSize::U8Bit: m_tree.u8Tree->optimizeDataToIdMapping(); break;
+            case IdSize::U16Bit: m_tree.u16Tree->optimizeDataToIdMapping(); break;
+            case IdSize::U20Bit: m_tree.u20Tree->optimizeDataToIdMapping(); break;
+        }
     }
 
     void shrinkToMinimalIdSize() {
