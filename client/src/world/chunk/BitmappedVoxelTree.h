@@ -1,15 +1,14 @@
 #pragma once
 
-#include <cstdint>
-
-#include "VoxelTree.h"
+#include "VoxelData.h"
+#include "common/datastructures/DynamicallyMappedKTree.h"
 #include "common/datastructures/Bitmap.h"
 
 template<uint32_t Depth, uint32_t BaseSize>
 class BitmappedVoxelTree {
     constexpr static uint32_t SIZE = Utils::pow(BaseSize, Depth);
     static constexpr uint32_t BITMAP_SIZE = SIZE + 2;
-    using VoxelTreeT = VoxelTree<Depth, BaseSize>;
+    using VoxelTreeT = DynamicallyMappedKTree<VoxelData,Depth, BaseSize>;
     using BitmapT = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
 
 public:
@@ -40,7 +39,7 @@ public:
     }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        return m_tree.getVoxel(x, y, z);
+        return m_tree.getData(x, y, z);
     }
 
     void setVoxel(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
@@ -50,7 +49,7 @@ public:
         } else {
             m_bitmap.set(i);
         }
-        m_tree.setVoxel(x, y, z, voxel);
+        m_tree.setData(x, y, z, voxel);
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
