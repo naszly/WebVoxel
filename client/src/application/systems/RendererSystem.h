@@ -1,11 +1,11 @@
 #pragma once
 
-#include "core/System.h"
+#include "System.h"
 
 #include <glm/glm.hpp>
 
 #include "common/datastructures/HashMap.h"
-#include "graphics/VertexData.h"
+#include "../graphics/VertexData.h"
 
 class RendererSystem final : public System {
 public:

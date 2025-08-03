@@ -1,19 +1,16 @@
 #pragma once
+#include "System.h"
 
-#include "core/System.h"
-
-class GuiSystem : public System {
+class ControllerSystem final : public System {
 public:
     void initialize() override;
     void render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) override;
     void update(float dt) override;
     void onEvent(Event& event) override;
 
-    GuiSystem() : System() {}
+    ControllerSystem() : System() {}
 
 private:
-    static void setImGuiDisplaySize();
-    bool m_ambientOcclusion = false;
-    bool m_lighting = false;
-    bool m_fog = false;
+    bool m_isMouseCaptured = false;
+    static void updateCamera(float dt, const Input &input, Camera &camera);
 };

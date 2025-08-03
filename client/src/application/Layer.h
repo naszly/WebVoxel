@@ -3,8 +3,8 @@
 #include <vector>
 #include <memory>
 
-#include "Window.h"
-#include "System.h"
+#include "core/Window.h"
+#include "systems/System.h"
 
 class Layer {
 protected:

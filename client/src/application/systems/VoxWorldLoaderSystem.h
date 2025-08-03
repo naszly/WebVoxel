@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/System.h"
+#include "System.h"
 
 class VoxWorldLoaderSystem final : public System {
 public:

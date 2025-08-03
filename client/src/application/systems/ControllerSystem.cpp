@@ -5,7 +5,7 @@
 #include <emscripten/html5.h>
 #endif
 
-#include "Application.h"
+#include "application/Application.h"
 #include "core/events/KeyEvent.h"
 #include "core/events/MouseEvent.h"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "domain/VoxelData.h"
+#include "../domain/VoxelData.h"
 #include "AmbientOcclusion.h"
 
 struct VertexData {

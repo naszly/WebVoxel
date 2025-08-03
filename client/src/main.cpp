@@ -3,13 +3,13 @@
 #endif
 
 #include "common/Log.h"
-#include "Application.h"
+#include "application/Application.h"
 #include "common/FileSystem.h"
-#include "systems/ChunkManagementSystem.h"
-#include "systems/ControllerSystem.h"
-#include "systems/GuiSystem.h"
-#include "systems/RendererSystem.h"
-#include "systems/VoxWorldLoaderSystem.h"
+#include "application/systems/ChunkManagementSystem.h"
+#include "application/systems/ControllerSystem.h"
+#include "application/systems/GuiSystem.h"
+#include "application/systems/RendererSystem.h"
+#include "application/systems/VoxWorldLoaderSystem.h"
 
 int main(const int argc, char** argv) {
 

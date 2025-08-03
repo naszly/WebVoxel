@@ -1,6 +1,6 @@
 #pragma once
 
-#include "domain/VoxelData.h"
+#include "application/domain/VoxelData.h"
 #include "common/datastructures/DynamicallyMappedKTree.h"
 #include "common/datastructures/Bitmap.h"
 
