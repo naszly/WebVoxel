@@ -14,8 +14,6 @@ class IdType {
 public:
     using UintT = std::conditional_t<Size == IdSize::U8Bit, uint8_t, std::conditional_t<Size == IdSize::U16Bit, uint16_t, uint32_t>>;
 
-    static constexpr IdType EMPTY{0};
-
     IdType() = default;
     constexpr IdType(UintT id) : m_id(id) {}
 
