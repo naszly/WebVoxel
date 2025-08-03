@@ -44,8 +44,8 @@ public:
     }
 
     template<typename TOtherData>
-    explicit KTreeNode(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) {
-        copyFromOtherDataType(other);
+    explicit KTreeNode(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) noexcept {
+        copyFrom(other);
     }
 
     KTreeNode(KTreeNode&& other) noexcept {
@@ -234,29 +234,19 @@ private:
         }
     }
 
-    void copyFrom(const KTreeNode& other) {
+    template<typename TSourceData>
+    void copyFrom(const KTreeNode<Layer, NodeCountPerAxis, TSourceData>& source) {
         if constexpr (IS_LEAF) {
-            std::copy_n(&other.m_nodes[0][0][0], NODE_COUNT, &m_nodes[0][0][0]);
-        } else {
-            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                if (const auto* otherChild = (&other.m_nodes[0][0][0])[idx]) {
-                    (&m_nodes[0][0][0])[idx] = new KTreeChildNode(*otherChild);
-                } else {
-                    (&m_nodes[0][0][0])[idx] = nullptr;
+            if constexpr (std::is_same_v<TData, TSourceData>) {
+                std::copy_n(&source.getNodes()[0], NODE_COUNT, &m_nodes[0][0][0]);
+            } else {
+                for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
+                    (&m_nodes[0][0][0])[idx] = static_cast<TData>(source.getNodes()[idx]);
                 }
             }
-        }
-    }
-
-    template<typename TOtherData>
-    void copyFromOtherDataType(const KTreeNode<Layer, NodeCountPerAxis, TOtherData>& other) {
-        if constexpr (IS_LEAF) {
-            for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                (&m_nodes[0][0][0])[idx] = static_cast<TData>(other.getNodes()[idx]);
-            }
         } else {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                if (const auto* otherChild = other.getNodes()[idx]) {
+                if (const auto* otherChild = source.getNodes()[idx]) {
                     (&m_nodes[0][0][0])[idx] = new KTreeChildNode(*otherChild);
                 } else {
                     (&m_nodes[0][0][0])[idx] = nullptr;
