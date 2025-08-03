@@ -2,6 +2,8 @@
 
 #include "core/System.h"
 
+#include "common/datastructures/HashMap.h"
+
 #include <glm/glm.hpp>
 
 class RendererSystem final : public System {
@@ -70,7 +72,7 @@ private:
         size_t vertexCount{0};
     };
 
-    std::unordered_map<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
+    HashMap<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
 
     WGPUQuerySet m_querySet{};
     WGPUBuffer m_queryResolveBuffer{};

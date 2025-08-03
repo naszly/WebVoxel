@@ -3,8 +3,8 @@
 #include <ostream>
 #include <istream>
 #include <vector>
-#include <unordered_map>
 
+#include "HashMap.h"
 #include "IdType.h"
 #include "common/Utils.h"
 
@@ -98,7 +98,7 @@ public:
 
 private:
     std::vector<DataT> m_dataVector;
-    std::unordered_map<DataT, IdType, DataHasher> m_dataIdMap;
+    HashMap<DataT, IdType, DataHasher> m_dataIdMap;
 
     void rebuildDataIdMap() {
         assert(m_dataVector.front() == EMPTY_DATA);
@@ -109,20 +109,19 @@ private:
     }
 
     struct DataHasher {
-        std::size_t operator()(const DataT& data) const {
-            static_assert(std::is_trivially_copyable_v<DataT>, "DataT must be trivially copyable");
-            constexpr size_t sz = sizeof(DataT);
-            if constexpr (sz == 1) {
-                return std::hash<uint8_t>()(*reinterpret_cast<const uint8_t*>(&data));
-            } else if constexpr (sz == 2) {
-                return std::hash<uint16_t>()(*reinterpret_cast<const uint16_t*>(&data));
-            } else if constexpr (sz == 4) {
-                return std::hash<uint32_t>()(*reinterpret_cast<const uint32_t*>(&data));
-            } else if constexpr (sz == 8) {
-                return std::hash<uint64_t>()(*reinterpret_cast<const uint64_t*>(&data));
+        size_t operator()(const DataT& value) const {
+            constexpr size_t s = sizeof(DataT);
+            if constexpr (s == 1) {
+                return absl::Hash<uint8_t>()(*reinterpret_cast<const uint8_t*>(&value));
+            } else if constexpr (s == 2) {
+                return absl::Hash<uint16_t>()(*reinterpret_cast<const uint16_t*>(&value));
+            } else if constexpr (s == 4) {
+                return absl::Hash<uint32_t>()(*reinterpret_cast<const uint32_t*>(&value));
+            } else if constexpr (s == 8) {
+                return absl::Hash<uint64_t>()(*reinterpret_cast<const uint64_t*>(&value));
             } else {
-                static_assert(sz <= 8, "DataT size must be 1, 2, 4, or 8 bytes");
-                return 0;
+                static_assert(s == 1 || s == 2 || s == 4 || s == 8, "Unsupported DataT size for hashing");
+                std::unreachable();
             }
         }
     };

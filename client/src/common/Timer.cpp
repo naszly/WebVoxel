@@ -1,14 +1,14 @@
 
 #include "Timer.h"
 
+#include "datastructures/HashMap.h"
 #include "Log.h"
 #include "FileSystem.h"
 
-#include <unordered_map>
 #include <string>
 #include <sstream>
 
-std::unordered_map<std::string, std::vector<double>> savedTimes;
+HashMap<std::string, std::vector<double>> savedTimes;
 
 Timer::Timer(const char *name): m_name(name),  m_start(std::chrono::high_resolution_clock::now()) {}
 

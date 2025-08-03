@@ -2,8 +2,8 @@
 
 #include <ranges>
 #include <glm/gtx/hash.hpp>
-#include <unordered_map>
 
+#include "common/datastructures/HashMap.h"
 #include "chunk/Chunk.h"
 #include "WorldCoordinate.h"
 
@@ -44,7 +44,7 @@ public:
     void removeVoxel(const WorldCoordinate &coord);
 
 private:
-    std::unordered_map<glm::ivec3, Chunk> m_chunks;
+    HashMap<glm::ivec3, Chunk> m_chunks;
 
     void setChunkDirty(const glm::ivec3& key);
 

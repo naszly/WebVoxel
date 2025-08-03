@@ -1,7 +1,6 @@
 #pragma once
 
-#include <unordered_set>
-
+#include "HashMap.h"
 #include "DataIdMapper.h"
 #include "KTree.h"
 
@@ -80,7 +79,7 @@ private:
     }
 
     void remapTreeIds(const std::unordered_set<IdType<IdSize>>& activeIds, DataIdMapper& newMapper) const {
-        std::unordered_map<IdType<IdSize>, IdType<IdSize>> idRemap;
+        HashMap<IdType<IdSize>, IdType<IdSize>> idRemap;
         for (const auto& id : activeIds) {
             const auto& data = m_mapper.getData(id);
             idRemap[id] = newMapper.getId(data);
