@@ -41,7 +41,7 @@ WebGpuSurface::WebGpuSurface(GLFWwindow *window, const std::shared_ptr<WebGpuCon
 
     configureSurface();
 
-    LogCore::info("WebGPU surface created: {0}, format: {1}, present mode: {2}",
+    LogWebGpu::info("WebGPU surface created: {0}, format: {1}, present mode: {2}",
               reinterpret_cast<size_t>(m_surface),
               magic_enum::enum_name(m_surfaceFormat),
               magic_enum::enum_name(m_presentMode));
@@ -50,7 +50,7 @@ WebGpuSurface::WebGpuSurface(GLFWwindow *window, const std::shared_ptr<WebGpuCon
 WebGpuSurface::~WebGpuSurface() {
     auto surface = reinterpret_cast<size_t>(m_surface);
     wgpuSurfaceRelease(m_surface);
-    LogCore::info("WebGPU surface released: {0}", surface);
+    LogWebGpu::info("WebGPU surface released: {0}", surface);
 }
 
 void WebGpuSurface::configureSurface() {

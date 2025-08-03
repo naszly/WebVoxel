@@ -32,7 +32,7 @@ void WebGpuContext::createInstance() {
         throw Exception("Failed to create WebGPU instance");
     }
 
-    LogCore::info("WebGPU instance created: {0}", reinterpret_cast<size_t>(m_instance));
+    LogWebGpu::info("WebGPU instance created: {0}", reinterpret_cast<size_t>(m_instance));
 }
 
 void onAdapterRequest(const WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message,
@@ -64,7 +64,7 @@ void WebGpuContext::requestAdapter() {
         throw Exception("Failed to wait for WebGPU adapter request: {0}", magic_enum::enum_name(waitStatus));
     }
 
-    LogCore::info("WebGPU adapter requested: {0}", reinterpret_cast<size_t>(m_adapter));
+    LogWebGpu::info("WebGPU adapter requested: {0}", reinterpret_cast<size_t>(m_adapter));
 }
 
 void onDeviceRequest(const WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message,
@@ -80,12 +80,12 @@ void onDeviceRequest(const WGPURequestDeviceStatus status, WGPUDevice device, WG
 
 void onDeviceError(WGPUDevice const* device, const WGPUErrorType type, WGPUStringView message,
                    WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
-    LogCore::error("Uncaptured device error: type {0} ({1})", magic_enum::enum_name(type), message.data);
+    LogWebGpu::error("Uncaptured device error: type {0} ({1})", magic_enum::enum_name(type), message.data);
 }
 
 void onDeviceLost(WGPUDevice const* device, const WGPUDeviceLostReason reason, WGPUStringView message,
                   WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
-    LogCore::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message.data);
+    LogWebGpu::error("Device lost: reason {0} ({1})", magic_enum::enum_name(reason), message.data);
 }
 
 void WebGpuContext::requestDevice() {
@@ -128,5 +128,5 @@ void WebGpuContext::requestDevice() {
         throw Exception("Failed to wait for WebGPU device request: {0}", magic_enum::enum_name(waitStatus));
     }
 
-    LogCore::info("WebGPU device requested: {0}", reinterpret_cast<size_t>(m_device));
+    LogWebGpu::info("WebGPU device requested: {0}", reinterpret_cast<size_t>(m_device));
 }
