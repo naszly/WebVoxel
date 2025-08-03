@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 
-#include "core/Camera.h"
+#include "graphics/Camera.h"
 #include "core/Layer.h"
 #include "core/Window.h"
 #include "world/World.h"

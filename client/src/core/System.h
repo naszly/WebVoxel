@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Window.h"
-#include "Camera.h"
+#include "graphics/Camera.h"
 #include "world/World.h"
 
 class System {
