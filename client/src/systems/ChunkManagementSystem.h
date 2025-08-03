@@ -2,9 +2,9 @@
 
 #include <vector>
 #include <queue>
-#include <unordered_set>
 
 #include "core/System.h"
+#include "common/datastructures/HashSet.h"
 #include "common/Thread.h"
 
 #include <FastNoise/FastNoise.h>
@@ -31,11 +31,11 @@ private:
     const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
 
     std::queue<glm::ivec3> m_chunksToLoad;
-    std::unordered_set<glm::ivec3> m_loadingChunks;
+    HashSet<glm::ivec3> m_loadingChunks;
     std::vector<Chunk> m_loadedChunks;
 
     std::queue<Chunk> m_chunksToSave;
-    std::unordered_set<glm::ivec3> m_savingChunks;
+    HashSet<glm::ivec3> m_savingChunks;
 
     std::queue<Chunk> m_chunksToUnload;
 

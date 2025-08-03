@@ -1,12 +1,14 @@
 #pragma once
 
 #include "HashMap.h"
+#include "HashSet.h"
 #include "DataIdMapper.h"
 #include "KTree.h"
 
 template<typename DataType, uint32_t Depth, uint32_t BaseSize, IdSize IdSize>
 class IdMappedKTree {
     using DataIdMapper = ::DataIdMapper<DataType, IdSize>;
+    using IdHashSet = HashSet<IdType<IdSize>>;
 public:
     IdMappedKTree() = default;
 
@@ -62,15 +64,15 @@ private:
     DataIdMapper m_mapper;
     KTree<Depth, BaseSize, IdType<IdSize>> m_tree;
 
-    std::unordered_set<IdType<IdSize>> collectActiveIds() const {
-        std::unordered_set<IdType<IdSize>> activeIds;
+    IdHashSet collectActiveIds() const {
+        IdHashSet activeIds;
         m_tree.forEach([&](const IdType<IdSize>& id) {
             activeIds.insert(id);
         });
         return activeIds;
     }
 
-    DataIdMapper buildOptimizedMapper(const std::unordered_set<IdType<IdSize>>& activeIds) const {
+    DataIdMapper buildOptimizedMapper(const IdHashSet& activeIds) const {
         std::vector<DataType> activeData = DataIdMapper::createEmptyDataVector();
         for (const auto& id : activeIds) {
             activeData.push_back(m_mapper.getData(id));
@@ -78,7 +80,7 @@ private:
         return DataIdMapper(std::move(activeData));
     }
 
-    void remapTreeIds(const std::unordered_set<IdType<IdSize>>& activeIds, DataIdMapper& newMapper) const {
+    void remapTreeIds(const IdHashSet& activeIds, DataIdMapper& newMapper) const {
         HashMap<IdType<IdSize>, IdType<IdSize>> idRemap;
         for (const auto& id : activeIds) {
             const auto& data = m_mapper.getData(id);
