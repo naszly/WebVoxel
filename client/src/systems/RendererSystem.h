@@ -2,9 +2,10 @@
 
 #include "core/System.h"
 
-#include "common/datastructures/HashMap.h"
-
 #include <glm/glm.hpp>
+
+#include "common/datastructures/HashMap.h"
+#include "graphics/VertexData.h"
 
 class RendererSystem final : public System {
 public:
