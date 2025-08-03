@@ -8,18 +8,13 @@
 #include <utility>
 
 #include "Bitmap.h"
+#include "common/Concetps.h"
 #include "common/Utils.h"
 
-template<typename T>
-concept HasIsEmpty = requires(T t) {
-    { t.isEmpty() } -> std::convertible_to<bool>;
-};
-
 template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData>
-    requires std::is_class_v<TData> && HasIsEmpty<TData>
+    requires std::is_class_v<TData> && HasEmptyTrait<TData>
 class KTreeNode {
     friend class KTreeNode<Layer + 1, NodeCountPerAxis, TData>;
-    static constexpr TData EMPTY{};
     static constexpr bool IS_LEAF = Layer == 0;
     static constexpr uint32_t TREE_SIZE = Utils::pow(NodeCountPerAxis, Layer);
     static constexpr uint32_t NODE_COUNT = NodeCountPerAxis * NodeCountPerAxis * NodeCountPerAxis;
@@ -78,7 +73,7 @@ public:
             [[assume(nodeX < NodeCountPerAxis && nodeY < NodeCountPerAxis && nodeZ < NodeCountPerAxis)]];
 
             const auto* child = m_nodes[nodeX][nodeY][nodeZ];
-            return child ? child->get(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE) : EMPTY;
+            return child ? child->get(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE) : TData::EMPTY;
         }
     }
 
@@ -220,7 +215,7 @@ private:
 
     void initialize() {
         if constexpr (IS_LEAF) {
-            std::fill_n(&m_nodes[0][0][0], NODE_COUNT, EMPTY);
+            std::fill_n(&m_nodes[0][0][0], NODE_COUNT, TData::EMPTY);
         } else {
             std::fill_n(&m_nodes[0][0][0], NODE_COUNT, nullptr);
         }
@@ -258,7 +253,7 @@ private:
     void moveFrom(KTreeNode&& other) {
         std::copy_n(&other.m_nodes[0][0][0], NODE_COUNT, &m_nodes[0][0][0]);
         if constexpr (IS_LEAF) {
-            std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, EMPTY);
+            std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, TData::EMPTY);
         } else {
             std::fill_n(&other.m_nodes[0][0][0], NODE_COUNT, nullptr);
         }

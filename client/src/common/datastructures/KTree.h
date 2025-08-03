@@ -3,7 +3,7 @@
 #include "KTreeNode.h"
 
 template<uint32_t Layers, uint32_t NodeCountPerAxis, typename TData>
-    requires std::is_class_v<TData> && HasIsEmpty<TData>
+    requires std::is_class_v<TData> && HasEmptyTrait<TData>
 class KTree {
 public:
     KTree() = default;
