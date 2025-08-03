@@ -78,9 +78,9 @@ void Chunk::load() {
     m_data.deserialize(iss);
 
     if (iss.fail()) {
-        LogCore::error("Failed to deserialize chunk data from file: {}", fileName);
+        LogApp::error("Failed to deserialize chunk data from file: {}", fileName);
     } else {
-        LogCore::info("Chunk data loaded from file: {}", fileName);
+        LogApp::info("Chunk data loaded from file: {}", fileName);
     }
 }
 
@@ -100,7 +100,7 @@ std::vector<char> Chunk::compressData(const void* source, const size_t sourceLen
         destinationBuffer.resize(destinationLength);
     } else {
         destinationBuffer.clear();
-        LogCore::error("Failed to compress data: {}", zError(result));
+        LogApp::error("Failed to compress data: {}", zError(result));
     }
 
     return destinationBuffer;
@@ -120,7 +120,7 @@ std::vector<char> Chunk::decompressData(const std::vector<char>& source) {
         destinationBuffer.resize(destinationLength);
     } else {
         destinationBuffer.clear();
-        LogCore::error("Failed to decompress data: {}", zError(result));
+        LogApp::error("Failed to decompress data: {}", zError(result));
     }
 
     return destinationBuffer;

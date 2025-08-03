@@ -72,7 +72,7 @@ WGPUTextureView Application::getNextSurfaceTextureView() const {
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
-        LogCore::error("Failed to get current surface texture: status {0}", static_cast<int>(surfaceTexture.status));
+        LogApp::error("Failed to get current surface texture: status {0}", static_cast<int>(surfaceTexture.status));
         return nullptr;
     }
 
@@ -90,7 +90,7 @@ WGPUTextureView Application::getNextSurfaceTextureView() const {
     WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture.texture, &viewDescriptor);
 
     if (!targetView) {
-        LogCore::error("Failed to create texture view for surface texture");
+        LogApp::error("Failed to create texture view for surface texture");
     }
 
     return targetView;

@@ -48,7 +48,7 @@ void RendererSystem::initialize() {
         readBufferDesc.label = WGPUStringView{"Query Read Buffer", WGPU_STRLEN};
         m_queryReadBuffer = wgpuDeviceCreateBuffer(device, &readBufferDesc);
     } else {
-        LogCore::warning("TimestampQuery feature not supported");
+        LogApp::warning("TimestampQuery feature not supported");
     }
 }
 
@@ -187,7 +187,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
                                              m_queryReadBufferSize - bufferSize,
                                              bufferSize);
     } else {
-        LogCore::warning("Query read buffer is mapped, skipping copy");
+        LogApp::warning("Query read buffer is mapped, skipping copy");
     }
 }
 
@@ -563,7 +563,7 @@ void RendererSystem::createDepthTexture() {
 
     m_depthTexture = wgpuDeviceCreateTexture(device, &depthTextureDesc);
     if (!m_depthTexture) {
-        LogCore::error("Failed to create depth texture");
+        LogApp::error("Failed to create depth texture");
         return;
     }
 
@@ -578,7 +578,7 @@ void RendererSystem::createDepthTexture() {
 
     m_depthTextureView = wgpuTextureCreateView(m_depthTexture, &depthViewDesc);
     if (!m_depthTextureView) {
-        LogCore::error("Failed to create depth texture view");
+        LogApp::error("Failed to create depth texture view");
         wgpuTextureRelease(m_depthTexture);
     }
 
@@ -595,7 +595,7 @@ void RendererSystem::createDepthTexture() {
 
     m_multisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
     if (!m_multisampleColorTexture) {
-        LogCore::error("Failed to create color texture");
+        LogApp::error("Failed to create color texture");
         return;
     }
 
@@ -610,7 +610,7 @@ void RendererSystem::createDepthTexture() {
 
     m_multisampleColorTextureView = wgpuTextureCreateView(m_multisampleColorTexture, &colorViewDesc);
     if (!m_multisampleColorTextureView) {
-        LogCore::error("Failed to create color texture view");
+        LogApp::error("Failed to create color texture view");
         wgpuTextureRelease(m_multisampleColorTexture);
     }
 }
