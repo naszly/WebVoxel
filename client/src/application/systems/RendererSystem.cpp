@@ -355,7 +355,7 @@ void RendererSystem::createRenderPipeline() {
     shaderCodeDesc.code = WGPUStringView{shaderCode.c_str(), shaderCode.size()};
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
 
-    // Create the bind group layout
+    // Create the bind group layout for uniforms
     WGPUBindGroupLayoutEntry bglEntry{};
     bglEntry.binding = 0;
     bglEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
@@ -363,22 +363,39 @@ void RendererSystem::createRenderPipeline() {
     bglEntry.buffer.hasDynamicOffset = false;
     bglEntry.buffer.minBindingSize = sizeof(Uniforms);
 
+    // Create the bind group layout for colors
+    WGPUBindGroupLayoutEntry colorBglEntry{};
+    colorBglEntry.binding = 1;
+    colorBglEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    colorBglEntry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    colorBglEntry.buffer.hasDynamicOffset = false;
+    colorBglEntry.buffer.minBindingSize = 0;
+
+    std::array bglEntries{bglEntry, colorBglEntry};
     WGPUBindGroupLayoutDescriptor bglDesc{};
-    bglDesc.entryCount = 1;
-    bglDesc.entries = &bglEntry;
+    bglDesc.entryCount = bglEntries.size();
+    bglDesc.entries = bglEntries.data();
     WGPUBindGroupLayout bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
 
-    // Create the bind group
+    // Create the bind group for uniforms
     WGPUBindGroupEntry bgEntry{};
     bgEntry.binding = 0;
     bgEntry.buffer = m_uniformBuffer;
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
+    // Create the bind group for colors
+    WGPUBindGroupEntry colorBgEntry{};
+    colorBgEntry.binding = 1;
+    colorBgEntry.buffer = m_colorBuffer;
+    colorBgEntry.offset = 0;
+    colorBgEntry.size = wgpuBufferGetSize(m_colorBuffer); // Use actual buffer size
+
+    std::array bgEntries{bgEntry, colorBgEntry};
     WGPUBindGroupDescriptor bgDesc{};
     bgDesc.layout = bindGroupLayout;
-    bgDesc.entryCount = 1;
-    bgDesc.entries = &bgEntry;
+    bgDesc.entryCount = bgEntries.size();
+    bgDesc.entries = bgEntries.data();
     m_uniformBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
 
     // Create the pipeline layout
@@ -670,6 +687,15 @@ void RendererSystem::initializeBuffers() {
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
     m_uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
+
+    // Create color buffer
+    WGPUBufferDescriptor colorBufferDesc{};
+    colorBufferDesc.nextInChain = nullptr;
+    colorBufferDesc.size = sizeof(glm::vec4) * COLOR_COUNT;
+    colorBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    colorBufferDesc.mappedAtCreation = false;
+    m_colorBuffer = wgpuDeviceCreateBuffer(device, &colorBufferDesc);
+    wgpuQueueWriteBuffer(m_queue, m_colorBuffer, 0, m_colors.data(), colorBufferDesc.size);
 }
 
 void RendererSystem::exportTimestampsInternal() const {

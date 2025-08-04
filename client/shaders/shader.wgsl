@@ -16,6 +16,7 @@ struct Uniforms {
     farPlane: f32,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var<storage, read> colors: array<vec4f>;
 
 struct VertexInput {
     @location(0) vertexPosition: vec2f,
@@ -100,20 +101,9 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
 fn processVertex(vertex: VertexInputAo) -> VertexOut {
     let vertexPosition: vec2f = vertex.vertexPosition.xy;
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
-    var voxelColor: vec4f;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
 
-    if (vertex.voxelId == 0) {
-        voxelColor = vec4f(0.0, 0.0, 0.0, 1.0);
-    } else if (vertex.voxelId == 1) {
-        voxelColor = vec4f(1.0, 0.0, 0.0, 1.0);
-    } else if (vertex.voxelId == 2) {
-        voxelColor = vec4f(0.0, 1.0, 0.0, 1.0);
-    } else if (vertex.voxelId == 3) {
-        voxelColor = vec4f(0.0, 0.0, 1.0, 1.0);
-    } else {
-        voxelColor = vec4f(1.0, 1.0, 1.0, 1.0);
-    }
+    var voxelColor: vec4f = colors[vertex.voxelId];
 
     let voxelSize = instanceVoxelPosition.w;
 

@@ -68,6 +68,16 @@ private:
     Uniforms m_uniformData{};
     WGPUBindGroup m_uniformBindGroup{};
 
+    WGPUBuffer m_colorBuffer{};
+    WGPUBindGroup m_colorBindGroup{};
+    static constexpr uint32_t COLOR_COUNT = 4;
+    const std::array<glm::vec4, COLOR_COUNT> m_colors = {
+        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), // id 0
+        glm::vec4(0.1f, 0.9f, 0.1f, 0.2f), // id 1
+        glm::vec4(0.5f, 0.3f, 0.2f, 1.0f), // id 2
+        glm::vec4(0.4f, 0.4f, 0.4f, 1.0f), // id 3
+    };
+
     struct ChunkVertexBuffer {
         WGPUBuffer buffer{nullptr};
         size_t vertexCount{0};
