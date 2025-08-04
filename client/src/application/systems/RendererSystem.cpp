@@ -387,9 +387,9 @@ void RendererSystem::createRenderPipeline() {
     // Create the bind group for colors
     WGPUBindGroupEntry colorBgEntry{};
     colorBgEntry.binding = 1;
-    colorBgEntry.buffer = m_colorBuffer;
+    colorBgEntry.buffer = m_storageBufferManager->getBuffer();
     colorBgEntry.offset = 0;
-    colorBgEntry.size = wgpuBufferGetSize(m_colorBuffer); // Use actual buffer size
+    colorBgEntry.size = m_storageBufferManager->getBufferSize();
 
     std::array bgEntries{bgEntry, colorBgEntry};
     WGPUBindGroupDescriptor bgDesc{};
@@ -688,14 +688,8 @@ void RendererSystem::initializeBuffers() {
     uniformBufferDesc.mappedAtCreation = false;
     m_uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
 
-    // Create color buffer
-    WGPUBufferDescriptor colorBufferDesc{};
-    colorBufferDesc.nextInChain = nullptr;
-    colorBufferDesc.size = sizeof(glm::vec4) * COLOR_COUNT;
-    colorBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-    colorBufferDesc.mappedAtCreation = false;
-    m_colorBuffer = wgpuDeviceCreateBuffer(device, &colorBufferDesc);
-    wgpuQueueWriteBuffer(m_queue, m_colorBuffer, 0, m_colors.data(), colorBufferDesc.size);
+    // Create color storage buffer manager with color data
+    m_storageBufferManager = std::make_unique<StorageBufferManager>(device, m_queue, m_colors.data(), sizeof(m_colors));
 }
 
 void RendererSystem::exportTimestampsInternal() const {

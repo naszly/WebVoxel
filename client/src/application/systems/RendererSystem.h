@@ -6,6 +6,7 @@
 
 #include "common/datastructures/HashMap.h"
 #include "../graphics/VertexData.h"
+#include "../graphics/StorageBufferManager.h"
 
 class RendererSystem final : public System {
 public:
@@ -68,10 +69,8 @@ private:
     Uniforms m_uniformData{};
     WGPUBindGroup m_uniformBindGroup{};
 
-    WGPUBuffer m_colorBuffer{};
-    WGPUBindGroup m_colorBindGroup{};
-    static constexpr uint32_t COLOR_COUNT = 4;
-    const std::array<glm::vec4, COLOR_COUNT> m_colors = {
+    std::unique_ptr<StorageBufferManager> m_storageBufferManager;
+    const std::array<glm::vec4, 4> m_colors = {
         glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), // id 0
         glm::vec4(0.1f, 0.9f, 0.1f, 0.2f), // id 1
         glm::vec4(0.5f, 0.3f, 0.2f, 1.0f), // id 2
