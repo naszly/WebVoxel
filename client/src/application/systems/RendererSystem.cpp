@@ -363,7 +363,7 @@ void RendererSystem::createRenderPipeline() {
     bglEntry.buffer.hasDynamicOffset = false;
     bglEntry.buffer.minBindingSize = sizeof(Uniforms);
 
-    // Create the bind group layout for colors
+    // Create the bind group layout for colors (storage buffer)
     WGPUBindGroupLayoutEntry colorBglEntry{};
     colorBglEntry.binding = 1;
     colorBglEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
@@ -371,7 +371,19 @@ void RendererSystem::createRenderPipeline() {
     colorBglEntry.buffer.hasDynamicOffset = false;
     colorBglEntry.buffer.minBindingSize = 0;
 
-    std::array bglEntries{bglEntry, colorBglEntry};
+    // Create the bind group layout for texture array
+    WGPUBindGroupLayoutEntry textureArrayBglEntry{};
+    textureArrayBglEntry.binding = 2;
+    textureArrayBglEntry.visibility = WGPUShaderStage_Fragment;
+    textureArrayBglEntry.texture.sampleType = WGPUTextureSampleType_Float;
+    textureArrayBglEntry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    textureArrayBglEntry.texture.multisampled = false;
+
+    std::array bglEntries{
+        bglEntry,
+        colorBglEntry,
+        textureArrayBglEntry
+    };
     WGPUBindGroupLayoutDescriptor bglDesc{};
     bglDesc.entryCount = bglEntries.size();
     bglDesc.entries = bglEntries.data();
@@ -391,7 +403,17 @@ void RendererSystem::createRenderPipeline() {
     colorBgEntry.offset = 0;
     colorBgEntry.size = m_storageBufferManager->getBufferSize();
 
-    std::array bgEntries{bgEntry, colorBgEntry};
+    // Create the bind group for texture array
+    WGPUBindGroupEntry textureArrayBgEntry{};
+    textureArrayBgEntry.binding = 2;
+    textureArrayBgEntry.sampler = nullptr;
+    textureArrayBgEntry.textureView = Application::getInstance().getTextureArray().getTextureView();
+
+    std::array bgEntries{
+        bgEntry,
+        colorBgEntry,
+        textureArrayBgEntry
+    };
     WGPUBindGroupDescriptor bgDesc{};
     bgDesc.layout = bindGroupLayout;
     bgDesc.entryCount = bgEntries.size();

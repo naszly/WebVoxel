@@ -17,6 +17,7 @@ struct Uniforms {
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> colors: array<vec4f>;
+@group(0) @binding(2) var textureArray: texture_2d_array<f32>;
 
 struct VertexInput {
     @location(0) vertexPosition: vec2f,
@@ -35,7 +36,7 @@ struct VertexInputAo {
 
 struct VertexOut {
     @builtin(position) pos: vec4f,
-    @location(0) vColor: vec4f,
+    @location(0) @interpolate(flat) voxelId: u32,
     @location(1) vPos: vec3f,
     @location(2) vSize: f32,
     @location(3) @interpolate(flat) ambientOcclusion: u32,
@@ -43,7 +44,7 @@ struct VertexOut {
 
 struct FragmentIn {
     @builtin(position) fragPos: vec4f,
-    @location(0) vColor: vec4f,
+    @location(0) @interpolate(flat) voxelId: u32,
     @location(1) vPos: vec3f,
     @location(2) vSize: f32,
     @location(3) @interpolate(flat) ambientOcclusion: u32,
@@ -103,8 +104,6 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
 
-    var voxelColor: vec4f = colors[vertex.voxelId];
-
     let voxelSize = instanceVoxelPosition.w;
 
     let voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
@@ -122,7 +121,7 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
 
     var out: VertexOut;
     out.pos = vec4f(vertexPosition * billboard.size + billboard.pos, depth, 1.0);
-    out.vColor = voxelColor;
+    out.voxelId = vertex.voxelId;
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
     out.ambientOcclusion = vertex.ambientOcclusion;
@@ -204,24 +203,18 @@ fn intersectBox(box: Box, ray: Ray) -> Hit {
     if (test.x) {
         hit.normal = vec3f(sgn.x, 0.0f, 0.0f);
         hit.distance = distanceToPlane.x;
-        if (AO) {
-            hit.uv = getXPlaneUv(rayOrigin, rayDirection, distanceToPlane.x, box.radius.x);
-            hit.plane = select(0u, 1u, sgn.x > 0.0f);
-        }
+        hit.uv = getXPlaneUv(rayOrigin, rayDirection, distanceToPlane.x, box.radius.x);
+        hit.plane = select(0u, 1u, sgn.x > 0.0f);
     } else if (test.y) {
         hit.normal = vec3f(0.0f, sgn.y, 0.0f);
         hit.distance = distanceToPlane.y;
-        if (AO) {
-            hit.uv = getYPlaneUv(rayOrigin, rayDirection, distanceToPlane.y, box.radius.y);
-            hit.plane = select(2u, 3u, sgn.y > 0.0f);
-        }
+        hit.uv = getYPlaneUv(rayOrigin, rayDirection, distanceToPlane.y, box.radius.y);
+        hit.plane = select(2u, 3u, sgn.y > 0.0f);
     } else if (test.z) {
         hit.normal = vec3f(0.0f, 0.0f, sgn.z);
         hit.distance = distanceToPlane.z;
-        if (AO) {
-            hit.uv = getZPlaneUv(rayOrigin, rayDirection, distanceToPlane.z, box.radius.z);
-            hit.plane = select(4u, 5u, sgn.z > 0.0f);
-        }
+        hit.uv = getZPlaneUv(rayOrigin, rayDirection, distanceToPlane.z, box.radius.z);
+        hit.plane = select(4u, 5u, sgn.z > 0.0f);
     } else {
         return hit;
     }
@@ -352,7 +345,7 @@ fn applyAmbientOcclusion(color: vec3f, uv: vec2f, plane: u32, ambientOcclusion: 
     let hit: Hit = intersectBox(box, ray);
 
     if (hit.isHit) {
-        var color: vec3f = input.vColor.rgb;
+        var color: vec3f = textureLoad(textureArray, vec2i(hit.uv * 16.0f), input.voxelId, 0).rgb;
 
         if (AO) {
             color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
