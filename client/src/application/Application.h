@@ -9,7 +9,7 @@
 #include "world/World.h"
 
 struct ApplicationData {
-    glm::vec4 placedVoxelColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    VoxelData selectedVoxel = VoxelData(1);
     int placedVoxelRadius = 0;
     bool placedVoxelShapeIsSphere = true;
 

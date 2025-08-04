@@ -413,7 +413,7 @@ void RendererSystem::createRenderPipeline() {
             .offset = 0,
             .shaderLocation = 1,
         },
-        // Color
+        // Id
         WGPUVertexAttribute{
             .format = WGPUVertexFormat_Uint32,
             .offset = 1 * sizeof(uint32_t),

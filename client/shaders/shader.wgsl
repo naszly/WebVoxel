@@ -20,14 +20,14 @@ struct Uniforms {
 struct VertexInput {
     @location(0) vertexPosition: vec2f,
     @location(1) voxelPosition: u32,
-    @location(2) voxelColor: u32,
+    @location(2) voxelId: u32,
     @location(3) chunkPosition: vec3f,
 }
 
 struct VertexInputAo {
     @location(0) vertexPosition: vec2f,
     @location(1) voxelPosition: u32,
-    @location(2) voxelColor: u32,
+    @location(2) voxelId: u32,
     @location(3) chunkPosition: vec3f,
     @location(4) ambientOcclusion: u32,
 }
@@ -100,8 +100,20 @@ fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
 fn processVertex(vertex: VertexInputAo) -> VertexOut {
     let vertexPosition: vec2f = vertex.vertexPosition.xy;
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
-    let voxelColor: vec4f = unpack4x8unorm(vertex.voxelColor);
+    var voxelColor: vec4f;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
+
+    if (vertex.voxelId == 0) {
+        voxelColor = vec4f(0.0, 0.0, 0.0, 1.0);
+    } else if (vertex.voxelId == 1) {
+        voxelColor = vec4f(1.0, 0.0, 0.0, 1.0);
+    } else if (vertex.voxelId == 2) {
+        voxelColor = vec4f(0.0, 1.0, 0.0, 1.0);
+    } else if (vertex.voxelId == 3) {
+        voxelColor = vec4f(0.0, 0.0, 1.0, 1.0);
+    } else {
+        voxelColor = vec4f(1.0, 1.0, 1.0, 1.0);
+    }
 
     let voxelSize = instanceVoxelPosition.w;
 
@@ -132,7 +144,7 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
     let vertexAo: VertexInputAo = VertexInputAo(
         vertex.vertexPosition,
         vertex.voxelPosition,
-        vertex.voxelColor,
+        vertex.voxelId,
         vertex.chunkPosition,
         0
     );

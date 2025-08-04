@@ -137,7 +137,7 @@ void ControllerSystem::onEvent(Event &event) {
                 }
 
                 world.setVoxel(prevWorldPos,
-                    VoxelData(appData.placedVoxelColor),
+                    appData.selectedVoxel,
                     appData.placedVoxelRadius,
                     appData.placedVoxelShapeIsSphere);
 

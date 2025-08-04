@@ -2,22 +2,18 @@
 
 #include <cstdint>
 
-#include <glm/vec4.hpp>
-
 struct VoxelData {
-    uint8_t r{0}, g{0}, b{0}, a{0};
+    uint32_t voxelId{0};
 
     VoxelData() = default;
-    VoxelData(const uint8_t r, const uint8_t g, const uint8_t b) : r(r), g(g), b(b), a(255) {}
-    VoxelData(const uint8_t r, const uint8_t g, const uint8_t b, const uint8_t a) : r(r), g(g), b(b), a(a) {}
-    explicit VoxelData(const glm::vec4 color) : r(color.r * 255), g(color.g * 255), b(color.b * 255), a(color.a * 255) {}
+    explicit VoxelData(const uint16_t blockId) : voxelId(blockId) {}
 
     [[nodiscard]] bool isEmpty() const {
-        return a == 0;
+        return voxelId == 0;
     }
 
     bool operator==(const VoxelData& other) const {
-        return r == other.r && g == other.g && b == other.b && a == other.a;
+        return voxelId == other.voxelId;
     }
 
     bool operator!=(const VoxelData& other) const {

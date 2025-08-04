@@ -71,7 +71,7 @@ void VoxWorldLoaderSystem::initialize() {
                     if (colorIndex == 0) continue; // Skip empty voxels.
 
                     const auto&[r, g, b, a] = scene->palette.color[colorIndex];
-                    const VoxelData voxel(r, g, b, a);
+                    const VoxelData voxel(/*r, g, b, a*/ colorIndex); // TODO: handle palette colors properly
 
                     glm::ivec3 worldPosition = glm::ivec3(x, z, y) + magicOffset;
                     world.setVoxel(WorldCoordinate(worldPosition), voxel);

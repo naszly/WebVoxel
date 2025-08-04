@@ -147,7 +147,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
-    ImGui::ColorEdit3("Color", glm::value_ptr(appData.placedVoxelColor));
+    ImGui::SliderInt("Voxel Id", reinterpret_cast<int*>(&appData.selectedVoxel), 0, 3);
     ImGui::SliderInt("Radius", &appData.placedVoxelRadius, 0, 64);
     ImGui::Checkbox("Is Sphere", &appData.placedVoxelShapeIsSphere);
     ImGui::End();
