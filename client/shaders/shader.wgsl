@@ -352,6 +352,14 @@ fn getTextureId(voxelId: u32, plane: u32) -> u32 {
     }
 }
 
+fn remapUv(uv: vec2f, plane: u32) -> vec2f {
+    switch (plane) {
+        case planeNx, planePx: { return vec2f(uv.y, 1.0 - uv.x); }
+        case planeNz, planePz: { return vec2f(1.0 - uv.x, 1.0 - uv.y); }
+        default: { return uv; }
+    }
+}
+
 @fragment fn fsMain(input: FragmentIn) -> FragmentOut {
     var output: FragmentOut;
 
@@ -367,7 +375,8 @@ fn getTextureId(voxelId: u32, plane: u32) -> u32 {
 
     if (hit.isHit) {
         var textureId: u32 = getTextureId(input.voxelId, hit.plane);
-        var color: vec3f = textureLoad(textureArray, vec2i(hit.uv * 16.0f), textureId, 0).rgb;
+        var uv = remapUv(hit.uv, hit.plane);
+        var color: vec3f = textureLoad(textureArray, vec2i(uv * 16.0f), textureId, 0).rgb;
 
         if (AO) {
             color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
