@@ -6,6 +6,7 @@
 #include "graphics/Camera.h"
 #include "Layer.h"
 #include "core/Window.h"
+#include "graphics/TextureArray.h"
 #include "world/World.h"
 
 struct ApplicationData {
@@ -53,6 +54,10 @@ public:
         return m_camera;
     }
 
+    const TextureArray& getTextureArray() const {
+        return *m_textureArray;
+    }
+
     ApplicationData& getApplicationData() {
         return m_applicationData;
     }
@@ -74,6 +79,7 @@ private:
     std::unique_ptr<Window> m_window;
     World m_world;
     Camera m_camera;
+    std::unique_ptr<TextureArray> m_textureArray;
 
     ApplicationData m_applicationData;
 

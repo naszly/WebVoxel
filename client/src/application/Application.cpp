@@ -26,6 +26,15 @@ void Application::start(const int width, const int height) {
             .eventCallback=[this](Event &event) { onEvent(event); }
         });
 
+    m_textureArray = std::make_unique<TextureArray>(*getWebGpuContext(), 16, 16, 4);
+
+    m_textureArray->loadTexturesRgba({
+        "textures/error.png",
+        "textures/grass_top.png",
+        "textures/dirt.png",
+        "textures/stone.png",
+    });
+
     for (const auto& layer : m_layers) {
         layer->initialize();
     }

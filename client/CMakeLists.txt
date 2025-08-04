@@ -95,6 +95,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(opengametools)
 file(GLOB_RECURSE OGT_SOURCES ${opengametools_SOURCE_DIR}/src/*)
 
+# stb image
+FetchContent_Declare(
+        stb
+        GIT_REPOSITORY https://github.com/nothings/stb
+        GIT_TAG master
+        GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable(stb)
+
 file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${OGT_SOURCES})
@@ -108,6 +117,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${glfw3webgpu_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 target_include_directories(${PROJECT_NAME} PRIVATE ${opengametools_SOURCE_DIR}/src)
+target_include_directories(${PROJECT_NAME} PRIVATE ${stb_SOURCE_DIR})
 
 target_compile_definitions(
         ${PROJECT_NAME} PRIVATE
@@ -139,6 +149,12 @@ file(GLOB_RECURSE MODEL_FILES ${PROJECT_SOURCE_DIR}/models/*)
 foreach (MODEL_FILE ${MODEL_FILES})
     get_filename_component(MODEL_NAME ${MODEL_FILE} NAME)
     configure_file(${MODEL_FILE} ${ASSET_DIR}/models/${MODEL_NAME} COPYONLY)
+endforeach ()
+
+file(GLOB_RECURSE TEXTURE_FILES ${PROJECT_SOURCE_DIR}/textures/*)
+foreach (TEXTURE_FILE ${TEXTURE_FILES})
+    get_filename_component(TEXTURE_NAME ${TEXTURE_FILE} NAME)
+    configure_file(${TEXTURE_FILE} ${ASSET_DIR}/textures/${TEXTURE_NAME} COPYONLY)
 endforeach ()
 
 file(GLOB_RECURSE FONT_FILES ${imgui_SOURCE_DIR}/misc/fonts/*.ttf)
