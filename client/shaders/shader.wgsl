@@ -15,8 +15,16 @@ struct Uniforms {
     nearPlane: f32,
     farPlane: f32,
 }
+struct BlockTextures {
+    eastTextureId: u32,
+    topTextureId: u32,
+    northTextureId: u32,
+    westTextureId: u32,
+    bottomTextureId: u32,
+    southTextureId: u32,
+};
 @group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var<storage, read> colors: array<vec4f>;
+@group(0) @binding(1) var<storage, read> blockTextures: array<BlockTextures>;
 @group(0) @binding(2) var textureArray: texture_2d_array<f32>;
 
 struct VertexInput {
@@ -58,6 +66,13 @@ struct Billboard {
     pos: vec2f,
     size: vec2f,
 }
+
+const planeNx = 0; // Negative X (Left Plane)
+const planePx = 1; // Positive X (Right Plane)
+const planeNy = 2; // Negative Y (Bottom Plane)
+const planePy = 3; // Positive Y (Top Plane)
+const planeNz = 4; // Negative Z (Front Plane)
+const planePz = 5; // Positive Z (Back Plane)
 
 fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
     let quadricMat: vec4f = vec4f(1.0, 1.0, 1.0, -1.0);
@@ -299,13 +314,6 @@ fn applyAmbientOcclusion(color: vec3f, uv: vec2f, plane: u32, ambientOcclusion: 
     const edgePyNz = 1 << 18;
     const edgePyPz = 1 << 19;
 
-    const planeNx = 0; // Negative X (Left Plane)
-    const planePx = 1; // Positive X (Right Plane)
-    const planeNy = 2; // Negative Y (Bottom Plane)
-    const planePy = 3; // Positive Y (Top Plane)
-    const planeNz = 4; // Negative Z (Front Plane)
-    const planePz = 5; // Positive Z (Back Plane)
-
     const corners = array<array<u32, 4>, 6>(
         array<u32, 4>(cornerNxNyNz, cornerNxNyPz, cornerNxPyNz, cornerNxPyPz), // planeNx
         array<u32, 4>(cornerPxNyNz, cornerPxNyPz, cornerPxPyNz, cornerPxPyPz), // planePx
@@ -331,6 +339,19 @@ fn applyAmbientOcclusion(color: vec3f, uv: vec2f, plane: u32, ambientOcclusion: 
     );
 }
 
+fn getTextureId(voxelId: u32, plane: u32) -> u32 {
+    let bt = blockTextures[voxelId];
+    switch (plane) {
+        case planeNx: { return bt.westTextureId; }
+        case planePx: { return bt.eastTextureId; }
+        case planeNy: { return bt.bottomTextureId; }
+        case planePy: { return bt.topTextureId; }
+        case planeNz: { return bt.northTextureId; }
+        case planePz: { return bt.southTextureId; }
+        default: { return bt.eastTextureId; }
+    }
+}
+
 @fragment fn fsMain(input: FragmentIn) -> FragmentOut {
     var output: FragmentOut;
 
@@ -345,7 +366,8 @@ fn applyAmbientOcclusion(color: vec3f, uv: vec2f, plane: u32, ambientOcclusion: 
     let hit: Hit = intersectBox(box, ray);
 
     if (hit.isHit) {
-        var color: vec3f = textureLoad(textureArray, vec2i(hit.uv * 16.0f), input.voxelId, 0).rgb;
+        var textureId: u32 = getTextureId(input.voxelId, hit.plane);
+        var color: vec3f = textureLoad(textureArray, vec2i(hit.uv * 16.0f), textureId, 0).rgb;
 
         if (AO) {
             color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);

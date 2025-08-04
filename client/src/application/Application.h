@@ -6,6 +6,7 @@
 #include "graphics/Camera.h"
 #include "Layer.h"
 #include "core/Window.h"
+#include "graphics/BlockTextureManager.h"
 #include "graphics/TextureArray.h"
 #include "world/World.h"
 
@@ -54,8 +55,8 @@ public:
         return m_camera;
     }
 
-    const TextureArray& getTextureArray() const {
-        return *m_textureArray;
+    std::shared_ptr<BlockTextureManager> getBlockTextureManager() const {
+        return m_blockTextureManager;
     }
 
     ApplicationData& getApplicationData() {
@@ -79,7 +80,7 @@ private:
     std::unique_ptr<Window> m_window;
     World m_world;
     Camera m_camera;
-    std::unique_ptr<TextureArray> m_textureArray;
+    std::shared_ptr<BlockTextureManager> m_blockTextureManager;
 
     ApplicationData m_applicationData;
 

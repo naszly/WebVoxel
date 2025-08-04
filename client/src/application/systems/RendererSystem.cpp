@@ -396,22 +396,24 @@ void RendererSystem::createRenderPipeline() {
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
-    // Create the bind group for colors
-    WGPUBindGroupEntry colorBgEntry{};
-    colorBgEntry.binding = 1;
-    colorBgEntry.buffer = m_storageBufferManager->getBuffer();
-    colorBgEntry.offset = 0;
-    colorBgEntry.size = m_storageBufferManager->getBufferSize();
+    auto blockTextureManager = Application::getInstance().getBlockTextureManager();
+
+    // Create the bind group for texture ids
+    WGPUBindGroupEntry textureIdsBgEntry{};
+    textureIdsBgEntry.binding = 1;
+    textureIdsBgEntry.buffer = blockTextureManager->getTextureIdsBuffer();
+    textureIdsBgEntry.offset = 0;
+    textureIdsBgEntry.size = blockTextureManager->getTextureIdsBufferSize();
 
     // Create the bind group for texture array
     WGPUBindGroupEntry textureArrayBgEntry{};
     textureArrayBgEntry.binding = 2;
     textureArrayBgEntry.sampler = nullptr;
-    textureArrayBgEntry.textureView = Application::getInstance().getTextureArray().getTextureView();
+    textureArrayBgEntry.textureView = blockTextureManager->getTextureArrayView();
 
     std::array bgEntries{
         bgEntry,
-        colorBgEntry,
+        textureIdsBgEntry,
         textureArrayBgEntry
     };
     WGPUBindGroupDescriptor bgDesc{};
@@ -709,9 +711,6 @@ void RendererSystem::initializeBuffers() {
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
     m_uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
-
-    // Create color storage buffer manager with color data
-    m_storageBufferManager = std::make_unique<StorageBufferManager>(device, m_queue, m_colors.data(), sizeof(m_colors));
 }
 
 void RendererSystem::exportTimestampsInternal() const {
