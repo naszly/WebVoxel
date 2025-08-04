@@ -38,9 +38,9 @@ public:
     void exportTimestamps() const;
 
 private:
-    bool m_ambientOcclusion = false;
-    bool m_lighting = false;
-    bool m_fog = false;
+    bool m_ambientOcclusion = true;
+    bool m_lighting = true;
+    bool m_fog = true;
     const int m_sampleCount = 1;
 
     struct Uniforms {

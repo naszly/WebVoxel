@@ -13,7 +13,7 @@ public:
 
 private:
     static void setImGuiDisplaySize();
-    bool m_ambientOcclusion = false;
-    bool m_lighting = false;
-    bool m_fog = false;
+    bool m_ambientOcclusion = true;
+    bool m_lighting = true;
+    bool m_fog = true;
 };
