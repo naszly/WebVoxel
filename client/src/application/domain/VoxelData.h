@@ -1,19 +1,20 @@
 #pragma once
 
-#include <cstdint>
+#include "BlockId.h"
 
 struct VoxelData {
-    uint32_t voxelId{0};
+    BlockId blockId{0};
 
     VoxelData() = default;
-    explicit VoxelData(const uint16_t blockId) : voxelId(blockId) {}
+    explicit VoxelData(const BlockId blockId) : blockId(blockId) {}
+    explicit VoxelData(const uint32_t id) : blockId(static_cast<BlockId>(id)) {}
 
     [[nodiscard]] bool isEmpty() const {
-        return voxelId == 0;
+        return blockId == BlockId::Air;
     }
 
     bool operator==(const VoxelData& other) const {
-        return voxelId == other.voxelId;
+        return blockId == other.blockId;
     }
 
     bool operator!=(const VoxelData& other) const {
