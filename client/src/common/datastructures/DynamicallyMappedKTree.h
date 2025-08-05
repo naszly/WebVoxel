@@ -63,6 +63,11 @@ public:
 
     DynamicallyMappedKTree& operator=(DynamicallyMappedKTree&& other) noexcept {
         if (this != &other) {
+            switch (m_idSize) {
+                case IdSize::U8Bit: delete m_tree.u8Tree; break;
+                case IdSize::U16Bit: delete m_tree.u16Tree; break;
+                case IdSize::U20Bit: delete m_tree.u20Tree; break;
+            }
             m_idSize = other.m_idSize;
             m_tree = other.m_tree;
             other.clearPointers();
