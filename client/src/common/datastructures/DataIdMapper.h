@@ -98,7 +98,7 @@ public:
 
 private:
     std::vector<DataT> m_dataVector;
-    HashMap<DataT, IdType, DataHasher> m_dataIdMap;
+    HashMap<DataT, IdType> m_dataIdMap;
 
     void rebuildDataIdMap() {
         assert(m_dataVector.front() == EMPTY_DATA);
@@ -107,22 +107,4 @@ private:
             m_dataIdMap[m_dataVector[i]] = static_cast<IdType>(i);
         }
     }
-
-    struct DataHasher {
-        size_t operator()(const DataT& value) const {
-            constexpr size_t s = sizeof(DataT);
-            if constexpr (s == 1) {
-                return absl::Hash<uint8_t>()(*reinterpret_cast<const uint8_t*>(&value));
-            } else if constexpr (s == 2) {
-                return absl::Hash<uint16_t>()(*reinterpret_cast<const uint16_t*>(&value));
-            } else if constexpr (s == 4) {
-                return absl::Hash<uint32_t>()(*reinterpret_cast<const uint32_t*>(&value));
-            } else if constexpr (s == 8) {
-                return absl::Hash<uint64_t>()(*reinterpret_cast<const uint64_t*>(&value));
-            } else {
-                static_assert(s == 1 || s == 2 || s == 4 || s == 8, "Unsupported DataT size for hashing");
-                std::unreachable();
-            }
-        }
-    };
 };

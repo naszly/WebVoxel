@@ -34,6 +34,11 @@ public:
         return !(*this == other);
     }
 
+    template <typename H>
+    friend H AbslHashValue(H h, const VoxelData& v) {
+        return H::combine(std::move(h), v.m_data, v.m_hasTexture);
+    }
+
 private:
     uint32_t m_data : 24;
     bool m_hasTexture : 1;
