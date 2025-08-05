@@ -30,32 +30,36 @@ struct BlockTextures {
 struct VertexInput {
     @location(0) vertexPosition: vec2f,
     @location(1) voxelPosition: u32,
-    @location(2) voxelId: u32,
+    @location(2) voxelData: u32,
     @location(3) chunkPosition: vec3f,
 }
 
 struct VertexInputAo {
     @location(0) vertexPosition: vec2f,
     @location(1) voxelPosition: u32,
-    @location(2) voxelId: u32,
+    @location(2) voxelData: u32,
     @location(3) chunkPosition: vec3f,
     @location(4) ambientOcclusion: u32,
 }
 
 struct VertexOut {
     @builtin(position) pos: vec4f,
-    @location(0) @interpolate(flat) voxelId: u32,
-    @location(1) vPos: vec3f,
-    @location(2) vSize: f32,
-    @location(3) @interpolate(flat) ambientOcclusion: u32,
+    @location(0) vPos: vec3f,
+    @location(1) vSize: f32,
+    @location(2) @interpolate(flat) ambientOcclusion: u32,
+    @location(3) @interpolate(flat) isTexturedVoxel: u32,
+    @location(4) @interpolate(flat) blockId: u32,
+    @location(5) @interpolate(flat) voxelColor: vec3f,
 }
 
 struct FragmentIn {
     @builtin(position) fragPos: vec4f,
-    @location(0) @interpolate(flat) voxelId: u32,
-    @location(1) vPos: vec3f,
-    @location(2) vSize: f32,
-    @location(3) @interpolate(flat) ambientOcclusion: u32,
+    @location(0) vPos: vec3f,
+    @location(1) vSize: f32,
+    @location(2) @interpolate(flat) ambientOcclusion: u32,
+    @location(3) @interpolate(flat) isTexturedVoxel: u32,
+    @location(4) @interpolate(flat) blockId: u32,
+    @location(5) @interpolate(flat) voxelColor: vec3f,
 }
 
 struct FragmentOut {
@@ -136,11 +140,16 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
 
     var out: VertexOut;
     out.pos = vec4f(vertexPosition * billboard.size + billboard.pos, depth, 1.0);
-    out.voxelId = vertex.voxelId;
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
     out.ambientOcclusion = vertex.ambientOcclusion;
-
+    out.isTexturedVoxel = ((vertex.voxelData >> 24u) & 1u);
+    out.blockId = vertex.voxelData & 0xFFFFFFu;
+    out.voxelColor = vec3f(
+        f32((vertex.voxelData >> 16u) & 0xFFu) / 255.0,
+        f32((vertex.voxelData >> 8u) & 0xFFu) / 255.0,
+        f32(vertex.voxelData & 0xFFu) / 255.0
+    );
     return out;
 }
 
@@ -148,7 +157,7 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
     let vertexAo: VertexInputAo = VertexInputAo(
         vertex.vertexPosition,
         vertex.voxelPosition,
-        vertex.voxelId,
+        vertex.voxelData,
         vertex.chunkPosition,
         0
     );
@@ -339,8 +348,8 @@ fn applyAmbientOcclusion(color: vec3f, uv: vec2f, plane: u32, ambientOcclusion: 
     );
 }
 
-fn getTextureId(voxelId: u32, plane: u32) -> u32 {
-    let bt = blockTextures[voxelId];
+fn getTextureId(blockId: u32, plane: u32) -> u32 {
+    let bt = blockTextures[blockId];
     switch (plane) {
         case planeNx: { return bt.westTextureId; }
         case planePx: { return bt.eastTextureId; }
@@ -374,9 +383,14 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
     let hit: Hit = intersectBox(box, ray);
 
     if (hit.isHit) {
-        var textureId: u32 = getTextureId(input.voxelId, hit.plane);
-        var uv = remapUv(hit.uv, hit.plane);
-        var color: vec3f = textureLoad(textureArray, vec2i(uv * 16.0f), textureId, 0).rgb;
+        var color: vec3f;
+        if (input.isTexturedVoxel != 0) {
+            var textureId: u32 = getTextureId(input.blockId, hit.plane);
+            var uv = remapUv(hit.uv, hit.plane);
+            color = textureLoad(textureArray, vec2i(uv * 16.0f), textureId, 0).rgb;
+        } else {
+            color = input.voxelColor;
+        }
 
         if (AO) {
             color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
