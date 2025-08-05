@@ -1,12 +1,14 @@
-
 #include "Timer.h"
 
 #include "datastructures/HashMap.h"
 #include "Log.h"
 #include "FileSystem.h"
+#include "Thread.h"
 
 #include <string>
 #include <sstream>
+
+static Threading::Lock savedTimesLock;
 
 HashMap<std::string, std::vector<double>> savedTimes;
 
@@ -15,10 +17,12 @@ Timer::Timer(const char *name): m_name(name),  m_start(std::chrono::high_resolut
 Timer::~Timer() {
     const double ms = elapsedMilliseconds();
     LogApp::info("{}: {} ms", m_name, ms);
+    Threading::ScopedLock lock(&savedTimesLock);
     savedTimes[m_name].push_back(ms);
 }
 
 void Timer::exportTimes() {
+    Threading::ScopedLock lock(&savedTimesLock);
     for (auto&[name, timeValues] : savedTimes) {
         std::string fileName = name + ".txt";
 
