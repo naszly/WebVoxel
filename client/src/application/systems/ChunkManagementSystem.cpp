@@ -84,11 +84,13 @@ void ChunkManagementSystem::updateSaveQueue(World& world) {
     const auto chunks = world.getChunks();
 
     for (auto &chunk : chunks) {
-        if (chunk.isSaveFileDirty() && !m_savingChunks.contains(chunk.getPosition())) {
+        if (chunk.isSaveFileDirty()) {
             Threading::ScopedLock lock(&m_lock);
-            m_chunksToSave.push(chunk);
-            m_savingChunks.insert(chunk.getPosition());
-            chunk.resetSaveFileDirty();
+            if (!m_savingChunks.contains(chunk.getPosition())) {
+                m_chunksToSave.push(chunk);
+                m_savingChunks.insert(chunk.getPosition());
+                chunk.resetSaveFileDirty();
+            }
         }
     }
 }
