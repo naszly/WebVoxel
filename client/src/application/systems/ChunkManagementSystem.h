@@ -7,8 +7,6 @@
 #include "common/datastructures/HashSet.h"
 #include "common/Thread.h"
 
-#include <FastNoise/FastNoise.h>
-
 class ChunkManagementSystem final : public System {
 public:
     void initialize() override;
@@ -28,7 +26,7 @@ private:
     static constexpr int UNLOAD_RADIUS = 12;
     static_assert(LOAD_RADIUS < UNLOAD_RADIUS, "Load radius must be less than unload radius");
 
-    const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
+    const char* m_fnGeneratorEncoded = "DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==";
 
     std::queue<glm::ivec3> m_chunksToLoad;
     HashSet<glm::ivec3> m_loadingChunks;

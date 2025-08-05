@@ -122,10 +122,14 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
 
 void* ChunkManagementSystem::worker(void *arg) {
     const auto system = static_cast<ChunkManagementSystem*>(arg);
+    auto fnGenerator = FastNoise::NewFromEncodedNodeTree(system->m_fnGeneratorEncoded);
+
     std::optional<Chunk> chunkToSave = std::nullopt;
     std::optional<glm::ivec3> chunkToLoad = std::nullopt;
     std::queue<Chunk> chunksToUnload;
+
     bool shouldExit = false;
+
     while (!shouldExit) {
         {
             Threading::ScopedLock lock(&system->m_lock);
@@ -174,7 +178,7 @@ void* ChunkManagementSystem::worker(void *arg) {
             if (chunk.fileExists()) {
                 chunk.load();
             } else {
-                chunk.generate(system->m_fnGenerator);
+                chunk.generate(fnGenerator);
             }
 
             chunkToLoad = std::nullopt;
