@@ -146,8 +146,10 @@ void* ChunkManagementSystem::worker(void *arg) {
             }
 
             // Release memory for chunks in this thread to avoid blocking the main thread
-            if (!system->m_chunksToUnload.empty()) {
-                chunksToUnload = std::move(system->m_chunksToUnload);
+            while (!system->m_chunksToUnload.empty()) {
+                auto& chunk = system->m_chunksToUnload.front();
+                chunksToUnload.push(std::move(chunk));
+                system->m_chunksToUnload.pop();
             }
         }
 
