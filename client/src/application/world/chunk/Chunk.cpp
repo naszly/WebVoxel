@@ -24,12 +24,12 @@ void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
                     const int noiseValue = static_cast<int>((noise[i * WIDTH + k] * 0.5 + 0.5) * 255);
                     const int height = m_position.y * WIDTH + j;
                     if (noiseValue == height) {
-                        m_data.setVoxel(i, j, k, VoxelData(1));
+                        m_data.setVoxel(i, j, k, VoxelData(BlockId::Grass));
                     } else if (noiseValue > height) {
-                        m_data.setVoxel(i, j, k, VoxelData(2));
+                        m_data.setVoxel(i, j, k, VoxelData(BlockId::Dirt));
                     }
                 } else if (m_position.y < 0) {
-                    m_data.setVoxel(i, j, k, VoxelData(3));
+                    m_data.setVoxel(i, j, k, VoxelData(BlockId::Stone));
                 }
             }
         }

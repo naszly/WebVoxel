@@ -11,7 +11,7 @@
 #include "world/World.h"
 
 struct ApplicationData {
-    VoxelData selectedVoxel = VoxelData(1);
+    VoxelData selectedVoxel = VoxelData(BlockId::Grass);
     int placedVoxelRadius = 0;
     bool placedVoxelShapeIsSphere = true;
 
