@@ -45,6 +45,12 @@ public:
 
     DynamicallyMappedKTree& operator=(const DynamicallyMappedKTree& other) {
         if (this != &other) {
+            switch (m_idSize) {
+                case IdSize::U8Bit: delete m_tree.u8Tree; break;
+                case IdSize::U16Bit: delete m_tree.u16Tree; break;
+                case IdSize::U20Bit: delete m_tree.u20Tree; break;
+            }
+            clearPointers();
             m_idSize = other.m_idSize;
             switch (m_idSize) {
                 case IdSize::U8Bit: m_tree.u8Tree = new Tree8(*other.m_tree.u8Tree); break;
