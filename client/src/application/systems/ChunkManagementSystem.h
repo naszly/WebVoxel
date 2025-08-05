@@ -43,15 +43,15 @@ private:
     Threading::Lock m_lock;
     bool m_shouldExit = false;
 
-    void loadChunks(const Camera &camera, World &world);
+    void integrateLoadedChunks(World &world);
 
     static std::vector<glm::ivec3> generateChunkOffsets();
 
-    void updateLoadQueue(const Camera& camera, const World& world);
+    void scheduleChunksForLoading(const Camera& camera, const World& world);
 
-    void updateSaveQueue(World &world);
+    void scheduleChunksForSaving(World &world);
 
-    void unloadChunks(const Camera &camera, World &world);
+    void scheduleChunksForUnloading(const Camera &camera, World &world);
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 

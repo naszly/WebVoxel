@@ -20,22 +20,22 @@ void ChunkManagementSystem::update(float dt) {
     const Camera& camera = getCamera();
     World& world = getWorld();
 
-    loadChunks(camera, world);
+    integrateLoadedChunks(world);
 
-    updateSaveQueue(world);
+    scheduleChunksForLoading(camera, world);
 
-    unloadChunks(camera, world);
+    scheduleChunksForSaving(world);
+
+    scheduleChunksForUnloading(camera, world);
 }
 
-void ChunkManagementSystem::loadChunks(const Camera &camera, World &world) {
+void ChunkManagementSystem::integrateLoadedChunks(World &world) {
     Threading::ScopedLock lock(&m_lock);
 
     for (auto& chunk : m_loadedChunks) {
         world.insertChunkByMove(chunk);
     }
     m_loadedChunks.clear();
-
-    updateLoadQueue(camera, world);
 }
 
 std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
@@ -55,7 +55,7 @@ std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
     return offsets;
 }
 
-void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& world) {
+void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const World& world) {
     const glm::vec3 playerPosition = camera.getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
@@ -63,6 +63,9 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
 
     std::vector<glm::ivec3> chunksToLoad;
     const size_t maxChunksToLoad = m_chunkWorkersCount * 3;
+
+    Threading::ScopedLock lock(&m_lock);
+
     for (const auto& offset : offsets) {
         const auto chunkPos = playerChunk + offset;
 
@@ -80,7 +83,7 @@ void ChunkManagementSystem::updateLoadQueue(const Camera& camera, const World& w
     m_chunksToLoad = std::queue(chunksToLoad.begin(), chunksToLoad.end());
 }
 
-void ChunkManagementSystem::updateSaveQueue(World& world) {
+void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
     const auto chunks = world.getChunks();
 
     for (auto &chunk : chunks) {
@@ -95,7 +98,7 @@ void ChunkManagementSystem::updateSaveQueue(World& world) {
     }
 }
 
-void ChunkManagementSystem::unloadChunks(const Camera &camera, World &world) {
+void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, World &world) {
     const glm::vec3 playerPosition = camera.getPosition();
 
     const auto chunks = world.getChunks();
