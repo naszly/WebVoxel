@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_wgpu.h>
+#include <magic_enum.hpp>
 
 #include "ChunkManagementSystem.h"
 #include "RendererSystem.h"
@@ -147,7 +148,24 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
-    ImGui::SliderInt("Voxel Id", reinterpret_cast<int*>(&appData.selectedVoxel), 0, 3);
+    static bool isColorVoxel = false;
+    ImGui::Checkbox("Colored Voxel", &isColorVoxel);
+    if (isColorVoxel) {
+        static float color[3] = {1.0f, 1.0f, 1.0f};
+        ImGui::ColorEdit3("Voxel Color", color);
+        appData.selectedVoxel = VoxelData(static_cast<uint8_t>(color[0] * 255), static_cast<uint8_t>(color[1] * 255), static_cast<uint8_t>(color[2] * 255));
+    } else {
+        static int blockIdIndex = 0;
+        constexpr auto blockNames = magic_enum::enum_names<BlockId>();
+        constexpr auto blockValues = magic_enum::enum_values<BlockId>();
+        std::vector<const char*> blockNamesCStr;
+        for (size_t i = 1; i < blockNames.size() - 1; ++i) {
+            blockNamesCStr.push_back(blockNames[i].data());
+        }
+        ImGui::Combo("Block Type", &blockIdIndex, blockNamesCStr.data(), static_cast<int>(blockNamesCStr.size()));
+        const BlockId selectedBlockId = blockValues[blockIdIndex + 1];
+        appData.selectedVoxel = VoxelData(selectedBlockId);
+    }
     ImGui::SliderInt("Radius", &appData.placedVoxelRadius, 0, 64);
     ImGui::Checkbox("Is Sphere", &appData.placedVoxelShapeIsSphere);
     ImGui::End();
