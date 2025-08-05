@@ -22,6 +22,16 @@ public:
     }
 
 private:
+    struct Work {
+        std::optional<Chunk> chunkToSave = std::nullopt;
+        std::optional<glm::ivec3> chunkToLoad = std::nullopt;
+        std::queue<Chunk> chunksToUnload;
+
+        [[nodiscard]] bool hasPendingWork() const {
+            return !chunksToUnload.empty() || chunkToSave.has_value() || chunkToLoad.has_value();
+        }
+    };
+
     static constexpr int LOAD_RADIUS = 10;
     static constexpr int UNLOAD_RADIUS = 12;
     static_assert(LOAD_RADIUS < UNLOAD_RADIUS, "Load radius must be less than unload radius");
@@ -56,4 +66,10 @@ private:
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
     static void* worker(void *arg);
+
+    void handleChunkSave(std::optional<Chunk>& chunkToSave);
+
+    void handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad, const FastNoise::SmartNode<>& fnGenerator);
+
+    bool fetchWork(Work& work);
 };

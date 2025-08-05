@@ -125,75 +125,86 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
     return glm::distance(glm::vec3(transformedChunkPos), glm::vec3(WorldCoordinate(transformedPlayerPosition).chunkPosition()));
 }
 
+void ChunkManagementSystem::handleChunkSave(std::optional<Chunk>& chunkToSave) {
+    if (!chunkToSave.has_value()) return;
+
+    auto& chunk = chunkToSave.value();
+    const auto chunkPos = chunk.getPosition();
+    chunk.save();
+    chunkToSave = std::nullopt;
+
+    Threading::ScopedLock lock(&m_lock);
+    m_savingChunks.erase(chunkPos);
+}
+
+void ChunkManagementSystem::handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad, const FastNoise::SmartNode<>& fnGenerator) {
+    if (!chunkToLoad.has_value()) return;
+
+    const auto chunkPos = chunkToLoad.value();
+    Chunk chunk(chunkPos);
+    if (chunk.fileExists()) {
+        chunk.load();
+    } else {
+        chunk.generate(fnGenerator);
+    }
+    chunkToLoad = std::nullopt;
+
+    Threading::ScopedLock lock(&m_lock);
+    m_loadedChunks.emplace_back(std::move(chunk));
+    m_loadingChunks.erase(chunkPos);
+}
+
+bool ChunkManagementSystem::fetchWork(Work& work) {
+    Threading::ScopedLock lock(&m_lock);
+
+    if (m_shouldExit && m_chunksToSave.empty()) {
+        return false;
+    }
+
+    if (!m_chunksToSave.empty()) {
+        work.chunkToSave = std::move(m_chunksToSave.front());
+        m_chunksToSave.pop();
+        m_savingChunks.emplace(work.chunkToSave.value().getPosition());
+    }
+
+    if (!m_chunksToLoad.empty()) {
+        work.chunkToLoad = m_chunksToLoad.front();
+        m_chunksToLoad.pop();
+        m_loadingChunks.emplace(work.chunkToLoad.value());
+    }
+
+    while (!m_chunksToUnload.empty()) {
+        auto& chunk = m_chunksToUnload.front();
+        work.chunksToUnload.push(std::move(chunk));
+        m_chunksToUnload.pop();
+    }
+
+    return true;
+}
+
 void* ChunkManagementSystem::worker(void *arg) {
-    const auto system = static_cast<ChunkManagementSystem*>(arg);
-    auto fnGenerator = FastNoise::NewFromEncodedNodeTree(system->m_fnGeneratorEncoded);
+    auto& system = *static_cast<ChunkManagementSystem*>(arg);
+    const FastNoise::SmartNode<> fnGenerator = FastNoise::NewFromEncodedNodeTree(system.m_fnGeneratorEncoded);
 
-    std::optional<Chunk> chunkToSave = std::nullopt;
-    std::optional<glm::ivec3> chunkToLoad = std::nullopt;
-    std::queue<Chunk> chunksToUnload;
+    Work work;
 
-    bool shouldExit = false;
+    while (system.fetchWork(work)) {
 
-    while (!shouldExit) {
-        {
-            Threading::ScopedLock lock(&system->m_lock);
-
-            if (system->m_shouldExit && system->m_chunksToSave.empty()) {
-                shouldExit = true;
-                continue;
-            }
-
-            if (!system->m_chunksToSave.empty()) {
-                chunkToSave = std::move(system->m_chunksToSave.front());
-                system->m_chunksToSave.pop();
-                system->m_savingChunks.emplace(chunkToSave.value().getPosition());
-            } else if (!system->m_chunksToLoad.empty()) {
-                chunkToLoad = system->m_chunksToLoad.front();
-                system->m_chunksToLoad.pop();
-                system->m_loadingChunks.emplace(chunkToLoad.value());
-            }
-
-            // Release memory for chunks in this thread to avoid blocking the main thread
-            while (!system->m_chunksToUnload.empty()) {
-                auto& chunk = system->m_chunksToUnload.front();
-                chunksToUnload.push(std::move(chunk));
-                system->m_chunksToUnload.pop();
-            }
+        while (!work.chunksToUnload.empty()) {
+            work.chunksToUnload.pop();
         }
 
-        while (!chunksToUnload.empty()) {
-            chunksToUnload.pop();
-        }
-
-        if (chunkToSave.has_value()) {
-            auto& chunk = chunkToSave.value();
-            auto chunkPos = chunk.getPosition();
-
-            chunk.save();
-            chunkToSave = std::nullopt;
-
-            Threading::ScopedLock lock(&system->m_lock);
-
-            system->m_savingChunks.erase(chunkPos);
-        } else if (chunkToLoad.has_value()) {
-            const auto chunkPos = chunkToLoad.value();
-            Chunk chunk(chunkPos);
-
-            if (chunk.fileExists()) {
-                chunk.load();
-            } else {
-                chunk.generate(fnGenerator);
-            }
-
-            chunkToLoad = std::nullopt;
-
-            Threading::ScopedLock lock(&system->m_lock);
-
-            system->m_loadedChunks.emplace_back(std::move(chunk));
-            system->m_loadingChunks.erase(chunkPos);
-        } else {
+        if (!work.hasPendingWork()) {
             Threading::sleep(200);
+            continue;
+        }
+
+        if (work.chunkToSave.has_value()) {
+            system.handleChunkSave(work.chunkToSave);
+        }
+
+        if (work.chunkToLoad.has_value()) {
+            system.handleChunkLoad(work.chunkToLoad, fnGenerator);
         }
     }
 
