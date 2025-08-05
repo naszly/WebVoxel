@@ -103,7 +103,7 @@ void ControllerSystem::onEvent(Event &event) {
         const auto button = mouseEvent.getMouseButton();
         const auto cameraPos = camera.getPosition();
         const auto cameraDir = glm::normalize(camera.getDirection());
-        constexpr float reach = 256.0f;
+        constexpr float reach = 1024.0f;
 
         if (button == MouseCode::ButtonLeft && !m_isMouseCaptured) {
             m_isMouseCaptured = true;
