@@ -186,14 +186,6 @@ public:
         }
     }
 
-    static size_t getMaxSerializedSize() {
-        if constexpr (IS_LEAF) {
-            return NODE_COUNT * sizeof(TData);
-        } else {
-            return NodeBitmap::size() + NODE_COUNT * KTreeChildNode::getMaxSerializedSize();
-        }
-    }
-
     [[nodiscard]] bool isEmpty() const {
         if constexpr (IS_LEAF) {
             return std::all_of(&m_nodes[0][0][0], &m_nodes[0][0][0] + NODE_COUNT, [](const TData& node) {

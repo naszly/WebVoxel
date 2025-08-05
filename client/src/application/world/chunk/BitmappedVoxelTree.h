@@ -80,10 +80,6 @@ public:
         }
     }
 
-    static size_t getMaxSerializedSize() {
-        return VoxelTreeT::getMaxSerializedSize();
-    }
-
     [[nodiscard]] auto getBitmap() const {
         return m_bitmap;
     }

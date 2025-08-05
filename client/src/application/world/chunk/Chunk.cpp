@@ -50,7 +50,13 @@ void Chunk::save() {
 
     const auto compressedData = compressData(oss.str().data(), oss.str().size());
 
-    FileSystem::writeFile(fileName, compressedData.data(), compressedData.size());
+    // First 4 bytes represent the decompressed data length
+    std::vector<char> fileData(sizeof(uint32_t) + compressedData.size());
+    const uint32_t decompressedLength = static_cast<uint32_t>(oss.str().size());
+    std::memcpy(fileData.data(), &decompressedLength, sizeof(uint32_t));
+    std::memcpy(fileData.data() + sizeof(uint32_t), compressedData.data(), compressedData.size());
+
+    FileSystem::writeFile(fileName, fileData.data(), fileData.size());
 }
 
 void Chunk::load() {
@@ -59,7 +65,12 @@ void Chunk::load() {
     const std::string &fileName = getFileName();
     const std::vector<char> compressedData = FileSystem::readFile(fileName);
 
-    const auto data = decompressData(compressedData);
+    // First 4 bytes represent the decompressed data length
+    const size_t decompressedLength = *reinterpret_cast<const uint32_t*>(compressedData.data());
+    const auto data = decompressData(
+        std::vector(compressedData.begin() + sizeof(uint32_t), compressedData.end()),
+        decompressedLength
+    );
 
     std::istringstream iss(std::string(data.begin(), data.end()));
     m_data.deserialize(iss);
@@ -93,12 +104,11 @@ std::vector<char> Chunk::compressData(const void* source, const size_t sourceLen
     return destinationBuffer;
 }
 
-std::vector<char> Chunk::decompressData(const std::vector<char>& source) {
+std::vector<char> Chunk::decompressData(const std::vector<char>& source, size_t destinationLength) {
     Timer timer("Chunk::decompressData");
     const auto sourceData = reinterpret_cast<const Bytef *>(source.data());
     unsigned long sourceLength = source.size();
 
-    size_t destinationLength = SparseVoxelOctTree::getMaxSerializedSize() + 1;
     std::vector<char> destinationBuffer(destinationLength);
     auto *destinationData = reinterpret_cast<Bytef *>(destinationBuffer.data());
 

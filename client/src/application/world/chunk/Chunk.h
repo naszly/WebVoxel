@@ -131,7 +131,7 @@ private:
 
     static std::vector<char> compressData(const void* source, size_t sourceLength);
 
-    static std::vector<char> decompressData(const std::vector<char> &source);
+    static std::vector<char> decompressData(const std::vector<char> &source, size_t destinationLength);
 
     static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChunkNeighbours &chunkNeighbours);
 

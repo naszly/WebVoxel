@@ -141,10 +141,6 @@ public:
         }
     }
 
-    static size_t getMaxSerializedSize() {
-        return Tree20::getMaxSerializedSize();
-    }
-
     void optimizeDataToIdMapping() {
         switch (m_idSize) {
             case IdSize::U8Bit: m_tree.u8Tree->optimizeDataToIdMapping(); break;

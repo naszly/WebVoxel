@@ -32,10 +32,6 @@ public:
 
     void deserialize(std::istream& is) { m_root.deserialize(is); }
 
-    static size_t getMaxSerializedSize() {
-        return KTreeNode<Layers, NodeCountPerAxis, TData>::getMaxSerializedSize();
-    }
-
     [[nodiscard]] bool isEmpty() const {
         return m_root.isEmpty();
     }

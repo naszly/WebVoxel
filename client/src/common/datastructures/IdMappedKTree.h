@@ -49,12 +49,6 @@ public:
         m_tree.deserialize(is);
     }
 
-    static size_t getMaxSerializedSize() {
-        const size_t dataIdMapperSize = DataIdMapper::getMaxSerializedSize();
-        const size_t kTreeSize = KTree<Depth, BaseSize, IdType<IdSize>>::getMaxSerializedSize();
-        return dataIdMapperSize + kTreeSize;
-    }
-
     [[nodiscard]] ::IdSize getMinIdSize() const { return m_mapper.getMinIdSize(); }
 
     const DataIdMapper& getMapper() const { return m_mapper; }

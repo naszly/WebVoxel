@@ -78,10 +78,6 @@ public:
         rebuildDataIdMap();
     }
 
-    static size_t getMaxSerializedSize() {
-        return sizeof(DataT) * MAX_DATA;
-    }
-
     [[nodiscard]] IdSize getMinIdSize() const {
         if (m_dataVector.size() < DataIdMapper<DataT, IdSize::U8Bit>::MAX_DATA) {
             return IdSize::U8Bit;
