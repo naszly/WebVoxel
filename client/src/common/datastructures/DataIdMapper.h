@@ -3,6 +3,7 @@
 #include <ostream>
 #include <istream>
 #include <vector>
+#include <type_traits>
 
 #include "HashMap.h"
 #include "IdType.h"
@@ -13,6 +14,7 @@ class DataIdMapper {
     struct DataHasher;
     using IdType = ::IdType<Size>;
     static constexpr DataT EMPTY_DATA{};
+    static_assert(std::is_trivially_copyable_v<DataT>, "DataIdMapper requires DataT to be trivially copyable for safe serialization/deserialization.");
 public:
     static constexpr size_t MAX_DATA = Utils::pow(static_cast<size_t>(2), static_cast<size_t>(Size));
 

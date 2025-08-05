@@ -22,6 +22,7 @@ class KTreeNode {
     using KTreeChildNode = KTreeNode<Layer - 1, NodeCountPerAxis, TData>;
     using NodeType = std::conditional_t<IS_LEAF, TData, KTreeChildNode*>;
     using NodeBitmap = Bitmap<NODE_COUNT, uint8_t>;
+    static_assert(std::is_trivially_copyable_v<TData>, "KTree requires TData to be trivially copyable for safe serialization/deserialization.");
 public:
     KTreeNode() {
         initialize();

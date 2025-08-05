@@ -5,6 +5,7 @@
 template<uint32_t Layers, uint32_t NodeCountPerAxis, typename TData>
     requires std::is_class_v<TData> && HasEmptyTrait<TData>
 class KTree {
+    static_assert(std::is_trivially_copyable_v<TData>, "KTree requires TData to be trivially copyable for safe serialization/deserialization.");
 public:
     KTree() = default;
 
