@@ -49,7 +49,7 @@ else ()
     FetchContent_Declare(
         dawn
         GIT_REPOSITORY https://dawn.googlesource.com/dawn
-        GIT_TAG chromium/7293
+        GIT_TAG chromium/7339
         GIT_SHALLOW ON
         GIT_PROGRESS TRUE
         GIT_SUBMODULES
@@ -62,6 +62,7 @@ else ()
         FetchContent_Populate(dawn)
 
         set(DAWN_FETCH_DEPENDENCIES ON)
+        set(DAWN_BUILD_MONOLITHIC_LIBRARY STATIC)
 
         set(DAWN_ENABLE_D3D11 OFF)
         set(DAWN_ENABLE_D3D12 OFF)
