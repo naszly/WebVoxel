@@ -45,6 +45,8 @@ public:
         m_data = std::move(other.m_data);
         m_gpuBufferDirty = other.m_gpuBufferDirty;
         m_saveFileDirty = other.m_saveFileDirty;
+        other.m_gpuBufferDirty = false;
+        other.m_saveFileDirty = false;
     }
 
     Chunk& operator=(Chunk&& other) noexcept {
@@ -53,6 +55,8 @@ public:
             m_data = std::move(other.m_data);
             m_gpuBufferDirty = other.m_gpuBufferDirty;
             m_saveFileDirty = other.m_saveFileDirty;
+            other.m_gpuBufferDirty = false;
+            other.m_saveFileDirty = false;
         }
         return *this;
     }
