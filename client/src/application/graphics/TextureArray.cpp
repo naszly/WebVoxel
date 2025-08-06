@@ -13,7 +13,7 @@ bool TextureArray::loadTexturesRgba(const std::vector<const char*>& fileLocation
     std::vector<uint8_t> textureArrayData;
     textureArrayData.reserve(m_width * m_height * m_layers * reqComp);
     for (const char* file : fileLocations) {
-        const auto buffer = FileSystem::readFile(file);
+        const auto buffer = FileSystem::readFileNative(file);
         const auto bufferPtr = reinterpret_cast<const unsigned char*>(buffer.data());
         const int len = static_cast<int>(buffer.size());
         int x, y, comp;
