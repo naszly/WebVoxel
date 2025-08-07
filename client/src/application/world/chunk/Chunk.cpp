@@ -1,6 +1,7 @@
 #include "Chunk.h"
 
 #include "application/Application.h"
+#include "application/common/CompressionUtils.h"
 #include "common/Timer.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
@@ -47,8 +48,7 @@ void Chunk::save() {
 
     std::ostringstream oss;
     m_data.serialize(oss);
-
-    const auto compressedData = compressData(oss.str().data(), oss.str().size());
+    const auto compressedData = CompressionUtils::compressData(oss.str().data(), oss.str().size());
 
     // First 4 bytes represent the decompressed data length
     std::vector<char> fileData(sizeof(uint32_t) + compressedData.size());
@@ -67,7 +67,7 @@ void Chunk::load() {
 
     // First 4 bytes represent the decompressed data length
     const size_t decompressedLength = *reinterpret_cast<const uint32_t*>(compressedData.data());
-    const auto data = decompressData(
+    const auto data = CompressionUtils::decompressData(
         std::vector(compressedData.begin() + sizeof(uint32_t), compressedData.end()),
         decompressedLength
     );
@@ -84,43 +84,6 @@ void Chunk::load() {
 
 void Chunk::cleanFs() {
     FileSystem::cleanFiles(".chunk");
-}
-
-std::vector<char> Chunk::compressData(const void* source, const size_t sourceLength) {
-    const auto sourceData = static_cast<const Bytef *>(source);
-
-    uLongf destinationLength = compressBound(sourceLength);
-    std::vector<char> destinationBuffer(destinationLength);
-    auto *destinationData = reinterpret_cast<Bytef *>(destinationBuffer.data());
-
-    const int result = compress2(destinationData, &destinationLength, sourceData, sourceLength, Z_BEST_COMPRESSION);
-    if (result == Z_OK) {
-        destinationBuffer.resize(destinationLength);
-    } else {
-        destinationBuffer.clear();
-        LogApp::error("Failed to compress data: {}", zError(result));
-    }
-
-    return destinationBuffer;
-}
-
-std::vector<char> Chunk::decompressData(const std::vector<char>& source, size_t destinationLength) {
-    Timer timer("Chunk::decompressData");
-    const auto sourceData = reinterpret_cast<const Bytef *>(source.data());
-    unsigned long sourceLength = source.size();
-
-    std::vector<char> destinationBuffer(destinationLength);
-    auto *destinationData = reinterpret_cast<Bytef *>(destinationBuffer.data());
-
-    const int result = uncompress2(destinationData, &destinationLength, sourceData, &sourceLength);
-    if (result == Z_OK) {
-        destinationBuffer.resize(destinationLength);
-    } else {
-        destinationBuffer.clear();
-        LogApp::error("Failed to decompress data: {}", zError(result));
-    }
-
-    return destinationBuffer;
 }
 
 std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const ChunkNeighbours &chunkNeighbours) {
