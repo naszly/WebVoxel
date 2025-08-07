@@ -15,7 +15,7 @@ protected:
         switch (msg.level) {
             case spdlog::level::warn:
                 EM_ASM_({
-                    console.warning(UTF8ToString($0));
+                    console.warn(UTF8ToString($0));
                 }, fmt::to_string(formatted).c_str());
                 break;
             case spdlog::level::err:
