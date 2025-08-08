@@ -115,6 +115,22 @@ public:
 
     void load();
 
+    void compress() {
+        return m_data.compress();
+    }
+
+    bool isCompressed() const {
+        return m_data.isCompressed();
+    }
+
+    std::chrono::steady_clock::time_point getLastAccess() const {
+        return m_data.getLastAccess();
+    }
+
+    [[nodiscard]] std::chrono::duration<double> getLastAccessDuration() const {
+        return std::chrono::steady_clock::now() - getLastAccess();
+    }
+
     static void cleanFs();
 private:
     glm::ivec3 m_position{};

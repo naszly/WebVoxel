@@ -1,5 +1,7 @@
 #include "ChunkManagementSystem.h"
 
+#include "common/Log.h"
+
 void ChunkManagementSystem::initialize() {
 
     const auto hardwareConcurrency = Threading::hardwareConcurrency();
@@ -23,27 +25,47 @@ void ChunkManagementSystem::update(float dt) {
     Threading::ScopedLock lock(&m_lock);
 
     integrateLoadedChunks(world);
+    integrateCompressedChunks(world);
 
     scheduleChunksForLoading(camera, world);
-
     scheduleChunksForSaving(world);
-
     scheduleChunksForUnloading(camera, world);
+    scheduleChunksForCompression(world, camera);
 }
 
 void ChunkManagementSystem::integrateLoadedChunks(World &world) {
     for (auto& chunk : m_loadedChunks) {
         world.insertChunkByMove(chunk);
+        m_loadingChunks.erase(chunk.getPosition());
     }
     m_loadedChunks.clear();
 }
 
+void ChunkManagementSystem::integrateCompressedChunks(World& world) {
+    for (auto it = m_compressedChunks.begin(); it != m_compressedChunks.end(); ++it) {
+        auto& task = *it;
+        if (auto* chunk = world.tryGetChunk(task.position)) {
+            if (chunk->getLastAccess() == task.lastAccess) {
+                *chunk = std::move(task.chunk);
+            } else {
+                LogApp::warning("Chunk at ({}, {}, {}) was modified after compression, skipping integration",
+                             task.position.x, task.position.y, task.position.z);
+            }
+        } else {
+            LogApp::warning("Chunk at ({}, {}, {}) not found for integration after compression",
+                         task.position.x, task.position.y, task.position.z);
+        }
+        m_compressingChunks.erase(task.position);
+    }
+    m_compressedChunks.clear();
+}
+
 std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
     std::vector<glm::ivec3> offsets;
-    for (int x = -LOAD_RADIUS; x <= LOAD_RADIUS; ++x) {
-        for (int y = -LOAD_RADIUS; y <= LOAD_RADIUS; ++y) {
-            for (int z = -LOAD_RADIUS; z <= LOAD_RADIUS; ++z) {
-                if (x*x + y*y + z*z <= LOAD_RADIUS*LOAD_RADIUS) {
+    for (int x = -LOAD_ZONE_RADIUS; x <= LOAD_ZONE_RADIUS; ++x) {
+        for (int y = -LOAD_ZONE_RADIUS; y <= LOAD_ZONE_RADIUS; ++y) {
+            for (int z = -LOAD_ZONE_RADIUS; z <= LOAD_ZONE_RADIUS; ++z) {
+                if (x*x + y*y + z*z <= LOAD_ZONE_RADIUS*LOAD_ZONE_RADIUS) {
                     offsets.emplace_back(x, y, z);
                 }
             }
@@ -104,7 +126,7 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
 
     for (const auto &chunk : chunks) {
         auto chunkPos = chunk.getPosition();
-        if (getChunkDistance(playerPosition, chunkPos) > UNLOAD_RADIUS) {
+        if (getChunkDistance(playerPosition, chunkPos) > UNLOAD_ZONE_RADIUS) {
             chunksToUnload.push_back(chunkPos);
         }
     }
@@ -114,9 +136,45 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
     }
 }
 
+void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Camera& camera) {
+    const glm::vec3 playerPosition = camera.getPosition();
+
+    const size_t maxChunksToCompress = m_chunkWorkersCount * 10;
+
+    if (m_compressingChunks.size() >= maxChunksToCompress) {
+        return;
+    }
+
+    std::vector<Chunk*> candidates;
+    for (auto& chunk : world.getChunks()) {
+        const glm::ivec3 chunkPos = chunk.getPosition();
+        if (chunk.isCompressed()) continue;
+        if (chunk.isGpuBufferDirty() || chunk.isSaveFileDirty()) continue;
+        if (chunk.getLastAccessDuration() < std::chrono::seconds(15)) continue;
+        if (getChunkDistance(playerPosition, chunkPos) <= FAST_ACCESS_RADIUS) continue;
+        if (m_compressingChunks.contains(chunkPos)) continue;
+        if (!world.getExtendedChunkNeighbours(chunkPos).hasAllNeighbours()) continue;
+        candidates.push_back(&chunk);
+    }
+
+    std::ranges::sort(candidates, [](const Chunk* a, const Chunk* b) {
+        return a->getLastAccess() < b->getLastAccess();
+    });
+
+    size_t count = 0;
+    for (auto* chunk : candidates) {
+        if (count >= maxChunksToCompress) break;
+        const glm::ivec3 chunkPos = chunk->getPosition();
+        CompressionTask task{chunkPos, *chunk, chunk->getLastAccess()};
+        m_chunksToCompress.push(task);
+        m_compressingChunks.insert(chunkPos);
+        ++count;
+    }
+}
+
 float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, const glm::ivec3 chunkPos) {
-    const auto transformedPlayerPosition = playerPosition * glm::vec3(1.0f, 1.33f, 1.0f);
-    const auto transformedChunkPos = glm::vec3(chunkPos) * glm::vec3(1.0f, 1.33f, 1.0f);
+    const auto transformedPlayerPosition = playerPosition * glm::vec3(1.0f, 1.0f, 1.0f);
+    const auto transformedChunkPos = glm::vec3(chunkPos) * glm::vec3(1.0f, 1.0f, 1.0f);
     return glm::distance(glm::vec3(transformedChunkPos), glm::vec3(WorldCoordinate(transformedPlayerPosition).chunkPosition()));
 }
 
@@ -146,7 +204,16 @@ void ChunkManagementSystem::handleChunkLoad(std::optional<glm::ivec3>& chunkToLo
 
     Threading::ScopedLock lock(&m_lock);
     m_loadedChunks.emplace_back(std::move(chunk));
-    m_loadingChunks.erase(chunkPos);
+}
+
+void ChunkManagementSystem::handleChunkCompression(std::optional<CompressionTask>& task) {
+    if (!task.has_value()) return;
+
+    auto& t = task.value();
+    t.chunk.compress();
+    Threading::ScopedLock lock(&m_lock);
+    m_compressedChunks.push_back(std::move(t));
+    task.reset();
 }
 
 bool ChunkManagementSystem::fetchWork(Work& work) {
@@ -172,6 +239,12 @@ bool ChunkManagementSystem::fetchWork(Work& work) {
         auto& chunk = m_chunksToUnload.front();
         work.chunksToUnload.push(std::move(chunk));
         m_chunksToUnload.pop();
+    }
+
+    if (!m_chunksToCompress.empty()) {
+        work.compressionTask = std::move(m_chunksToCompress.front());
+        m_chunksToCompress.pop();
+        m_compressingChunks.emplace(work.compressionTask->position);
     }
 
     return true;
@@ -200,6 +273,10 @@ void* ChunkManagementSystem::worker(void *arg) {
 
         if (work.chunkToLoad.has_value()) {
             system.handleChunkLoad(work.chunkToLoad, fnGenerator);
+        }
+
+        if (work.compressionTask.has_value()) {
+            system.handleChunkCompression(work.compressionTask);
         }
     }
 

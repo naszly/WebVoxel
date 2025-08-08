@@ -22,19 +22,28 @@ public:
     }
 
 private:
+    struct CompressionTask {
+        glm::ivec3 position;
+        Chunk chunk;
+        std::chrono::steady_clock::time_point lastAccess;
+    };
+
     struct Work {
         std::optional<Chunk> chunkToSave = std::nullopt;
         std::optional<glm::ivec3> chunkToLoad = std::nullopt;
         std::queue<Chunk> chunksToUnload;
+        std::optional<CompressionTask> compressionTask = std::nullopt;
 
         [[nodiscard]] bool hasPendingWork() const {
-            return !chunksToUnload.empty() || chunkToSave.has_value() || chunkToLoad.has_value();
+            return !chunksToUnload.empty() || chunkToSave.has_value() || chunkToLoad.has_value() || compressionTask.has_value();
         }
     };
 
-    static constexpr int LOAD_RADIUS = 10;
-    static constexpr int UNLOAD_RADIUS = 12;
-    static_assert(LOAD_RADIUS < UNLOAD_RADIUS, "Load radius must be less than unload radius");
+    static constexpr int FAST_ACCESS_RADIUS = 2;
+    static constexpr int LOAD_ZONE_RADIUS = 10;
+    static constexpr int UNLOAD_ZONE_RADIUS = 12;
+    static_assert(FAST_ACCESS_RADIUS < LOAD_ZONE_RADIUS, "Fast access radius must be less than load zone radius");
+    static_assert(LOAD_ZONE_RADIUS < UNLOAD_ZONE_RADIUS, "Load zone radius must be less than unload zone radius");
 
     const char* m_fnGeneratorEncoded = "DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==";
 
@@ -47,6 +56,10 @@ private:
 
     std::queue<Chunk> m_chunksToUnload;
 
+    std::queue<CompressionTask> m_chunksToCompress;
+    HashSet<glm::ivec3> m_compressingChunks;
+    std::vector<CompressionTask> m_compressedChunks;
+
     size_t m_chunkWorkersCount{};
     std::vector<std::unique_ptr<Threading::Worker>> m_chunkWorkers{};
 
@@ -54,22 +67,22 @@ private:
     bool m_shouldExit = false;
 
     void integrateLoadedChunks(World &world);
+    void integrateCompressedChunks(World& world);
 
     static std::vector<glm::ivec3> generateChunkOffsets();
 
     void scheduleChunksForLoading(const Camera& camera, const World& world);
-
     void scheduleChunksForSaving(World &world);
-
     void scheduleChunksForUnloading(const Camera &camera, World &world);
+    void scheduleChunksForCompression(World& world, const Camera& camera);
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
-    static void* worker(void *arg);
-
     void handleChunkSave(std::optional<Chunk>& chunkToSave);
-
     void handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad, const FastNoise::SmartNode<>& fnGenerator);
+    void handleChunkCompression(std::optional<CompressionTask>& task);
+
+    static void* worker(void *arg);
 
     bool fetchWork(Work& work);
 };
