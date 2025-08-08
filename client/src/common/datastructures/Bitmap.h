@@ -13,6 +13,10 @@ public:
         memset(m_data, 0, sizeof(m_data));
     }
 
+    Bitmap(const Bitmap& other) {
+        memcpy(m_data, other.m_data, sizeof(m_data));
+    }
+
     void set(const uint32_t i) {
         assert(i < Size); [[assume(i < Size)]];
         m_data[i / WORD_SIZE] |= 1u << (i % WORD_SIZE);
