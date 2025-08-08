@@ -20,6 +20,8 @@ void ChunkManagementSystem::update(float dt) {
     const Camera& camera = getCamera();
     World& world = getWorld();
 
+    Threading::ScopedLock lock(&m_lock);
+
     integrateLoadedChunks(world);
 
     scheduleChunksForLoading(camera, world);
@@ -30,8 +32,6 @@ void ChunkManagementSystem::update(float dt) {
 }
 
 void ChunkManagementSystem::integrateLoadedChunks(World &world) {
-    Threading::ScopedLock lock(&m_lock);
-
     for (auto& chunk : m_loadedChunks) {
         world.insertChunkByMove(chunk);
     }
@@ -64,8 +64,6 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
     std::vector<glm::ivec3> chunksToLoad;
     const size_t maxChunksToLoad = m_chunkWorkersCount * 3;
 
-    Threading::ScopedLock lock(&m_lock);
-
     for (const auto& offset : offsets) {
         const auto chunkPos = playerChunk + offset;
 
@@ -88,7 +86,6 @@ void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
 
     for (auto &chunk : chunks) {
         if (chunk.isSaveFileDirty()) {
-            Threading::ScopedLock lock(&m_lock);
             if (!m_savingChunks.contains(chunk.getPosition())) {
                 m_chunksToSave.push(chunk);
                 m_savingChunks.insert(chunk.getPosition());
@@ -111,8 +108,6 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
             chunksToUnload.push_back(chunkPos);
         }
     }
-
-    Threading::ScopedLock lock(&m_lock);
 
     for (const auto &chunkPos : chunksToUnload) {
         m_chunksToUnload.push(world.extractChunkByMove(chunkPos));
