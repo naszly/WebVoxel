@@ -1,5 +1,6 @@
 #pragma once
 
+#include "application/common/CompressionUtils.h"
 #include "application/domain/VoxelData.h"
 #include "common/datastructures/DynamicallyMappedKTree.h"
 #include "common/datastructures/Bitmap.h"
@@ -10,78 +11,112 @@ class BitmappedVoxelTree {
     static constexpr uint32_t BITMAP_SIZE = SIZE + 2;
     using VoxelTreeT = DynamicallyMappedKTree<VoxelData,Depth, BaseSize>;
     using BitmapT = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
-
+    using BitmapPtr = std::unique_ptr<BitmapT>;
 public:
-    BitmappedVoxelTree() = default;
+    BitmappedVoxelTree() {
+        m_bitmap = std::make_unique<BitmapT>();
+    }
 
     BitmappedVoxelTree(const BitmappedVoxelTree& other) {
         m_tree = other.m_tree;
-        m_bitmap = other.m_bitmap;
+        if (std::holds_alternative<BitmapPtr>(m_bitmap)) {
+            m_bitmap = std::make_unique<BitmapT>(*std::get<BitmapPtr>(m_bitmap));
+        } else {
+            m_bitmap = std::get<std::vector<char>>(other.m_bitmap);
+        }
+        m_treeDecompressedLength = other.m_treeDecompressedLength;
+        m_lastAccess = other.m_lastAccess;
     }
 
     BitmappedVoxelTree& operator=(const BitmappedVoxelTree& other) {
         if (this != &other) {
             m_tree = other.m_tree;
-            m_bitmap = other.m_bitmap;
+            if (std::holds_alternative<BitmapPtr>(m_bitmap)) {
+                m_bitmap = std::make_unique<BitmapT>(*std::get<BitmapPtr>(m_bitmap));
+            } else {
+                m_bitmap = std::get<std::vector<char>>(other.m_bitmap);
+            }
+            m_treeDecompressedLength = other.m_treeDecompressedLength;
+            m_lastAccess = other.m_lastAccess;
         }
         return *this;
     }
 
     BitmappedVoxelTree(BitmappedVoxelTree&& other) noexcept
-        : m_tree(std::move(other.m_tree)), m_bitmap(std::move(other.m_bitmap)) {}
+        : m_tree(std::move(other.m_tree)),
+          m_bitmap(std::move(other.m_bitmap)),
+          m_treeDecompressedLength(other.m_treeDecompressedLength),
+          m_lastAccess(other.m_lastAccess) {}
 
     BitmappedVoxelTree& operator=(BitmappedVoxelTree&& other) noexcept {
         if (this != &other) {
             m_tree = std::move(other.m_tree);
             m_bitmap = std::move(other.m_bitmap);
+            m_treeDecompressedLength = other.m_treeDecompressedLength;
+            m_lastAccess = other.m_lastAccess;
         }
         return *this;
     }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        return m_tree.getData(x, y, z);
+        return getTree().getData(x, y, z);
     }
 
     void setVoxel(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
         uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
+        BitmapT& bitmap = getBitmapInternal();
         if (voxel.isEmpty()) {
-            m_bitmap.clear(i);
+            bitmap.clear(i);
         } else {
-            m_bitmap.set(i);
+            bitmap.set(i);
         }
-        m_tree.setData(x, y, z, voxel);
+        getTree().setData(x, y, z, voxel);
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
-        return m_bitmap.test(i);
+        return getBitmapInternal().test(i);
     }
 
     [[nodiscard]] bool isEmpty() const {
-        return m_tree.isEmpty();
+        return getTree().isEmpty();
     }
 
     void serialize(std::ostream& os) {
-        m_tree.serialize(os);
+        getTree().serialize(os);
     }
 
     void deserialize(std::istream& is) {
-        m_tree.deserialize(is);
-        m_bitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>{};
+        getTree().deserialize(is);
+        BitmapPtr bitmap = std::make_unique<BitmapT>();
         for (uint32_t x = 0; x < SIZE; x++) {
             for (uint32_t y = 0; y < SIZE; y++) {
                 for (uint32_t z = 0; z < SIZE; z++) {
                     if (!getVoxel(x, y, z).isEmpty()) {
                         uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
-                        m_bitmap.set(i);
+                        bitmap->set(i);
                     }
                 }
             }
         }
+        m_bitmap = std::move(bitmap);
+    }
+
+    void compress() {
+        compressTree();
+        compressBitmap();
+    }
+
+    bool isCompressed() const {
+        return isTreeCompressed() && isBitmapCompressed();
+    }
+
+    std::chrono::steady_clock::time_point getLastAccess() const {
+        return m_lastAccess;
     }
 
     [[nodiscard]] auto getBitmap() const {
-        return m_bitmap;
+        return getBitmapInternal();
     }
 
     struct Neighbours {
@@ -94,7 +129,7 @@ public:
     };
 
     [[nodiscard]] auto getBitmap(const std::optional<Neighbours> &neighbours) const {
-        auto bitmap = m_bitmap;
+        auto bitmap = getBitmapInternal();
 
         if (!neighbours.has_value()) {
             return bitmap;
@@ -148,7 +183,7 @@ public:
     };
 
     [[nodiscard]] auto getBitmap(const std::optional<ExtendedNeighbours> &neighbours) const {
-        auto bitmap = m_bitmap;
+        auto bitmap = getBitmapInternal();
 
         if (!neighbours.has_value()) {
             return bitmap;
@@ -193,11 +228,77 @@ public:
     }
 
 private:
-    VoxelTreeT m_tree{};
-    BitmapT m_bitmap{};
+    mutable std::variant<VoxelTreeT, std::vector<char>> m_tree{};
+    mutable std::variant<BitmapPtr, std::vector<char>> m_bitmap{};
+
+    size_t m_treeDecompressedLength{};
+    mutable std::chrono::steady_clock::time_point m_lastAccess{std::chrono::steady_clock::now()};
 
     static constexpr size_t NEG_SIDE = 0;
     static constexpr size_t POS_SIDE = BITMAP_SIZE - 1;
+
+    VoxelTreeT& getTree() const {
+        m_lastAccess = std::chrono::steady_clock::now();
+
+        if (std::holds_alternative<VoxelTreeT>(m_tree)) {
+            return std::get<VoxelTreeT>(m_tree);
+        }
+
+        const auto& blob = std::get<std::vector<char>>(m_tree);
+        if (blob.empty()) throw std::runtime_error("Corrupted chunk blob: empty");
+        std::vector<char> decompressed = CompressionUtils::decompressData(blob, m_treeDecompressedLength);
+        std::istringstream iss(std::string(decompressed.begin(), decompressed.end()));
+        VoxelTreeT tree;
+        tree.deserialize(iss);
+        m_tree = std::move(tree);
+        return std::get<VoxelTreeT>(m_tree);
+    }
+
+    BitmapT& getBitmapInternal() const {
+        m_lastAccess = std::chrono::steady_clock::now();
+
+        if (std::holds_alternative<BitmapPtr>(m_bitmap)) {
+            return *std::get<BitmapPtr>(m_bitmap);
+        }
+
+        const auto& blob = std::get<std::vector<char>>(m_bitmap);
+        if (blob.empty()) throw std::runtime_error("Corrupted bitmap blob: empty");
+        BitmapPtr bitmap = std::make_unique<BitmapT>();
+        const std::vector<char> decompressed = CompressionUtils::decompressData(blob, bitmap->size());
+        memcpy(bitmap->data(), decompressed.data(), bitmap->size());
+        m_bitmap = std::move(bitmap);
+        return *std::get<BitmapPtr>(m_bitmap);
+    }
+
+    void compressTree() {
+        if (!std::holds_alternative<VoxelTreeT>(m_tree)) {
+            return;
+        }
+
+        std::ostringstream oss;
+        std::get<VoxelTreeT>(m_tree).serialize(oss);
+        m_treeDecompressedLength = static_cast<uint32_t>(oss.str().size());
+        auto compressed = CompressionUtils::compressData(oss.str().data(), oss.str().size(), 3);
+        m_tree = std::move(compressed);
+    }
+
+    void compressBitmap() {
+        if (!std::holds_alternative<BitmapPtr>(m_bitmap)) {
+            return;
+        }
+
+        BitmapT& bitmap = *std::get<BitmapPtr>(m_bitmap);
+        auto compressed = CompressionUtils::compressData(bitmap.data(), bitmap.size(), 3);
+        m_bitmap = std::move(compressed);
+    }
+
+    bool isTreeCompressed() const {
+        return !std::holds_alternative<VoxelTreeT>(m_tree);
+    }
+
+    bool isBitmapCompressed() const {
+        return !std::holds_alternative<BitmapPtr>(m_bitmap);
+    }
 
     static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t bitmapSize) {
         return x * bitmapSize * bitmapSize + y * bitmapSize + z;
