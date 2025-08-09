@@ -18,8 +18,11 @@ public:
     static constexpr size_t WIDTH = Utils::pow(NODE_COUNT_PER_AXIS, TREE_DEPTH);
     static_assert(WIDTH >= 16 && WIDTH <= 256, "SIZE must be between 16 and 256");
 
-    explicit Chunk(const glm::ivec3 position) : m_position(position) {}
-    explicit Chunk(const int x, const int y, const int z) : m_position(x, y, z) {}
+    explicit Chunk(const glm::ivec3 position)
+        : m_position(position), m_lastAccess(std::chrono::steady_clock::now()) {}
+
+    explicit Chunk(const int x, const int y, const int z)
+        : m_position(x, y, z), m_lastAccess(std::chrono::steady_clock::now()) {}
 
     ~Chunk() = default;
 
@@ -28,6 +31,7 @@ public:
         m_data = other.m_data;
         m_gpuBufferDirty = other.m_gpuBufferDirty;
         m_saveFileDirty = other.m_saveFileDirty;
+        m_lastAccess = other.m_lastAccess;
     }
 
     Chunk& operator=(const Chunk& other) {
@@ -36,6 +40,7 @@ public:
             m_data = other.m_data;
             m_gpuBufferDirty = other.m_gpuBufferDirty;
             m_saveFileDirty = other.m_saveFileDirty;
+            m_lastAccess = other.m_lastAccess;
         }
         return *this;
     }
@@ -45,6 +50,7 @@ public:
         m_data = std::move(other.m_data);
         m_gpuBufferDirty = other.m_gpuBufferDirty;
         m_saveFileDirty = other.m_saveFileDirty;
+        m_lastAccess = other.m_lastAccess;
         other.m_gpuBufferDirty = false;
         other.m_saveFileDirty = false;
     }
@@ -55,6 +61,7 @@ public:
             m_data = std::move(other.m_data);
             m_gpuBufferDirty = other.m_gpuBufferDirty;
             m_saveFileDirty = other.m_saveFileDirty;
+            m_lastAccess = other.m_lastAccess;
             other.m_gpuBufferDirty = false;
             other.m_saveFileDirty = false;
         }
@@ -68,10 +75,12 @@ public:
     }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
+        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.getVoxel(x, y, z);
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
+        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.hasVoxel(x, y, z);
     }
 
@@ -79,6 +88,7 @@ public:
         m_data.setVoxel(x, y, z, voxel);
         m_gpuBufferDirty = true;
         m_saveFileDirty = true;
+        m_lastAccess = std::chrono::steady_clock::now();
     }
 
     [[nodiscard]] bool isGpuBufferDirty() const {
@@ -102,10 +112,12 @@ public:
     }
 
     [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
+        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
     [[nodiscard]] auto getBitmap(const ExtendedChukNeighbours& chunkNeighbours) const {
+        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
@@ -124,7 +136,7 @@ public:
     }
 
     std::chrono::steady_clock::time_point getLastAccess() const {
-        return m_data.getLastAccess();
+        return m_lastAccess;
     }
 
     [[nodiscard]] std::chrono::duration<double> getLastAccessDuration() const {
@@ -137,6 +149,7 @@ private:
     SparseVoxelOctTree m_data{};
     bool m_gpuBufferDirty{true};
     bool m_saveFileDirty{false};
+    mutable std::chrono::steady_clock::time_point m_lastAccess;
 
     [[nodiscard]] std::string getFileName() const {
         return std::to_string(m_position.x) + "."

@@ -25,7 +25,6 @@ public:
             m_bitmap = std::get<std::vector<char>>(other.m_bitmap);
         }
         m_treeDecompressedLength = other.m_treeDecompressedLength;
-        m_lastAccess = other.m_lastAccess;
     }
 
     BitmappedVoxelTree& operator=(const BitmappedVoxelTree& other) {
@@ -37,7 +36,6 @@ public:
                 m_bitmap = std::get<std::vector<char>>(other.m_bitmap);
             }
             m_treeDecompressedLength = other.m_treeDecompressedLength;
-            m_lastAccess = other.m_lastAccess;
         }
         return *this;
     }
@@ -45,15 +43,13 @@ public:
     BitmappedVoxelTree(BitmappedVoxelTree&& other) noexcept
         : m_tree(std::move(other.m_tree)),
           m_bitmap(std::move(other.m_bitmap)),
-          m_treeDecompressedLength(other.m_treeDecompressedLength),
-          m_lastAccess(other.m_lastAccess) {}
+          m_treeDecompressedLength(other.m_treeDecompressedLength) {}
 
     BitmappedVoxelTree& operator=(BitmappedVoxelTree&& other) noexcept {
         if (this != &other) {
             m_tree = std::move(other.m_tree);
             m_bitmap = std::move(other.m_bitmap);
             m_treeDecompressedLength = other.m_treeDecompressedLength;
-            m_lastAccess = other.m_lastAccess;
         }
         return *this;
     }
@@ -109,10 +105,6 @@ public:
 
     bool isCompressed() const {
         return isTreeCompressed() && isBitmapCompressed();
-    }
-
-    std::chrono::steady_clock::time_point getLastAccess() const {
-        return m_lastAccess;
     }
 
     [[nodiscard]] auto getBitmap() const {
@@ -232,14 +224,11 @@ private:
     mutable std::variant<BitmapPtr, std::vector<char>> m_bitmap{};
 
     size_t m_treeDecompressedLength{};
-    mutable std::chrono::steady_clock::time_point m_lastAccess{std::chrono::steady_clock::now()};
 
     static constexpr size_t NEG_SIDE = 0;
     static constexpr size_t POS_SIDE = BITMAP_SIZE - 1;
 
     VoxelTreeT& getTree() const {
-        m_lastAccess = std::chrono::steady_clock::now();
-
         if (std::holds_alternative<VoxelTreeT>(m_tree)) {
             return std::get<VoxelTreeT>(m_tree);
         }
@@ -255,8 +244,6 @@ private:
     }
 
     BitmapT& getBitmapInternal() const {
-        m_lastAccess = std::chrono::steady_clock::now();
-
         if (std::holds_alternative<BitmapPtr>(m_bitmap)) {
             return *std::get<BitmapPtr>(m_bitmap);
         }
