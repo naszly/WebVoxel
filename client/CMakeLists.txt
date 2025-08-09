@@ -172,6 +172,7 @@ if (EMSCRIPTEN)
             -sASYNCIFY
             -sSTACK_SIZE=8388608 # 8MB
             -sALLOW_MEMORY_GROWTH
+            -sINITIAL_MEMORY=2147483648 # 2GB
             -sMAXIMUM_MEMORY=4294967296 # 4GB
             -sEXIT_RUNTIME
             -sUSE_PTHREADS
