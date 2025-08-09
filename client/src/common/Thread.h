@@ -92,7 +92,7 @@ namespace Threading {
 #if defined(__EMSCRIPTEN__) && defined(__EMSCRIPTEN_PTHREADS__)
             pthread_mutex_lock(&m_lock);
 #elif defined(__EMSCRIPTEN__) && defined(__EMSCRIPTEN_WASM_WORKERS__)
-            emscripten_lock_busyspin_waitinf_acquire(&m_lock);
+            emscripten_lock_waitinf_acquire(&m_lock);
 #else
             m_lock.lock();
 #endif
