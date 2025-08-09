@@ -19,8 +19,8 @@ public:
 
     BitmappedVoxelTree(const BitmappedVoxelTree& other) {
         m_tree = other.m_tree;
-        if (std::holds_alternative<BitmapPtr>(m_bitmap)) {
-            m_bitmap = std::make_unique<BitmapT>(*std::get<BitmapPtr>(m_bitmap));
+        if (std::holds_alternative<BitmapPtr>(other.m_bitmap)) {
+            m_bitmap = std::make_unique<BitmapT>(*std::get<BitmapPtr>(other.m_bitmap));
         } else {
             m_bitmap = std::get<std::vector<char>>(other.m_bitmap);
         }
@@ -31,8 +31,8 @@ public:
     BitmappedVoxelTree& operator=(const BitmappedVoxelTree& other) {
         if (this != &other) {
             m_tree = other.m_tree;
-            if (std::holds_alternative<BitmapPtr>(m_bitmap)) {
-                m_bitmap = std::make_unique<BitmapT>(*std::get<BitmapPtr>(m_bitmap));
+            if (std::holds_alternative<BitmapPtr>(other.m_bitmap)) {
+                m_bitmap = std::make_unique<BitmapT>(*std::get<BitmapPtr>(other.m_bitmap));
             } else {
                 m_bitmap = std::get<std::vector<char>>(other.m_bitmap);
             }
