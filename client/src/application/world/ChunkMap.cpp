@@ -86,15 +86,22 @@ void ChunkMap::setVoxel(const WorldCoordinate &coord, const VoxelData &voxel) {
     setNeighboursDirtyIfEdge(cPos, lPos);
 }
 
-void ChunkMap::removeVoxel(const WorldCoordinate &coord) {
+Chunk* ChunkMap::queueVoxelToSet(const WorldCoordinate& coord, const VoxelData& voxel) {
     const auto cPos = coord.chunkPosition();
     const auto lPos = coord.localPosition();
 
-    if (const auto chunk = tryGetChunk(cPos)) {
-        chunk->setVoxel(VoxelData{}, lPos.x, lPos.y, lPos.z);
+    Chunk& chunk = getChunk(cPos);
+    chunk.queueVoxelToSet(voxel, lPos.x, lPos.y, lPos.z);
 
-        setNeighboursDirtyIfEdge(cPos, lPos);
+    return &chunk;
+}
+
+void ChunkMap::executeQueuedVoxelsToSet(Chunk* chunk) {
+    for (const auto& queuedVoxel : chunk->getQueuedVoxelsToSet()) {
+        setNeighboursDirtyIfEdge(chunk->getPosition(), queuedVoxel.position);
     }
+
+    chunk->executeQueuedVoxelsToSet();
 }
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {

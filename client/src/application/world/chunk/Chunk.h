@@ -3,6 +3,7 @@
 #include <cassert>
 #include <random>
 #include <glm/vec3.hpp>
+#include <vector>
 
 #include "ChunkNeighbours.h"
 #include "BitmappedVoxelTree.h"
@@ -91,6 +92,20 @@ public:
         m_lastAccess = std::chrono::steady_clock::now();
     }
 
+    void queueVoxelToSet(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
+        m_queuedVoxelsToSet.emplace_back(glm::ivec3(x, y, z), voxel);
+    }
+
+    void executeQueuedVoxelsToSet() {
+        for (const auto& [pos, voxel] : m_queuedVoxelsToSet) {
+            m_data.setVoxel(pos.x, pos.y, pos.z, voxel);
+        }
+        m_queuedVoxelsToSet.resize(0);
+        m_gpuBufferDirty = true;
+        m_saveFileDirty = true;
+        m_lastAccess = std::chrono::steady_clock::now();
+    }
+
     [[nodiscard]] bool isGpuBufferDirty() const {
         return m_gpuBufferDirty;
     }
@@ -144,12 +159,21 @@ public:
     }
 
     static void cleanFs();
+
+    struct QueuedVoxelOp {
+        glm::ivec3 position{};
+        VoxelData voxel;
+    };
+
+    std::vector<QueuedVoxelOp>& getQueuedVoxelsToSet() { return m_queuedVoxelsToSet; }
 private:
     glm::ivec3 m_position{};
     SparseVoxelOctTree m_data{};
     bool m_gpuBufferDirty{true};
     bool m_saveFileDirty{false};
     mutable std::chrono::steady_clock::time_point m_lastAccess;
+
+    std::vector<QueuedVoxelOp> m_queuedVoxelsToSet;
 
     [[nodiscard]] std::string getFileName() const {
         return std::to_string(m_position.x) + "."

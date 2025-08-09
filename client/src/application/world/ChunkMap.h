@@ -41,7 +41,9 @@ public:
 
     void setVoxel(const WorldCoordinate &coord, const VoxelData &voxel);
 
-    void removeVoxel(const WorldCoordinate &coord);
+    Chunk* queueVoxelToSet(const WorldCoordinate& coord, const VoxelData& voxel);
+
+    void executeQueuedVoxelsToSet(Chunk* chunk);
 
 private:
     HashMap<glm::ivec3, Chunk> m_chunks;

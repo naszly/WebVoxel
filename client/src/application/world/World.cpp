@@ -73,31 +73,29 @@ void World::setVoxel(const WorldCoordinate &coord, const VoxelData voxel) {
 }
 
 void World::setVoxel(const WorldCoordinate &coord, const VoxelData voxel, const int64_t radius, const bool isSphere) {
+    HashSet<Chunk*> chunks;
+
     for (int64_t x = -radius; x <= radius; x++) {
         for (int64_t y = -radius; y <= radius; y++) {
             for (int64_t z = -radius; z <= radius; z++) {
                 const auto pos = WorldCoordinate(coord.worldPosition() + glm::i64vec3(x, y, z));
                 if (!isSphere || Utils::distance(pos.worldPosition(), coord.worldPosition()) <= radius) {
-                    setVoxel(pos, voxel);
+                    Chunk* chunk = m_chunks.queueVoxelToSet(pos, voxel);
+                    chunks.insert(chunk);
                 }
             }
         }
+    }
+
+    for (const auto &chunk : chunks) {
+        m_chunks.executeQueuedVoxelsToSet(chunk);
     }
 }
 
 void World::removeVoxel(const WorldCoordinate &coord) {
-    m_chunks.removeVoxel(coord);
+    setVoxel(coord, VoxelData{});
 }
 
 void World::removeVoxel(const WorldCoordinate &coord, const int64_t radius, const bool isSphere) {
-    for (int64_t x = -radius; x <= radius; x++) {
-        for (int64_t y = -radius; y <= radius; y++) {
-            for (int64_t z = -radius; z <= radius; z++) {
-                const auto pos = WorldCoordinate(coord.worldPosition() + glm::i64vec3(x, y, z));
-                if (!isSphere || Utils::distance(pos.worldPosition(), coord.worldPosition()) <= radius) {
-                    removeVoxel(pos);
-                }
-            }
-        }
-    }
+    setVoxel(coord, VoxelData{}, radius, isSphere);
 }
