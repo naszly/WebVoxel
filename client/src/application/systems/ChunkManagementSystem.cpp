@@ -45,7 +45,7 @@ void ChunkManagementSystem::integrateCompressedChunks(World& world) {
     for (auto it = m_compressedChunks.begin(); it != m_compressedChunks.end(); ++it) {
         auto& task = *it;
         if (auto* chunk = world.tryGetChunk(task.position)) {
-            if (chunk->getLastAccess() == task.lastAccess) {
+            if (chunk->getLastEdit() == task.lastAccess) {
                 *chunk = std::move(task.chunk);
             } else {
                 LogApp::warning("Chunk at ({}, {}, {}) was modified after compression, skipping integration",
@@ -145,12 +145,13 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
         return;
     }
 
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     std::vector<Chunk*> candidates;
     for (auto& chunk : world.getChunks()) {
         const glm::ivec3 chunkPos = chunk.getPosition();
         if (chunk.isCompressed()) continue;
         if (chunk.isGpuBufferDirty() || chunk.isSaveFileDirty()) continue;
-        if (chunk.getLastAccessDuration() < std::chrono::seconds(15)) continue;
+        if (chunk.getLastEdit() - now < std::chrono::seconds(15)) continue;
         if (getChunkDistance(playerPosition, chunkPos) <= FAST_ACCESS_RADIUS) continue;
         if (m_compressingChunks.contains(chunkPos)) continue;
         if (!world.getExtendedChunkNeighbours(chunkPos).hasAllNeighbours()) continue;
@@ -158,14 +159,14 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
     }
 
     std::ranges::sort(candidates, [](const Chunk* a, const Chunk* b) {
-        return a->getLastAccess() < b->getLastAccess();
+        return a->getLastEdit() < b->getLastEdit();
     });
 
     size_t count = 0;
     for (auto* chunk : candidates) {
         if (count >= maxChunksToCompress) break;
         const glm::ivec3 chunkPos = chunk->getPosition();
-        CompressionTask task{chunkPos, *chunk, chunk->getLastAccess()};
+        CompressionTask task{chunkPos, *chunk, chunk->getLastEdit()};
         m_chunksToCompress.push(task);
         m_compressingChunks.insert(chunkPos);
         ++count;

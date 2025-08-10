@@ -20,10 +20,10 @@ public:
     static_assert(WIDTH >= 16 && WIDTH <= 256, "SIZE must be between 16 and 256");
 
     explicit Chunk(const glm::ivec3 position)
-        : m_position(position), m_lastAccess(std::chrono::steady_clock::now()) {}
+        : m_position(position), m_lastEdit(std::chrono::steady_clock::now()) {}
 
     explicit Chunk(const int x, const int y, const int z)
-        : m_position(x, y, z), m_lastAccess(std::chrono::steady_clock::now()) {}
+        : m_position(x, y, z), m_lastEdit(std::chrono::steady_clock::now()) {}
 
     ~Chunk() = default;
 
@@ -32,7 +32,7 @@ public:
         m_data = other.m_data;
         m_gpuBufferDirty = other.m_gpuBufferDirty;
         m_saveFileDirty = other.m_saveFileDirty;
-        m_lastAccess = other.m_lastAccess;
+        m_lastEdit = other.m_lastEdit;
     }
 
     Chunk& operator=(const Chunk& other) {
@@ -41,7 +41,7 @@ public:
             m_data = other.m_data;
             m_gpuBufferDirty = other.m_gpuBufferDirty;
             m_saveFileDirty = other.m_saveFileDirty;
-            m_lastAccess = other.m_lastAccess;
+            m_lastEdit = other.m_lastEdit;
         }
         return *this;
     }
@@ -51,7 +51,7 @@ public:
         m_data = std::move(other.m_data);
         m_gpuBufferDirty = other.m_gpuBufferDirty;
         m_saveFileDirty = other.m_saveFileDirty;
-        m_lastAccess = other.m_lastAccess;
+        m_lastEdit = other.m_lastEdit;
         other.m_gpuBufferDirty = false;
         other.m_saveFileDirty = false;
     }
@@ -62,7 +62,7 @@ public:
             m_data = std::move(other.m_data);
             m_gpuBufferDirty = other.m_gpuBufferDirty;
             m_saveFileDirty = other.m_saveFileDirty;
-            m_lastAccess = other.m_lastAccess;
+            m_lastEdit = other.m_lastEdit;
             other.m_gpuBufferDirty = false;
             other.m_saveFileDirty = false;
         }
@@ -76,12 +76,10 @@ public:
     }
 
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.getVoxel(x, y, z);
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.hasVoxel(x, y, z);
     }
 
@@ -89,7 +87,7 @@ public:
         m_data.setVoxel(x, y, z, voxel);
         m_gpuBufferDirty = true;
         m_saveFileDirty = true;
-        m_lastAccess = std::chrono::steady_clock::now();
+        m_lastEdit = std::chrono::steady_clock::now();
     }
 
     void queueVoxelToSet(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
@@ -103,7 +101,7 @@ public:
         m_queuedVoxelsToSet.resize(0);
         m_gpuBufferDirty = true;
         m_saveFileDirty = true;
-        m_lastAccess = std::chrono::steady_clock::now();
+        m_lastEdit = std::chrono::steady_clock::now();
     }
 
     [[nodiscard]] bool isGpuBufferDirty() const {
@@ -127,12 +125,10 @@ public:
     }
 
     [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
-        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
     [[nodiscard]] auto getBitmap(const ExtendedChukNeighbours& chunkNeighbours) const {
-        m_lastAccess = std::chrono::steady_clock::now();
         return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
@@ -150,12 +146,8 @@ public:
         return m_data.isCompressed();
     }
 
-    std::chrono::steady_clock::time_point getLastAccess() const {
-        return m_lastAccess;
-    }
-
-    [[nodiscard]] std::chrono::duration<double> getLastAccessDuration() const {
-        return std::chrono::steady_clock::now() - getLastAccess();
+    std::chrono::steady_clock::time_point getLastEdit() const {
+        return m_lastEdit;
     }
 
     static void cleanFs();
@@ -171,7 +163,7 @@ private:
     SparseVoxelOctTree m_data{};
     bool m_gpuBufferDirty{true};
     bool m_saveFileDirty{false};
-    mutable std::chrono::steady_clock::time_point m_lastAccess;
+    std::chrono::steady_clock::time_point m_lastEdit;
 
     std::vector<QueuedVoxelOp> m_queuedVoxelsToSet;
 
