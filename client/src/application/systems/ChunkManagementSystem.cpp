@@ -154,7 +154,11 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
         if (chunk.getLastEdit() - now < std::chrono::seconds(15)) continue;
         if (getChunkDistance(playerPosition, chunkPos) <= FAST_ACCESS_RADIUS) continue;
         if (m_compressingChunks.contains(chunkPos)) continue;
-        if (!world.getExtendedChunkNeighbours(chunkPos).hasAllNeighbours()) continue;
+
+        const auto& neighbours = world.getExtendedChunkNeighbours(chunkPos);
+        if (!neighbours.hasAllNeighbours()) continue;
+        if (neighbours.anyNeighbourDirty()) continue;
+
         candidates.push_back(&chunk);
     }
 
