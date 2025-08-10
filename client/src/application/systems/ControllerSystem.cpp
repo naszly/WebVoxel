@@ -152,7 +152,7 @@ void ControllerSystem::onEvent(Event &event) {
 
     dispatcher.dispatch<KeyPressedEvent>([&](const KeyPressedEvent &keyEvent) {
         const auto keyCode = keyEvent.getKeyCode();
-        if ((keyCode == KeyCode::Escape || keyCode == KeyCode::C) && m_isMouseCaptured) {
+        if ((keyCode == KeyCode::Escape || keyCode == KeyCode::E) && m_isMouseCaptured) {
             m_isMouseCaptured = false;
             input.setCursorMode(Normal);
             return true;
