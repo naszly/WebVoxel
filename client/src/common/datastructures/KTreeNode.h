@@ -11,6 +11,12 @@
 #include "common/Concetps.h"
 #include "common/Utils.h"
 
+#define USE_GLOBAL_BLOCK_ALLOCATOR
+
+#ifdef USE_GLOBAL_BLOCK_ALLOCATOR
+#include "GlobalBlockAllocator.h"
+#endif
+
 template<uint32_t Layer, uint32_t NodeCountPerAxis, typename TData>
     requires std::is_class_v<TData> && HasEmptyTrait<TData>
 class KTreeNode {
@@ -94,9 +100,8 @@ public:
 
             auto*& child = m_nodes[nodeX][nodeY][nodeZ];
             if (!child && !tData.isEmpty()) {
-                child = new KTreeChildNode();
+                child = allocateChildNode();
             }
-
             if (child) {
                 child->set(x % TREE_SIZE, y % TREE_SIZE, z % TREE_SIZE, tData);
             }
@@ -159,12 +164,11 @@ public:
         } else {
             NodeBitmap hasChildrenBitmap;
             is.read(hasChildrenBitmap.data(), hasChildrenBitmap.size());
-
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                 if (hasChildrenBitmap.test(idx)) {
                     auto*& child = (&m_nodes[0][0][0])[idx];
                     if (!child) {
-                        child = new KTreeChildNode();
+                        child = allocateChildNode();
                     }
                     child->deserialize(is);
                 }
@@ -177,7 +181,7 @@ public:
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                 if (auto* child = (&m_nodes[0][0][0])[idx]) {
                     if (child->isEmpty()) {
-                        delete child;
+                        deallocateChildNode(child);
                         (&m_nodes[0][0][0])[idx] = nullptr;
                     } else {
                         child->removeEmptyNodes();
@@ -207,6 +211,32 @@ private:
 
     NodeType m_nodes[NodeCountPerAxis][NodeCountPerAxis][NodeCountPerAxis]{};
 
+    static KTreeChildNode* allocateChildNode() {
+#if defined(USE_GLOBAL_BLOCK_ALLOCATOR)
+        return new (GlobalBlockAllocator::getAllocator<sizeof(KTreeChildNode)>().allocate()) KTreeChildNode();
+#else
+        return new KTreeChildNode();
+#endif
+    }
+
+    template<typename TSourceData>
+    static KTreeChildNode* allocateChildNode(const KTreeNode<Layer-1, NodeCountPerAxis, TSourceData>& otherChild) {
+#if defined(USE_GLOBAL_BLOCK_ALLOCATOR)
+        return new (GlobalBlockAllocator::getAllocator<sizeof(KTreeChildNode)>().allocate()) KTreeChildNode(otherChild);
+#else
+        return new KTreeChildNode(otherChild);
+#endif
+    }
+
+    static void deallocateChildNode(KTreeChildNode* child) {
+#if defined(USE_GLOBAL_BLOCK_ALLOCATOR)
+        child->~KTreeChildNode();
+        GlobalBlockAllocator::getAllocator<sizeof(KTreeChildNode)>().deallocate(child);
+#else
+        delete child;
+#endif
+    }
+
     void initialize() {
         if constexpr (IS_LEAF) {
             std::fill_n(&m_nodes[0][0][0], NODE_COUNT, EMPTY);
@@ -218,7 +248,10 @@ private:
     void clear() {
         if constexpr (!IS_LEAF) {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
-                delete std::exchange((&m_nodes[0][0][0])[idx], nullptr);
+                if ((&m_nodes[0][0][0])[idx]) {
+                    deallocateChildNode((&m_nodes[0][0][0])[idx]);
+                    (&m_nodes[0][0][0])[idx] = nullptr;
+                }
             }
         }
     }
@@ -236,7 +269,7 @@ private:
         } else {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                 if (const auto* otherChild = source.getNodes()[idx]) {
-                    (&m_nodes[0][0][0])[idx] = new KTreeChildNode(*otherChild);
+                    (&m_nodes[0][0][0])[idx] = allocateChildNode(*otherChild);
                 } else {
                     (&m_nodes[0][0][0])[idx] = nullptr;
                 }
