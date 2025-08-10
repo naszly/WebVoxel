@@ -26,4 +26,11 @@ namespace Utils {
         const int64_t dz = a.z - b.z;
         return static_cast<int64_t>(std::sqrt(dx * dx + dy * dy + dz * dz));
     }
+
+    inline int64_t distance2(const glm::i64vec3 &a, const glm::i64vec3 &b) {
+        const int64_t dx = a.x - b.x;
+        const int64_t dy = a.y - b.y;
+        const int64_t dz = a.z - b.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
 }

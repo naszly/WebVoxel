@@ -254,6 +254,18 @@ void RendererSystem::update(float dt) {
         chunk.resetGpuBufferDirty();
         ++processedChunks;
     }
+
+    for (auto it = m_chunkVertexBuffers.begin(); it != m_chunkVertexBuffers.end();) {
+        const auto &[chunkPosition, vertexBuffer] = *it;
+        const int64_t distance = Utils::distance2(chunkPosition, playerChunk);
+        constexpr auto farPlane = Camera::FAR / Chunk::WIDTH;
+        if (distance > static_cast<int64_t>(farPlane * farPlane)) {
+            wgpuBufferRelease(vertexBuffer.buffer);
+            m_chunkVertexBuffers.erase(it++);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void RendererSystem::onEvent(Event &event) {
