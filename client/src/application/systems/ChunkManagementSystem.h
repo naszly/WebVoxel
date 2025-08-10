@@ -4,6 +4,7 @@
 #include <queue>
 
 #include "System.h"
+#include "application/world/WorldGenerator.h"
 #include "common/datastructures/HashSet.h"
 #include "common/Thread.h"
 
@@ -45,8 +46,6 @@ private:
     static_assert(FAST_ACCESS_RADIUS < LOAD_ZONE_RADIUS, "Fast access radius must be less than load zone radius");
     static_assert(LOAD_ZONE_RADIUS < UNLOAD_ZONE_RADIUS, "Load zone radius must be less than unload zone radius");
 
-    const char* m_fnGeneratorEncoded = "DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==";
-
     std::queue<glm::ivec3> m_chunksToLoad;
     HashSet<glm::ivec3> m_loadingChunks;
     std::vector<Chunk> m_loadedChunks;
@@ -66,6 +65,10 @@ private:
     Threading::Lock m_lock;
     bool m_shouldExit = false;
 
+    WorldGenerator m_generator;
+
+    void processChunkManagement(const Camera& camera, World& world);
+
     void integrateLoadedChunks(World &world);
     void integrateCompressedChunks(World& world);
 
@@ -79,7 +82,7 @@ private:
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
     void handleChunkSave(std::optional<Chunk>& chunkToSave);
-    void handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad, const FastNoise::SmartNode<>& fnGenerator);
+    void handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad);
     void handleChunkCompression(std::optional<CompressionTask>& task);
 
     static void* worker(void *arg);

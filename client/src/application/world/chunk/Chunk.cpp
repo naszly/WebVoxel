@@ -7,19 +7,19 @@
 
 #include <zlib.h>
 
-void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
-    std::vector<float> noise(WIDTH * WIDTH);
+void Chunk::generate(WorldGenerator& generator) {
+    thread_local std::vector<uint8_t> noise;
 
-    const size_t xStart = m_position.z * WIDTH;
-    const size_t yStart = m_position.x * WIDTH;
-    fnGenerator->GenUniformGrid2D(noise.data(), xStart, yStart, WIDTH, WIDTH, 0.0004f, 0);
+    const bool isSurfaceChunk = m_position.y >= 0 && m_position.y * WIDTH < 256;
+    if (isSurfaceChunk) {
+        noise = generator.genUniformGrid2D(m_position.x, m_position.z);
+    }
 
     for (int i = 0; i < WIDTH; i++) {
         for (int j = 0; j < WIDTH; j++) {
             for (int k = 0; k < WIDTH; k++) {
-
-                if (m_position.y >= 0 && m_position.y * WIDTH < 256) {
-                    const int noiseValue = static_cast<int>((noise[i * WIDTH + k] * 0.5 + 0.5) * 255);
+                if (isSurfaceChunk) {
+                    const int noiseValue = noise[i * WIDTH + k];
                     const int height = m_position.y * WIDTH + j;
                     if (noiseValue == height) {
                         m_data.setVoxel(i, j, k, VoxelData(BlockId::Grass));

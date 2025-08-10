@@ -22,6 +22,12 @@ void ChunkManagementSystem::update(float dt) {
     const Camera& camera = getCamera();
     World& world = getWorld();
 
+    processChunkManagement(camera, world);
+
+    m_generator.pruneCacheByDistance(camera.getPosition(), UNLOAD_ZONE_RADIUS);
+}
+
+void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& world) {
     Threading::ScopedLock lock(&m_lock);
 
     integrateLoadedChunks(world);
@@ -194,7 +200,7 @@ void ChunkManagementSystem::handleChunkSave(std::optional<Chunk>& chunkToSave) {
     m_savingChunks.erase(chunkPos);
 }
 
-void ChunkManagementSystem::handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad, const FastNoise::SmartNode<>& fnGenerator) {
+void ChunkManagementSystem::handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad) {
     if (!chunkToLoad.has_value()) return;
 
     const auto chunkPos = chunkToLoad.value();
@@ -202,7 +208,7 @@ void ChunkManagementSystem::handleChunkLoad(std::optional<glm::ivec3>& chunkToLo
     if (chunk.fileExists()) {
         chunk.load();
     } else {
-        chunk.generate(fnGenerator);
+        chunk.generate(m_generator);
     }
     chunkToLoad = std::nullopt;
 
@@ -256,7 +262,6 @@ bool ChunkManagementSystem::fetchWork(Work& work) {
 
 void* ChunkManagementSystem::worker(void *arg) {
     auto& system = *static_cast<ChunkManagementSystem*>(arg);
-    const FastNoise::SmartNode<> fnGenerator = FastNoise::NewFromEncodedNodeTree(system.m_fnGeneratorEncoded);
 
     Work work;
 
@@ -276,7 +281,7 @@ void* ChunkManagementSystem::worker(void *arg) {
         }
 
         if (work.chunkToLoad.has_value()) {
-            system.handleChunkLoad(work.chunkToLoad, fnGenerator);
+            system.handleChunkLoad(work.chunkToLoad);
         }
 
         if (work.compressionTask.has_value()) {

@@ -7,9 +7,8 @@
 
 #include "ChunkNeighbours.h"
 #include "BitmappedVoxelTree.h"
+#include "application/world/WorldGenerator.h"
 #include "common/Utils.h"
-
-#include <FastNoise/FastNoise.h>
 
 class Chunk {
     static constexpr size_t TREE_DEPTH = 6;
@@ -69,7 +68,7 @@ public:
         return *this;
     }
 
-    void generate(const FastNoise::SmartNode<> &fnGenerator);
+    void generate(WorldGenerator& generator);
 
     [[nodiscard]] glm::ivec3 getPosition() const {
         return m_position;
