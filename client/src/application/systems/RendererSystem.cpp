@@ -414,20 +414,20 @@ void RendererSystem::createRenderPipeline() {
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
-    auto blockTextureManager = Application::getInstance().getBlockTextureManager();
+    auto& blockTextureManager = Application::getInstance().getBlockTextureManager();
 
     // Create the bind group for texture ids
     WGPUBindGroupEntry textureIdsBgEntry{};
     textureIdsBgEntry.binding = 1;
-    textureIdsBgEntry.buffer = blockTextureManager->getTextureIdsBuffer();
+    textureIdsBgEntry.buffer = blockTextureManager.getTextureIdsBuffer();
     textureIdsBgEntry.offset = 0;
-    textureIdsBgEntry.size = blockTextureManager->getTextureIdsBufferSize();
+    textureIdsBgEntry.size = blockTextureManager.getTextureIdsBufferSize();
 
     // Create the bind group for texture array
     WGPUBindGroupEntry textureArrayBgEntry{};
     textureArrayBgEntry.binding = 2;
     textureArrayBgEntry.sampler = nullptr;
-    textureArrayBgEntry.textureView = blockTextureManager->getTextureArrayView();
+    textureArrayBgEntry.textureView = blockTextureManager.getTextureArrayView();
 
     std::array bgEntries{
         bgEntry,

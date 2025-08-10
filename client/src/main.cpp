@@ -19,34 +19,24 @@ int main(const int argc, char** argv) {
 
     Application& app = Application::getInstance();
 
-    const auto layer = std::make_shared<Layer>();
-
     const int width = (argc > 1) ? std::stoi(argv[1]) : 800;
     const int height = (argc > 2) ? std::stoi(argv[2]) : 600;
     const std::optional<int> voxWorldModelIndex = (argc > 3) ? std::make_optional(std::stoi(argv[3])) : std::nullopt;
 
-    const auto rendererSystem = std::make_shared<RendererSystem>();
-    const auto controllerSystem = std::make_shared<ControllerSystem>();
-    const auto worldSystem = voxWorldModelIndex.has_value()
-        ? std::static_pointer_cast<System>(std::make_shared<VoxWorldLoaderSystem>(voxWorldModelIndex.value()))
-        : std::static_pointer_cast<System>(std::make_shared<ChunkManagementSystem>());
+    auto& layer = app.createLayer();
+    layer.pushSystem<RendererSystem>();
+    layer.pushSystem<ControllerSystem>();
+    voxWorldModelIndex.has_value()
+        ? layer.pushSystem<VoxWorldLoaderSystem>(voxWorldModelIndex.value())
+        : layer.pushSystem<ChunkManagementSystem>();
 
-    layer->pushSystem(rendererSystem);
-    layer->pushSystem(controllerSystem);
-    layer->pushSystem(worldSystem);
-
-    app.pushLayer(layer);
-
-    const auto guiLayer = std::make_shared<Layer>();
-    const auto guiSystem = std::make_shared<GuiSystem>();
-
-    guiLayer->pushSystem(guiSystem);
-
-    app.pushLayer(guiLayer);
+    auto& guiLayer = app.createLayer();
+    guiLayer.pushSystem<GuiSystem>();
 
     try {
         app.start(width, height);
     } catch (const std::exception& e) {
+        app.cleanUp();
         LogCore::critical("Application encountered an error: {}", e.what());
         return 1;
     }

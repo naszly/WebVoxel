@@ -26,6 +26,8 @@ void Application::start(const int width, const int height) {
             .eventCallback=[this](Event &event) { onEvent(event); }
         });
 
+    m_world = std::make_unique<World>();
+
     m_blockTextureManager = BlockTextureManagerBuilder(
         std::vector{
             "textures/grass_top.png",
@@ -52,6 +54,8 @@ void Application::start(const int width, const int height) {
     }
 #endif
 
+    cleanUp();
+
     Timer::exportTimes();
 }
 
@@ -61,6 +65,17 @@ void Application::stop() {
 #else
     m_window->close();
 #endif
+}
+
+void Application::cleanUp() {
+    for (auto& layer : m_layers) {
+        layer.reset();
+    }
+    m_layers.clear();
+
+    m_window.reset();
+    m_world.reset();
+    m_blockTextureManager.reset();
 }
 
 void Application::onEvent(Event &event) {

@@ -8,9 +8,15 @@
 
 class Layer {
 protected:
-    std::vector<std::shared_ptr<System>> m_systems;
+    std::vector<std::unique_ptr<System>> m_systems;
 public:
     Layer() = default;
+    ~Layer() {
+        for (auto& system : m_systems) {
+            system.reset();
+        }
+        m_systems.clear();
+    }
 
     Layer(const Layer&) = delete;
     Layer(Layer&&) = delete;
@@ -41,14 +47,16 @@ public:
         }
     }
 
-    void pushSystem(std::shared_ptr<System> system) {
-        m_systems.push_back(std::move(system));
+    template<typename T, typename... Args>
+    void pushSystem(Args&&... args) {
+        static_assert(std::is_base_of_v<System, T>, "T must inherit from System");
+        m_systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
     }
 
     template<typename T>
-    std::shared_ptr<T> getSystem() {
+    T* getSystem() {
         for (const auto& system : m_systems) {
-            if (auto ptr = std::dynamic_pointer_cast<T>(system)) {
+            if (auto ptr = dynamic_cast<T*>(system.get())) {
                 return ptr;
             }
         }

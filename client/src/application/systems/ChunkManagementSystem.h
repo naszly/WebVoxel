@@ -20,6 +20,7 @@ public:
 
     ~ChunkManagementSystem() override {
         m_shouldExit = true;
+        m_chunkWorkers.clear();
     }
 
 private:

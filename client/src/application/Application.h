@@ -27,8 +27,11 @@ public:
 
     void stop();
 
-    void pushLayer(std::shared_ptr<Layer> layer) {
-        m_layers.push_back(std::move(layer));
+    void cleanUp();
+
+    Layer& createLayer() {
+        m_layers.push_back(std::make_unique<Layer>());
+        return *m_layers.back();
     }
 
     [[nodiscard]] std::shared_ptr<WebGpuContext> getWebGpuContext() const {
@@ -48,15 +51,15 @@ public:
     }
 
     [[nodiscard]] World& getWorld() {
-        return m_world;
+        return *m_world;
     }
 
     Camera& getCamera() {
         return m_camera;
     }
 
-    std::shared_ptr<BlockTextureManager> getBlockTextureManager() const {
-        return m_blockTextureManager;
+    BlockTextureManager& getBlockTextureManager() const {
+        return *m_blockTextureManager;
     }
 
     ApplicationData& getApplicationData() {
@@ -64,7 +67,7 @@ public:
     }
 
     template<typename T>
-    std::shared_ptr<T> getSystem() {
+    T* getSystem() {
         for (const auto& layer : m_layers) {
             if (auto system = layer->getSystem<T>()) {
                 return system;
@@ -76,11 +79,11 @@ public:
 private:
     Application() = default;
 
-    std::vector<std::shared_ptr<Layer>> m_layers;
+    std::vector<std::unique_ptr<Layer>> m_layers;
     std::unique_ptr<Window> m_window;
-    World m_world;
+    std::unique_ptr<World> m_world;
     Camera m_camera;
-    std::shared_ptr<BlockTextureManager> m_blockTextureManager;
+    std::unique_ptr<BlockTextureManager> m_blockTextureManager;
 
     ApplicationData m_applicationData;
 
