@@ -20,9 +20,9 @@ public:
     const Chunk* zMinus{nullptr};
     const Chunk* zPlus{nullptr};
 
-    [[nodiscard]] bool hasAllNeighbours() const {
-        return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus;
-    }
+    [[nodiscard]] bool hasAllNeighbours() const;
+
+    [[nodiscard]] bool anyNeighbourDirty() const;
 };
 
 class ExtendedChukNeighbours : public ChunkNeighbours {
@@ -78,12 +78,7 @@ public:
     const Chunk* xPlusYPlusZMinus{nullptr};
     const Chunk* xPlusYPlusZPlus{nullptr};
 
-    [[nodiscard]] bool hasAllNeighbours() const {
-        return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus &&
-               xMinusYMinus && xMinusYPlus && xMinusZMinus && xMinusZPlus &&
-               xPlusYMinus && xPlusYPlus && xPlusZMinus && xPlusZPlus &&
-               yMinusZMinus && yMinusZPlus && yPlusZMinus && yPlusZPlus &&
-               xMinusYMinusZMinus && xMinusYMinusZPlus && xMinusYPlusZMinus && xMinusYPlusZPlus &&
-               xPlusYMinusZMinus && xPlusYMinusZPlus && xPlusYPlusZMinus && xPlusYPlusZPlus;
-    }
+    [[nodiscard]] bool hasAllNeighbours() const;
+
+    [[nodiscard]] bool anyNeighbourDirty() const;
 };
