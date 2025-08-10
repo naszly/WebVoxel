@@ -87,6 +87,10 @@ private:
     static std::string loadShader(const char* filename);
     void initializeBuffers();
 
+    std::vector<std::reference_wrapper<Chunk>> collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const;
+    void processDirtyChunks(World& world, std::vector<std::reference_wrapper<Chunk>>& dirtyChunks);
+    void removeFarChunkBuffers(const glm::ivec3& playerChunk);
+
     void exportTimestampsInternal() const;
 
     static constexpr float FOV = glm::radians(66.0);

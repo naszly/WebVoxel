@@ -195,8 +195,13 @@ void RendererSystem::update(float dt) {
     const glm::vec3 playerPosition = getCamera().getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
-    const auto chunks = world.getChunks();
+    auto dirtyChunks = collectDirtyChunks(world, playerChunk);
+    processDirtyChunks(world, dirtyChunks);
+    removeFarChunkBuffers(playerChunk);
+}
 
+std::vector<std::reference_wrapper<Chunk>> RendererSystem::collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const {
+    const auto& chunks = world.getChunks();
     std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
 
     std::ranges::copy_if(chunks, std::back_inserter(dirtyChunks), [&](const Chunk &chunk) {
@@ -209,6 +214,10 @@ void RendererSystem::update(float dt) {
         return Utils::distance(aPos, playerChunk) < Utils::distance(bPos, playerChunk);
     });
 
+    return dirtyChunks;
+}
+
+void RendererSystem::processDirtyChunks(World& world, std::vector<std::reference_wrapper<Chunk>>& dirtyChunks) {
     const size_t maxChunksToProcess = 3 + dirtyChunks.size() / 8;
     size_t processedChunks = 0;
 
@@ -218,9 +227,7 @@ void RendererSystem::update(float dt) {
         }
 
         auto& chunk = chunkRef.get();
-
         auto position = chunk.getPosition();
-
         auto bitmap = getBitmap(world, chunk);
 
         if (!bitmap) {
@@ -254,7 +261,9 @@ void RendererSystem::update(float dt) {
         chunk.resetGpuBufferDirty();
         ++processedChunks;
     }
+}
 
+void RendererSystem::removeFarChunkBuffers(const glm::ivec3& playerChunk) {
     for (auto it = m_chunkVertexBuffers.begin(); it != m_chunkVertexBuffers.end();) {
         const auto &[chunkPosition, vertexBuffer] = *it;
         const int64_t distance = Utils::distance2(chunkPosition, playerChunk);
