@@ -41,10 +41,10 @@ private:
     };
 
     static constexpr int FAST_ACCESS_RADIUS = 5;
-    static constexpr int LOAD_ZONE_RADIUS = 10;
-    static constexpr int UNLOAD_ZONE_RADIUS = 11;
-    static_assert(FAST_ACCESS_RADIUS < LOAD_ZONE_RADIUS, "Fast access radius must be less than load zone radius");
-    static_assert(LOAD_ZONE_RADIUS < UNLOAD_ZONE_RADIUS, "Load zone radius must be less than unload zone radius");
+    static constexpr int LOAD_ZONE_RADIUS_XZ = 11;
+    static constexpr int LOAD_ZONE_RADIUS_Y = 7;
+    static constexpr int UNLOAD_ZONE_RADIUS_XZ = LOAD_ZONE_RADIUS_XZ + 1;
+    static constexpr int UNLOAD_ZONE_RADIUS_Y = LOAD_ZONE_RADIUS_Y + 1;
 
     std::queue<glm::ivec3> m_chunksToLoad;
     HashSet<glm::ivec3> m_loadingChunks;

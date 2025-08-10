@@ -24,7 +24,7 @@ void ChunkManagementSystem::update(float dt) {
 
     processChunkManagement(camera, world);
 
-    m_generator.pruneCacheByDistance(camera.getPosition(), UNLOAD_ZONE_RADIUS);
+    m_generator.pruneCacheByDistance(camera.getPosition(), UNLOAD_ZONE_RADIUS_XZ);
 }
 
 void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& world) {
@@ -67,17 +67,20 @@ void ChunkManagementSystem::integrateCompressedChunks(World& world) {
 
 std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
     std::vector<glm::ivec3> offsets;
-    for (int x = -LOAD_ZONE_RADIUS; x <= LOAD_ZONE_RADIUS; ++x) {
-        for (int y = -LOAD_ZONE_RADIUS; y <= LOAD_ZONE_RADIUS; ++y) {
-            for (int z = -LOAD_ZONE_RADIUS; z <= LOAD_ZONE_RADIUS; ++z) {
-                if (x*x + y*y + z*z <= LOAD_ZONE_RADIUS*LOAD_ZONE_RADIUS) {
+    for (int x = -LOAD_ZONE_RADIUS_XZ; x <= LOAD_ZONE_RADIUS_XZ; ++x) {
+        for (int y = -LOAD_ZONE_RADIUS_Y; y <= LOAD_ZONE_RADIUS_Y; ++y) {
+            for (int z = -LOAD_ZONE_RADIUS_XZ; z <= LOAD_ZONE_RADIUS_XZ; ++z) {
+                if ((x*x + z*z <= LOAD_ZONE_RADIUS_XZ*LOAD_ZONE_RADIUS_XZ) && (abs(y) <= LOAD_ZONE_RADIUS_Y)) {
                     offsets.emplace_back(x, y, z);
                 }
             }
         }
     }
+    constexpr float yCorrection = static_cast<float>(LOAD_ZONE_RADIUS_XZ) / LOAD_ZONE_RADIUS_Y;
     std::ranges::sort(offsets, [](const glm::ivec3& a, const glm::ivec3& b) {
-        return a.x*a.x + a.y*a.y + a.z*a.z < b.x*b.x + b.y*b.y + b.z*b.z;
+        const float da = static_cast<float>(a.x * a.x + a.z * a.z) + (a.y * a.y) * yCorrection * yCorrection;
+        const float db = static_cast<float>(b.x * b.x + b.z * b.z) + (b.y * b.y) * yCorrection * yCorrection;
+        return da < db;
     });
     return offsets;
 }
@@ -124,14 +127,18 @@ void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
 
 void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, World &world) {
     const glm::vec3 playerPosition = camera.getPosition();
+    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
+    constexpr float yCorrection = static_cast<float>(UNLOAD_ZONE_RADIUS_XZ) / UNLOAD_ZONE_RADIUS_Y;
 
     const auto chunks = world.getChunks();
-
     std::vector<glm::ivec3> chunksToUnload;
 
     for (const auto &chunk : chunks) {
         auto chunkPos = chunk.getPosition();
-        if (getChunkDistance(playerPosition, chunkPos) > UNLOAD_ZONE_RADIUS) {
+        const glm::ivec3 offset = chunkPos - playerChunk;
+        const float distanceSq = static_cast<float>(offset.x * offset.x + offset.z * offset.z) + (offset.y * offset.y) * yCorrection * yCorrection;
+        constexpr float unloadRadiusSq = static_cast<float>(UNLOAD_ZONE_RADIUS_XZ * UNLOAD_ZONE_RADIUS_XZ);
+        if (distanceSq > unloadRadiusSq) {
             chunksToUnload.push_back(chunkPos);
         }
     }
