@@ -176,7 +176,7 @@ if (EMSCRIPTEN)
             -sMAXIMUM_MEMORY=4294967296 # 4GB
             -sEXIT_RUNTIME
             -sUSE_PTHREADS
-            -sPTHREAD_POOL_SIZE=4
+            -sPTHREAD_POOL_SIZE=6
             -sFORCE_FILESYSTEM=1
             -lidbfs.js
             -sEXPORTED_RUNTIME_METHODS=requestFullscreen,ccall,cwrap

@@ -9,7 +9,7 @@ void ChunkManagementSystem::initialize() {
     m_chunkWorkersCount = 1;
 
     if (hardwareConcurrency > 2) {
-        m_chunkWorkersCount = hardwareConcurrency / 2;
+        m_chunkWorkersCount = m_chunkWorkersCount = std::min(hardwareConcurrency / 2, 6u);
     }
 
     for (size_t i = 0; i < m_chunkWorkersCount; ++i) {
