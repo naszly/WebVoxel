@@ -39,7 +39,7 @@ private:
         }
     };
 
-    static constexpr int FAST_ACCESS_RADIUS = 2;
+    static constexpr int FAST_ACCESS_RADIUS = 5;
     static constexpr int LOAD_ZONE_RADIUS = 10;
     static constexpr int UNLOAD_ZONE_RADIUS = 12;
     static_assert(FAST_ACCESS_RADIUS < LOAD_ZONE_RADIUS, "Fast access radius must be less than load zone radius");
