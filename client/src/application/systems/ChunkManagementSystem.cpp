@@ -42,8 +42,7 @@ void ChunkManagementSystem::integrateLoadedChunks(World &world) {
 }
 
 void ChunkManagementSystem::integrateCompressedChunks(World& world) {
-    for (auto it = m_compressedChunks.begin(); it != m_compressedChunks.end(); ++it) {
-        auto& task = *it;
+    for (auto& task : m_compressedChunks) {
         if (auto* chunk = world.tryGetChunk(task.position)) {
             if (chunk->getLastEdit() == task.lastAccess) {
                 *chunk = std::move(task.chunk);
@@ -139,9 +138,9 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
 void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Camera& camera) {
     const glm::vec3 playerPosition = camera.getPosition();
 
-    const size_t maxChunksToCompress = m_chunkWorkersCount * 10;
+    constexpr size_t maxChunksToSchedule = 2;
 
-    if (m_compressingChunks.size() >= maxChunksToCompress) {
+    if (m_compressingChunks.size() >= maxChunksToSchedule) {
         return;
     }
 
@@ -167,8 +166,8 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
     });
 
     size_t count = 0;
-    for (auto* chunk : candidates) {
-        if (count >= maxChunksToCompress) break;
+    for (const auto* chunk : candidates) {
+        if (count >= maxChunksToSchedule) break;
         const glm::ivec3 chunkPos = chunk->getPosition();
         CompressionTask task{chunkPos, *chunk, chunk->getLastEdit()};
         m_chunksToCompress.push(task);
