@@ -94,7 +94,9 @@ private:
     static constexpr uint32_t BITMAP_SIZE = Chunk::WIDTH + 2;
     using ChunkBitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
 
-    std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk) const;
+    [[nodiscard]] std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk) const;
+
+    [[nodiscard]] bool hasAllNeighbours(const World &world, const Chunk& chunk) const;
 
     template<typename VertexT>
     static ChunkVertexBuffer createChunkVertexBuffer(glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel);

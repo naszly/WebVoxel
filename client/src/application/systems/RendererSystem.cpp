@@ -203,8 +203,8 @@ void RendererSystem::update(float dt) {
 
     std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
 
-    std::ranges::copy_if(chunks, std::back_inserter(dirtyChunks), [](const Chunk &chunk) {
-        return chunk.isGpuBufferDirty();
+    std::ranges::copy_if(chunks, std::back_inserter(dirtyChunks), [&](const Chunk &chunk) {
+        return chunk.isGpuBufferDirty() && hasAllNeighbours(world, chunk);
     });
 
     std::ranges::sort(dirtyChunks, [&](const Chunk &a, const Chunk &b) {
@@ -213,10 +213,14 @@ void RendererSystem::update(float dt) {
         return Utils::distance(aPos, playerChunk) < Utils::distance(bPos, playerChunk);
     });
 
-    const auto start = std::chrono::high_resolution_clock::now();
-    constexpr auto chunkProcessingTimeLimit = std::chrono::milliseconds(10);
+    const size_t maxChunksToProcess = 3 + dirtyChunks.size() / 8;
+    size_t processedChunks = 0;
 
     for (auto &chunkRef: dirtyChunks) {
+        if (processedChunks >= maxChunksToProcess) {
+            break;
+        }
+
         auto& chunk = chunkRef.get();
 
         auto position = chunk.getPosition();
@@ -252,10 +256,7 @@ void RendererSystem::update(float dt) {
         }
 
         chunk.resetGpuBufferDirty();
-
-        if (std::chrono::high_resolution_clock::now() - start > chunkProcessingTimeLimit) {
-            break;
-        }
+        ++processedChunks;
     }
 }
 
@@ -795,6 +796,16 @@ std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World
     }
 
     return std::nullopt;
+}
+
+bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) const {
+    if (m_ambientOcclusion) {
+        const auto neighbours = world.getExtendedChunkNeighbours(chunk.getPosition());
+        return neighbours.hasAllNeighbours();
+    } else {
+        const auto neighbours = world.getChunkNeighbours(chunk.getPosition());
+        return neighbours.hasAllNeighbours();
+    }
 }
 
 template<typename VertexT>
