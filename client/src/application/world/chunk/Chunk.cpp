@@ -2,15 +2,12 @@
 
 #include "application/Application.h"
 #include "application/common/CompressionUtils.h"
-#include "common/Timer.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
 
 #include <zlib.h>
 
 void Chunk::generate(const FastNoise::SmartNode<> &fnGenerator) {
-    const Timer timer("Chunk::generate");
-
     std::vector<float> noise(WIDTH * WIDTH);
 
     const size_t xStart = m_position.z * WIDTH;
@@ -60,8 +57,6 @@ void Chunk::save() {
 }
 
 void Chunk::load() {
-    Timer timer("Chunk::load");
-
     const std::string &fileName = getFileName();
     const std::vector<char> compressedData = FileSystem::readFile(fileName);
 

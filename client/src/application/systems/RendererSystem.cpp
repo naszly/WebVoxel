@@ -2,7 +2,6 @@
 
 #include "application/Application.h"
 #include "core/events/ApplicationEvent.h"
-#include "common/Timer.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
 #include "common/Thread.h"
@@ -192,9 +191,6 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 }
 
 void RendererSystem::update(float dt) {
-    const std::string timerName = "RendererSystem::update ao: " + std::to_string(m_ambientOcclusion);
-    Timer timer(timerName.c_str());
-
     World &world = getWorld();
     const glm::vec3 playerPosition = getCamera().getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
