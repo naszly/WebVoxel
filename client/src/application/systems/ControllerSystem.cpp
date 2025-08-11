@@ -11,54 +11,6 @@
 #include "application/world/WorldCoordinate.h"
 #include <limits>
 
-using RayHitCallbackFn = std::function<bool(glm::i64vec3, glm::i64vec3)>;
-void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);
-
-struct SweptAABBResult {
-    float entryTime;
-    glm::vec3 normal;
-    bool collided;
-};
-
-// Swept AABB: returns collision time, normal, and collision flag
-static SweptAABBResult sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,
-                                 const glm::vec3& vel,
-                                 const glm::vec3& bPos, const glm::vec3& bHalf) {
-    glm::vec3 invEntry, invExit;
-    for (int i = 0; i < 3; ++i) {
-        if (vel[i] > 0.0f) {
-            invEntry[i] = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
-            invExit[i]  = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
-        } else if (vel[i] < 0.0f) {
-            invEntry[i] = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
-            invExit[i]  = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
-        } else {
-            invEntry[i] = -std::numeric_limits<float>::infinity();
-            invExit[i]  = std::numeric_limits<float>::infinity();
-        }
-    }
-    glm::vec3 entry, exit;
-    for (int i = 0; i < 3; ++i) {
-        if (vel[i] == 0.0f) {
-            entry[i] = -std::numeric_limits<float>::infinity();
-            exit[i]  = std::numeric_limits<float>::infinity();
-        } else {
-            entry[i] = invEntry[i] / vel[i];
-            exit[i]  = invExit[i] / vel[i];
-        }
-    }
-    float entryTime = std::max({ entry.x, entry.y, entry.z });
-    float exitTime  = std::min({ exit.x, exit.y, exit.z });
-    if (entryTime > exitTime || (entry.x < 0 && entry.y < 0 && entry.z < 0) || entryTime > 1.0f || entryTime < 0.0f) {
-        return {1.0f, glm::vec3(0.0f), false};
-    }
-    glm::vec3 normal(0.0f);
-    if (entryTime == entry.x) normal.x = vel.x > 0 ? -1.0f : 1.0f;
-    else if (entryTime == entry.y) normal.y = vel.y > 0 ? -1.0f : 1.0f;
-    else if (entryTime == entry.z) normal.z = vel.z > 0 ? -1.0f : 1.0f;
-    return {entryTime, normal, true};
-}
-
 void ControllerSystem::initialize() {
     Camera& camera = getCamera();
 
@@ -71,12 +23,13 @@ void ControllerSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextu
 }
 
 void ControllerSystem::update(const float dt) {
+    if (!m_isMouseCaptured) return;
+
     const Input& input = getInput();
     Camera& camera = getCamera();
 
-    if (m_isMouseCaptured) {
-        updateCamera(dt, input, camera);
-    }
+    updateCameraMovement(dt, input, camera);
+    animateCameraFov(dt, input, camera);
 }
 
 void ControllerSystem::onEvent(Event &event) {
@@ -199,7 +152,7 @@ void ControllerSystem::onEvent(Event &event) {
 
     dispatcher.dispatch<KeyPressedEvent>([&](const KeyPressedEvent &keyEvent) {
         const auto keyCode = keyEvent.getKeyCode();
-        if ((keyCode == KeyCode::Escape || keyCode == KeyCode::E) && m_isMouseCaptured) {
+        if ((keyCode == KEY_ESCAPE || keyCode == KEY_MENU) && m_isMouseCaptured) {
             m_isMouseCaptured = false;
             input.setCursorMode(Normal);
             return true;
@@ -209,40 +162,53 @@ void ControllerSystem::onEvent(Event &event) {
     });
 }
 
-void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &camera) {
+void ControllerSystem::updateCameraMovement(const float dt, const Input &input, Camera &camera) {
+
+    if (input.isKeyPressed(KEY_JUMP) && m_onGround) {
+        m_verticalVelocity = CAMERA_JUMP_SPEED;
+        m_onGround = false;
+    }
+
+    const glm::vec3 moveDirection = computeMovementDirection(input, camera);
+    const float speed = computeCameraSpeed(input);
+
+    glm::vec3 velocity = moveDirection * speed;
+    velocity.y += m_verticalVelocity;
+    velocity *= dt;
+
+    moveAndCollideCamera(camera, velocity);
+
+    m_verticalVelocity += CAMERA_GRAVITY * dt;
+}
+
+glm::vec3 ControllerSystem::computeMovementDirection(const Input& input, const Camera& camera) {
     const auto cameraDirection = camera.getDirection();
-    glm::vec3 flatDirection = glm::normalize(glm::vec3(cameraDirection.x, 0.0f, cameraDirection.z));
-    glm::vec3 cameraRight = glm::normalize(glm::vec3(flatDirection.z, 0.0f, -flatDirection.x));
-    constexpr glm::vec3 boxHalfExtents(0.4925f, 1.55f, 0.4925f);
-    constexpr float gravity = -60.0f;
-    constexpr float jumpSpeed = 12.0f;
-    static float verticalVelocity = 0.0f;
-    static bool onGround = false;
-    float speed = 9.0f;
+    const glm::vec3 flatDirection = glm::normalize(glm::vec3(cameraDirection.x, 0.0f, cameraDirection.z));
+    const glm::vec3 cameraRight = glm::normalize(glm::vec3(flatDirection.z, 0.0f, -flatDirection.x));
 
     glm::vec3 moveDir(0.0f);
-    if (input.isKeyPressed(KeyCode::W)) moveDir += flatDirection;
-    if (input.isKeyPressed(KeyCode::S)) moveDir -= flatDirection;
-    if (input.isKeyPressed(KeyCode::A)) moveDir -= cameraRight;
-    if (input.isKeyPressed(KeyCode::D)) moveDir += cameraRight;
-    if (input.isKeyPressed(KeyCode::LeftShift)) {
-        speed *= 1.5;
-    }
-    if (input.isKeyPressed(KeyCode::Space) && onGround) {
-        verticalVelocity = jumpSpeed;
-        onGround = false;
-    }
-
+    if (input.isKeyPressed(KEY_FORWARD)) moveDir += flatDirection;
+    if (input.isKeyPressed(KEY_BACKWARD)) moveDir -= flatDirection;
+    if (input.isKeyPressed(KEY_LEFT)) moveDir -= cameraRight;
+    if (input.isKeyPressed(KEY_RIGHT)) moveDir += cameraRight;
     if (glm::length(moveDir) > 0.0f) {
         moveDir = glm::normalize(moveDir);
     }
+    return moveDir;
+}
 
-    glm::vec3 velocity = moveDir * speed;
-    velocity.y += verticalVelocity;
+float ControllerSystem::computeCameraSpeed(const Input& input) {
+    float speed = CAMERA_BASE_SPEED;
+    if (input.isKeyPressed(KEY_SPRINT)) {
+        speed *= CAMERA_SPRINT_MULTIPLIER;
+    }
+    return speed;
+}
+
+void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::vec3 velocity) {
+    constexpr glm::vec3 boxHalfExtents = CAMERA_COLLISION_HALF_EXTENTS;
+    const World& world = getWorld();
     glm::vec3 position = camera.getPosition();
-    World& world = getWorld();
-
-    velocity *= dt;
 
     for (int sweep = 0; sweep < 3; ++sweep) {
         float earliestHit = 1.0f;
@@ -267,10 +233,10 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
         }
         if (earliestHit < 1.0f) {
             position += velocity * earliestHit;
-            position += hitNormal * 0.001f;
+            position += hitNormal * CAMERA_COLLISION_PUSH;
             if (hitNormal.y > 0.0f) {
-                verticalVelocity = 0.0f;
-                onGround = true;
+                m_verticalVelocity = 0.0f;
+                m_onGround = true;
             }
             velocity -= hitNormal * glm::dot(velocity, hitNormal);
         } else {
@@ -279,19 +245,56 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
         }
     }
 
-    verticalVelocity += gravity * dt;
     camera.setPosition(position);
+}
 
-    // Animate FOV between sprint and normal
+void ControllerSystem::animateCameraFov(const float dt, const Input& input, Camera& camera) {
     static float animatedFov = Camera::DEFAULT_FOV;
-    bool sprinting = input.isKeyPressed(KeyCode::W) && input.isKeyPressed(KeyCode::LeftShift);
-    float targetFov = sprinting ? Camera::DEFAULT_FOV * 1.13f : Camera::DEFAULT_FOV;
-    float fovLerpSpeed = 8.0f;
-    animatedFov += (targetFov - animatedFov) * glm::clamp(fovLerpSpeed * dt, 0.0f, 1.0f);
+    const bool sprinting = input.isKeyPressed(KEY_FORWARD) && input.isKeyPressed(KEY_SPRINT);
+    const float targetFov = sprinting ? Camera::DEFAULT_FOV * CAMERA_FOV_SPRINT_MULTIPLIER : Camera::DEFAULT_FOV;
+    animatedFov += (targetFov - animatedFov) * glm::clamp(CAMERA_FOV_LERP_SPEED * dt, 0.0f, 1.0f);
     camera.setFov(animatedFov);
 }
 
-void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback) {
+ControllerSystem::SweptAABBResult ControllerSystem::sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,
+                                                              const glm::vec3& vel,
+                                                              const glm::vec3& bPos, const glm::vec3& bHalf) {
+    glm::vec3 invEntry, invExit;
+    for (int i = 0; i < 3; ++i) {
+        if (vel[i] > 0.0f) {
+            invEntry[i] = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
+            invExit[i]  = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
+        } else if (vel[i] < 0.0f) {
+            invEntry[i] = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
+            invExit[i]  = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
+        } else {
+            invEntry[i] = -std::numeric_limits<float>::infinity();
+            invExit[i]  = std::numeric_limits<float>::infinity();
+        }
+    }
+    glm::vec3 entry, exit;
+    for (int i = 0; i < 3; ++i) {
+        if (vel[i] == 0.0f) {
+            entry[i] = -std::numeric_limits<float>::infinity();
+            exit[i]  = std::numeric_limits<float>::infinity();
+        } else {
+            entry[i] = invEntry[i] / vel[i];
+            exit[i]  = invExit[i] / vel[i];
+        }
+    }
+    const float entryTime = std::max({ entry.x, entry.y, entry.z });
+    const float exitTime  = std::min({ exit.x, exit.y, exit.z });
+    if (entryTime > exitTime || (entry.x < 0 && entry.y < 0 && entry.z < 0) || entryTime > 1.0f || entryTime < 0.0f) {
+        return {1.0f, glm::vec3(0.0f), false};
+    }
+    glm::vec3 normal(0.0f);
+    if (entryTime == entry.x) normal.x = vel.x > 0 ? -1.0f : 1.0f;
+    else if (entryTime == entry.y) normal.y = vel.y > 0 ? -1.0f : 1.0f;
+    else if (entryTime == entry.z) normal.z = vel.z > 0 ? -1.0f : 1.0f;
+    return {entryTime, normal, true};
+}
+
+void ControllerSystem::castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback) {
     glm::i64vec3 current = glm::floor(position);
     glm::i64vec3 end = glm::i64vec3(glm::floor(position + direction * length));
     glm::i64vec3 sign = glm::sign(direction);
