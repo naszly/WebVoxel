@@ -281,6 +281,14 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
 
     verticalVelocity += gravity * dt;
     camera.setPosition(position);
+
+    // Animate FOV between sprint and normal
+    static float animatedFov = Camera::DEFAULT_FOV;
+    bool sprinting = input.isKeyPressed(KeyCode::W) && input.isKeyPressed(KeyCode::LeftShift);
+    float targetFov = sprinting ? Camera::DEFAULT_FOV * 1.13f : Camera::DEFAULT_FOV;
+    float fovLerpSpeed = 8.0f;
+    animatedFov += (targetFov - animatedFov) * glm::clamp(fovLerpSpeed * dt, 0.0f, 1.0f);
+    camera.setFov(animatedFov);
 }
 
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback) {
