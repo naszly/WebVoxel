@@ -210,29 +210,40 @@ void ControllerSystem::onEvent(Event &event) {
 }
 
 void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &camera) {
-    constexpr auto cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     const auto cameraDirection = camera.getDirection();
-    const auto cameraRight = glm::normalize(glm::cross(cameraUp, cameraDirection));
-    const float speed = dt * 10.0f;
-    glm::vec3 moveDir(0.0f);
+    glm::vec3 flatDirection = glm::normalize(glm::vec3(cameraDirection.x, 0.0f, cameraDirection.z));
+    glm::vec3 cameraRight = glm::normalize(glm::vec3(flatDirection.z, 0.0f, -flatDirection.x));
+    constexpr glm::vec3 boxHalfExtents(0.4925f, 1.55f, 0.4925f);
+    constexpr float gravity = -60.0f;
+    constexpr float jumpSpeed = 12.0f;
+    static float verticalVelocity = 0.0f;
+    static bool onGround = false;
+    float speed = 9.0f;
 
-    if (input.isKeyPressed(KeyCode::W)) moveDir += cameraDirection;
-    if (input.isKeyPressed(KeyCode::S)) moveDir -= cameraDirection;
+    glm::vec3 moveDir(0.0f);
+    if (input.isKeyPressed(KeyCode::W)) moveDir += flatDirection;
+    if (input.isKeyPressed(KeyCode::S)) moveDir -= flatDirection;
     if (input.isKeyPressed(KeyCode::A)) moveDir -= cameraRight;
     if (input.isKeyPressed(KeyCode::D)) moveDir += cameraRight;
-    if (input.isKeyPressed(KeyCode::Space)) moveDir += cameraUp;
-    if (input.isKeyPressed(KeyCode::LeftShift)) moveDir -= cameraUp;
+    if (input.isKeyPressed(KeyCode::LeftShift)) {
+        speed *= 1.5;
+    }
+    if (input.isKeyPressed(KeyCode::Space) && onGround) {
+        verticalVelocity = jumpSpeed;
+        onGround = false;
+    }
 
     if (glm::length(moveDir) > 0.0f) {
         moveDir = glm::normalize(moveDir);
     }
 
-    constexpr glm::vec3 boxHalfExtents(0.425f, 1.75f, 0.425f);
     glm::vec3 velocity = moveDir * speed;
+    velocity.y += verticalVelocity;
     glm::vec3 position = camera.getPosition();
     World& world = getWorld();
 
-    // Perform up to 3 sweeps for sliding along surfaces
+    velocity *= dt;
+
     for (int sweep = 0; sweep < 3; ++sweep) {
         float earliestHit = 1.0f;
         glm::vec3 hitNormal(0.0f);
@@ -256,13 +267,19 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
         }
         if (earliestHit < 1.0f) {
             position += velocity * earliestHit;
-            position += hitNormal * 0.001f; // Epsilon nudge to avoid getting stuck
-            velocity -= hitNormal * glm::dot(velocity, hitNormal); // Remove blocked axis from velocity
+            position += hitNormal * 0.001f;
+            if (hitNormal.y > 0.0f) {
+                verticalVelocity = 0.0f;
+                onGround = true;
+            }
+            velocity -= hitNormal * glm::dot(velocity, hitNormal);
         } else {
             position += velocity;
             break;
         }
     }
+
+    verticalVelocity += gravity * dt;
     camera.setPosition(position);
 }
 
