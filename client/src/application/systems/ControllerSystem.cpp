@@ -1,4 +1,3 @@
-
 #include "ControllerSystem.h"
 
 #ifdef __EMSCRIPTEN__
@@ -164,29 +163,20 @@ void ControllerSystem::onEvent(Event &event) {
 
 void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &camera) {
     constexpr auto cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    auto position = camera.getPosition();
+    const auto cameraDirection = camera.getDirection();
+    const auto cameraRight = glm::normalize(glm::cross(cameraUp, cameraDirection));
     const float speed = dt * 50;
+    glm::vec3 moveDir(0.0f);
 
-    if (input.isKeyPressed(KeyCode::W)) {
-        position += camera.getDirection() * speed;
-    }
-    if (input.isKeyPressed(KeyCode::S)) {
-        position -= camera.getDirection() * speed;
-    }
-    if (input.isKeyPressed(KeyCode::A)) {
-        position += glm::normalize(glm::cross(camera.getDirection(), cameraUp)) * speed;
-    }
-    if (input.isKeyPressed(KeyCode::D)) {
-        position -= glm::normalize(glm::cross(camera.getDirection(), cameraUp)) * speed;
-    }
-    if (input.isKeyPressed(KeyCode::Space)) {
-        position += cameraUp * speed;
-    }
-    if (input.isKeyPressed(KeyCode::LeftShift)) {
-        position -= cameraUp * speed;
-    }
+    if (input.isKeyPressed(KeyCode::W)) moveDir += cameraDirection;
+    if (input.isKeyPressed(KeyCode::S)) moveDir -= cameraDirection;
+    if (input.isKeyPressed(KeyCode::A)) moveDir -= cameraRight;
+    if (input.isKeyPressed(KeyCode::D)) moveDir += cameraRight;
+    if (input.isKeyPressed(KeyCode::Space)) moveDir += cameraUp;
+    if (input.isKeyPressed(KeyCode::LeftShift)) moveDir -= cameraUp;
 
-    camera.setPosition(position);
+    const auto newPosition = camera.getPosition() + moveDir * speed;
+    camera.setPosition(newPosition);
 }
 
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback) {
@@ -203,8 +193,7 @@ void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHit
 
     glm::i64vec3 previous = current;
 
-    while (!callback(current, previous) && !(current == end))
-    {
+    while (!callback(current, previous) && current != end) {
         previous = current;
         if (tMax.x < tMax.y && tMax.x < tMax.z) {
             current.x += sign.x;
