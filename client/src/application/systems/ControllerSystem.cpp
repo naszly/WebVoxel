@@ -7,9 +7,57 @@
 #include "application/Application.h"
 #include "core/events/KeyEvent.h"
 #include "core/events/MouseEvent.h"
+#include "application/world/World.h"
+#include "application/world/WorldCoordinate.h"
+#include <limits>
 
 using RayHitCallbackFn = std::function<bool(glm::i64vec3, glm::i64vec3)>;
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);
+
+struct SweptAABBResult {
+    float entryTime;
+    glm::vec3 normal;
+    bool collided;
+};
+
+// Swept AABB: returns collision time, normal, and collision flag
+static SweptAABBResult sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,
+                                 const glm::vec3& vel,
+                                 const glm::vec3& bPos, const glm::vec3& bHalf) {
+    glm::vec3 invEntry, invExit;
+    for (int i = 0; i < 3; ++i) {
+        if (vel[i] > 0.0f) {
+            invEntry[i] = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
+            invExit[i]  = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
+        } else if (vel[i] < 0.0f) {
+            invEntry[i] = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
+            invExit[i]  = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
+        } else {
+            invEntry[i] = -std::numeric_limits<float>::infinity();
+            invExit[i]  = std::numeric_limits<float>::infinity();
+        }
+    }
+    glm::vec3 entry, exit;
+    for (int i = 0; i < 3; ++i) {
+        if (vel[i] == 0.0f) {
+            entry[i] = -std::numeric_limits<float>::infinity();
+            exit[i]  = std::numeric_limits<float>::infinity();
+        } else {
+            entry[i] = invEntry[i] / vel[i];
+            exit[i]  = invExit[i] / vel[i];
+        }
+    }
+    float entryTime = std::max({ entry.x, entry.y, entry.z });
+    float exitTime  = std::min({ exit.x, exit.y, exit.z });
+    if (entryTime > exitTime || (entry.x < 0 && entry.y < 0 && entry.z < 0) || entryTime > 1.0f || entryTime < 0.0f) {
+        return {1.0f, glm::vec3(0.0f), false};
+    }
+    glm::vec3 normal(0.0f);
+    if (entryTime == entry.x) normal.x = vel.x > 0 ? -1.0f : 1.0f;
+    else if (entryTime == entry.y) normal.y = vel.y > 0 ? -1.0f : 1.0f;
+    else if (entryTime == entry.z) normal.z = vel.z > 0 ? -1.0f : 1.0f;
+    return {entryTime, normal, true};
+}
 
 void ControllerSystem::initialize() {
     Camera& camera = getCamera();
@@ -165,7 +213,7 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
     constexpr auto cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     const auto cameraDirection = camera.getDirection();
     const auto cameraRight = glm::normalize(glm::cross(cameraUp, cameraDirection));
-    const float speed = dt * 50;
+    const float speed = dt * 10.0f;
     glm::vec3 moveDir(0.0f);
 
     if (input.isKeyPressed(KeyCode::W)) moveDir += cameraDirection;
@@ -175,8 +223,47 @@ void ControllerSystem::updateCamera(const float dt, const Input &input, Camera &
     if (input.isKeyPressed(KeyCode::Space)) moveDir += cameraUp;
     if (input.isKeyPressed(KeyCode::LeftShift)) moveDir -= cameraUp;
 
-    const auto newPosition = camera.getPosition() + moveDir * speed;
-    camera.setPosition(newPosition);
+    if (glm::length(moveDir) > 0.0f) {
+        moveDir = glm::normalize(moveDir);
+    }
+
+    constexpr glm::vec3 boxHalfExtents(0.425f, 1.75f, 0.425f);
+    glm::vec3 velocity = moveDir * speed;
+    glm::vec3 position = camera.getPosition();
+    World& world = getWorld();
+
+    // Perform up to 3 sweeps for sliding along surfaces
+    for (int sweep = 0; sweep < 3; ++sweep) {
+        float earliestHit = 1.0f;
+        glm::vec3 hitNormal(0.0f);
+        glm::vec3 sweepEnd = position + velocity;
+        glm::vec3 minSweep = glm::min(position - boxHalfExtents, sweepEnd - boxHalfExtents);
+        glm::vec3 maxSweep = glm::max(position + boxHalfExtents, sweepEnd + boxHalfExtents);
+        for (int x = static_cast<int>(std::floor(minSweep.x)); x <= static_cast<int>(std::floor(maxSweep.x)); ++x) {
+            for (int y = static_cast<int>(std::floor(minSweep.y)); y <= static_cast<int>(std::floor(maxSweep.y)); ++y) {
+                for (int z = static_cast<int>(std::floor(minSweep.z)); z <= static_cast<int>(std::floor(maxSweep.z)); ++z) {
+                    WorldCoordinate coord(glm::i64vec3(x, y, z));
+                    if (!world.hasVoxel(coord)) continue;
+                    glm::vec3 voxelPos(x + 0.5f, y + 0.5f, z + 0.5f);
+                    glm::vec3 voxelHalf(0.5f);
+                    SweptAABBResult res = sweptAABB(position, boxHalfExtents, velocity, voxelPos, voxelHalf);
+                    if (res.collided && res.entryTime < earliestHit) {
+                        earliestHit = res.entryTime;
+                        hitNormal = res.normal;
+                    }
+                }
+            }
+        }
+        if (earliestHit < 1.0f) {
+            position += velocity * earliestHit;
+            position += hitNormal * 0.001f; // Epsilon nudge to avoid getting stuck
+            velocity -= hitNormal * glm::dot(velocity, hitNormal); // Remove blocked axis from velocity
+        } else {
+            position += velocity;
+            break;
+        }
+    }
+    camera.setPosition(position);
 }
 
 void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback) {
