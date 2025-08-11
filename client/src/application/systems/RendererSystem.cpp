@@ -4,7 +4,6 @@
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
-#include "common/Thread.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
@@ -16,7 +15,7 @@ void RendererSystem::initialize() {
 
     Camera &camera = Application::getInstance().getCamera();
 
-    camera.setPerspective(FOV, static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
+    camera.setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
     initializeBuffers();
     createDepthTexture();
@@ -57,7 +56,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     m_uniformData.transposedProjectionViewMatrix = glm::transpose(camera.getProjectionViewMatrix());
     m_uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
     m_uniformData.cameraPosition = camera.getPosition();
-    m_uniformData.fov = FOV;
+    m_uniformData.fov = camera.getFov();
     m_uniformData.viewportSize = {m_viewportWidth, m_viewportHeight};
     m_uniformData.nearPlane = Camera::NEAR;
     m_uniformData.farPlane = Camera::FAR;
@@ -289,7 +288,7 @@ void RendererSystem::onEvent(Event &event) {
         createDepthTexture();
 
         Camera &camera = Application::getInstance().getCamera();
-        camera.setPerspective(FOV, static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
+        camera.setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
         return true;
     });
