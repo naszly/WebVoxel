@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 #include "common/Thread.h"
-#include "common/datastructures/AtomicStack.h"
+#include "common/datastructures/AtomicQueue.h"
 
 template<size_t BlockSize, size_t BlocksPerChunk = 4096>
 class ThreadLocalBlockAllocator {
@@ -40,8 +40,8 @@ public:
     }
 
 private:
-    AtomicStack<std::byte> m_chunks;
-    AtomicStack<void> m_globalFreeList;
+    AtomicQueue<std::byte*> m_chunks;
+    AtomicQueue<void*> m_globalFreeList;
     static thread_local std::vector<void*> m_threadLocalFreeList;
 
     static void* tryAllocateFromThreadFreeList() {
