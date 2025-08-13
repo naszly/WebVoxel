@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <optional>
 
 template<typename T>
 class AtomicQueue {
@@ -62,7 +63,7 @@ public:
         }
     }
 
-    T pop() {
+    std::optional<T> tryPop() {
         Node* head = nullptr;
         while (true) {
             head = m_head.load(std::memory_order_acquire);
@@ -71,20 +72,20 @@ public:
             if (head == m_head.load(std::memory_order_acquire)) {
                 if (head == tail) {
                     if (next == nullptr) {
-                        return nullptr;
+                        return std::nullopt;
                     }
                     m_tail.compare_exchange_weak(
                         tail, next,
                         std::memory_order_release,
                         std::memory_order_relaxed);
                 } else {
-                    T outPtr = next->data;
+                    T value = next->data;
                     if (m_head.compare_exchange_weak(
                             head, next,
                             std::memory_order_release,
                             std::memory_order_relaxed)) {
                         delete head;
-                        return outPtr;
+                        return value;
                     }
                 }
             }
