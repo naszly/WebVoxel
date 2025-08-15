@@ -364,8 +364,10 @@ fn getTextureId(blockId: u32, plane: u32) -> u32 {
 
 fn remapUv(uv: vec2f, plane: u32) -> vec2f {
     switch (plane) {
-        case planeNx, planePx: { return vec2f(uv.y, 1.0 - uv.x); }
-        case planeNz, planePz: { return vec2f(1.0 - uv.x, 1.0 - uv.y); }
+        case planeNx: { return vec2f(1.0 - uv.y, 1.0 - uv.x); }
+        case planePx: { return vec2f(uv.y, 1.0 - uv.x); }
+        case planeNz: { return vec2f(uv.x, 1.0 - uv.y); }
+        case planePz: { return vec2f(1.0 - uv.x, 1.0 - uv.y); }
         default: { return uv; }
     }
 }
