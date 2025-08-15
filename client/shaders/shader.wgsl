@@ -7,7 +7,7 @@ const PI: f32 = 3.14159265359;
 const HALF_PI: f32 = 1.57079632679;
 
 struct Uniforms {
-    transposedProjectionViewMatrix: mat4x4<f32>,
+    projectionViewMatrix: mat4x4<f32>,
     inverseProjectionViewMatrix: mat4x4<f32>,
     cameraPosition: vec3f,
     fov: f32,
@@ -66,11 +66,6 @@ struct FragmentOut {
     @location(0) color: vec4f,
 }
 
-struct Billboard {
-    pos: vec2f,
-    size: vec2f,
-}
-
 const planeNx = 0; // Negative X (Left Plane)
 const planePx = 1; // Positive X (Right Plane)
 const planeNy = 2; // Negative Y (Bottom Plane)
@@ -78,44 +73,62 @@ const planePy = 3; // Positive Y (Top Plane)
 const planeNz = 4; // Negative Z (Front Plane)
 const planePz = 5; // Positive Z (Back Plane)
 
-fn quadricProj(voxelPosition: vec3f, voxelSize: f32) -> Billboard {
-    let quadricMat: vec4f = vec4f(1.0, 1.0, 1.0, -1.0);
-    let sphereRadius: f32 = voxelSize * 0.5 * 1.732051;
-    let sphereCenter: vec4f = vec4f(voxelPosition, 1.0);
-    let viewProj: mat4x4<f32> = u.transposedProjectionViewMatrix;
-
-    let projX = dot(sphereCenter, viewProj[0]);
-    let projY = dot(sphereCenter, viewProj[1]);
-    let projW = dot(sphereCenter, viewProj[3]);
-
-    var matT: mat3x4<f32> = mat3x4<f32>(
-        vec4f(viewProj[0].xyz * sphereRadius, projX),
-        vec4f(viewProj[1].xyz * sphereRadius, projY),
-        vec4f(viewProj[3].xyz * sphereRadius, projW)
+fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2f) -> vec4f {
+    // Calculate the 8 corners of the voxel's bounding box in world space
+    let halfSize = 0.5 * voxelSize;
+    let corners = array<vec3f, 8>(
+        voxelPosition + vec3f(-halfSize, -halfSize, -halfSize),
+        voxelPosition + vec3f(-halfSize, -halfSize,  halfSize),
+        voxelPosition + vec3f(-halfSize,  halfSize, -halfSize),
+        voxelPosition + vec3f(-halfSize,  halfSize,  halfSize),
+        voxelPosition + vec3f( halfSize, -halfSize, -halfSize),
+        voxelPosition + vec3f( halfSize, -halfSize,  halfSize),
+        voxelPosition + vec3f( halfSize,  halfSize, -halfSize),
+        voxelPosition + vec3f( halfSize,  halfSize,  halfSize)
     );
 
-    let matD: mat3x4<f32> = mat3x4<f32>(
-        matT[0] * quadricMat,
-        matT[1] * quadricMat,
-        matT[2] * quadricMat
-    );
-
-    let discriminant: f32 = dot(matD[2], matT[2]);
-    if (projW < 0.0 || discriminant > 0.0) {
-        return Billboard(vec2f(0.0, 0.0), vec2f(0.0, 0.0));
+    // Project corners to NDC and track which are in front of the camera (p.w > 0)
+    var minNdc = vec2f(1.0, 1.0);
+    var maxNdc = vec2f(-1.0, -1.0);
+    var offLeft = 0u;
+    var offRight = 0u;
+    var offTop = 0u;
+    var offBottom = 0u;
+    var inFront = 0u;
+    for (var i = 0u; i < 8u; i = i + 1u) {
+        var p = u.projectionViewMatrix * vec4f(corners[i], 1.0);
+        if (p.w > 0.0) {
+            p /= p.w;
+            minNdc = min(minNdc, p.xy);
+            maxNdc = max(maxNdc, p.xy);
+            if (p.x < -1.0) { offLeft++; }
+            if (p.x >  1.0) { offRight++; }
+            if (p.y < -1.0) { offBottom++; }
+            if (p.y >  1.0) { offTop++; }
+            inFront++;
+        }
     }
 
-    let eqCoefs: vec4f = vec4f(
-        dot(matD[0], matT[2]),
-        dot(matD[1], matT[2]),
-        dot(matD[0], matT[0]),
-        dot(matD[1], matT[1])
-    ) / discriminant;
+    // If all corners are behind the camera or all onscreen corners are offscreen, skip rendering
+    if (inFront == 0u || offLeft == inFront || offRight == inFront || offTop == inFront || offBottom == inFront) {
+        return vec4f(0.0, 0.0, 0.0, 1.0);
+    }
 
-    let outPosition: vec2f = eqCoefs.xy;
-    var aabb: vec2f = sqrt(eqCoefs.xy * eqCoefs.xy - eqCoefs.zw);
+    // Clamp NDC bounds to [-1, 1] for partially visible billboards
+    minNdc = clamp(minNdc, vec2f(-1.0), vec2f(1.0));
+    maxNdc = clamp(maxNdc, vec2f(-1.0), vec2f(1.0));
 
-    return Billboard(outPosition, aabb);
+    // Calculate the center and size of the billboard in NDC
+    let centerNdc = 0.5 * (minNdc + maxNdc);
+    let sizeNdc = maxNdc - minNdc;
+
+    // Offset the billboard quad using the input vertexPosition
+    let billboardNdc = centerNdc + vertexPosition * 0.5 * sizeNdc;
+
+    // Use normalized depth for the billboard
+    let depth = length(voxelPosition) / u.farPlane;
+
+    return vec4f(billboardNdc, depth, 1.0);
 }
 
 fn processVertex(vertex: VertexInputAo) -> VertexOut {
@@ -124,22 +137,10 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
 
     let voxelSize = instanceVoxelPosition.w;
-
     let voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
 
-    let billboard: Billboard = quadricProj(voxelPosition, voxelSize);
-
-    let stochasticCoverage: f32 = billboard.size.x * u.viewportSize.x * billboard.size.y * u.viewportSize.y;
-    if (stochasticCoverage < 0.8) {
-        var out: VertexOut;
-        out.pos = vec4f(0.0, 0.0, -1.0, 0.0);
-        return out;
-    }
-
-    let depth = length(voxelPosition) / u.farPlane;
-
     var out: VertexOut;
-    out.pos = vec4f(vertexPosition * billboard.size + billboard.pos, depth, 1.0);
+    out.pos = calculateBillboard(voxelPosition, voxelSize, vertexPosition);
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
     out.ambientOcclusion = vertex.ambientOcclusion;
