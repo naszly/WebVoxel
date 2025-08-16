@@ -2,20 +2,7 @@
 
 #include "Chunk.h"
 
-bool ChunkNeighbours::hasAllNeighbours() const {
-    return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus;
-}
-
-bool ChunkNeighbours::anyNeighbourDirty() const {
-    return (xMinus && xMinus->isGpuBufferDirty()) ||
-        (xPlus && xPlus->isGpuBufferDirty()) ||
-        (yMinus && yMinus->isGpuBufferDirty()) ||
-        (yPlus && yPlus->isGpuBufferDirty()) ||
-        (zMinus && zMinus->isGpuBufferDirty()) ||
-        (zPlus && zPlus->isGpuBufferDirty());
-}
-
-bool ExtendedChukNeighbours::hasAllNeighbours() const {
+bool ChukNeighbours::hasAllNeighbours() const {
     return xMinus && xPlus && yMinus && yPlus && zMinus && zPlus &&
         xMinusYMinus && xMinusYPlus && xMinusZMinus && xMinusZPlus &&
         xPlusYMinus && xPlusYPlus && xPlusZMinus && xPlusZPlus &&
@@ -24,7 +11,7 @@ bool ExtendedChukNeighbours::hasAllNeighbours() const {
         xPlusYMinusZMinus && xPlusYMinusZPlus && xPlusYPlusZMinus && xPlusYPlusZPlus;
 }
 
-bool ExtendedChukNeighbours::anyNeighbourDirty() const {
+bool ChukNeighbours::anyNeighbourDirty() const {
     return (xMinus && xMinus->isGpuBufferDirty()) ||
         (xPlus && xPlus->isGpuBufferDirty()) ||
         (yMinus && yMinus->isGpuBufferDirty()) ||

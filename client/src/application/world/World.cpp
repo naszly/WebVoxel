@@ -1,17 +1,6 @@
 #include "World.h"
 
-ChunkNeighbours World::getChunkNeighbours(const glm::ivec3 &chunkPos) const {
-    return {
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1))
-    };
-}
-
-ExtendedChukNeighbours World::getExtendedChunkNeighbours(const glm::ivec3 &chunkPos) const {
+ChukNeighbours World::getExtendedChunkNeighbours(const glm::ivec3 &chunkPos) const {
     return {
         m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
         m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),

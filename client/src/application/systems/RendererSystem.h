@@ -6,7 +6,6 @@
 
 #include "common/datastructures/HashMap.h"
 #include "../graphics/VertexData.h"
-#include "../graphics/StorageBufferManager.h"
 
 class RendererSystem final : public System {
 public:
@@ -96,9 +95,9 @@ private:
     static constexpr uint32_t BITMAP_SIZE = Chunk::WIDTH + 2;
     using ChunkBitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
 
-    [[nodiscard]] std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk) const;
+    [[nodiscard]] static std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk);
 
-    [[nodiscard]] bool hasAllNeighbours(const World &world, const Chunk& chunk) const;
+    [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
     template<typename VertexT>
     ChunkVertexBuffer createChunkVertexBuffer(glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel);

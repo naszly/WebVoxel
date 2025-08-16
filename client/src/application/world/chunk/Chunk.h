@@ -123,11 +123,7 @@ public:
         m_saveFileDirty = false;
     }
 
-    [[nodiscard]] auto getBitmap(const ChunkNeighbours& chunkNeighbours) const {
-        return m_data.getBitmap(getNeighbours(chunkNeighbours));
-    }
-
-    [[nodiscard]] auto getBitmap(const ExtendedChukNeighbours& chunkNeighbours) const {
+    [[nodiscard]] auto getBitmap(const ChukNeighbours& chunkNeighbours) const {
         return m_data.getBitmap(getNeighbours(chunkNeighbours));
     }
 
@@ -173,7 +169,5 @@ private:
             + std::to_string(WIDTH) + ".compressed.chunk";
     }
 
-    static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChunkNeighbours &chunkNeighbours);
-
-    static std::optional<SparseVoxelOctTree::ExtendedNeighbours> getNeighbours(const ExtendedChukNeighbours &chunkNeighbours);
+    static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChukNeighbours &chunkNeighbours);
 };

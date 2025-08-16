@@ -788,36 +788,22 @@ void RendererSystem::exportTimestampsInternal() const {
     }
 }
 
-std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World &world, const Chunk &chunk) const {
+std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World &world, const Chunk &chunk) {
     const auto chunkPosition = chunk.getPosition();
 
-    if (m_ambientOcclusion) {
-        const auto neighbours = world.getExtendedChunkNeighbours(chunkPosition);
+    const auto neighbours = world.getExtendedChunkNeighbours(chunkPosition);
 
-        if (neighbours.hasAllNeighbours()) {
-            auto bitmap = chunk.getBitmap(neighbours);
-            return std::make_optional(bitmap);
-        }
-    } else {
-        const auto neighbours = world.getChunkNeighbours(chunkPosition);
-
-        if (neighbours.hasAllNeighbours()) {
-            auto bitmap = chunk.getBitmap(neighbours);
-            return std::make_optional(bitmap);
-        }
+    if (neighbours.hasAllNeighbours()) {
+        auto bitmap = chunk.getBitmap(neighbours);
+        return std::make_optional(bitmap);
     }
 
     return std::nullopt;
 }
 
-bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) const {
-    if (m_ambientOcclusion) {
-        const auto neighbours = world.getExtendedChunkNeighbours(chunk.getPosition());
-        return neighbours.hasAllNeighbours();
-    } else {
-        const auto neighbours = world.getChunkNeighbours(chunk.getPosition());
-        return neighbours.hasAllNeighbours();
-    }
+bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
+    const auto neighbours = world.getExtendedChunkNeighbours(chunk.getPosition());
+    return neighbours.hasAllNeighbours();
 }
 
 template<typename VertexT>

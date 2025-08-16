@@ -81,25 +81,11 @@ void Chunk::cleanFs() {
     FileSystem::cleanFiles(".chunk");
 }
 
-std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const ChunkNeighbours &chunkNeighbours) {
+std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const ChukNeighbours &chunkNeighbours) {
     if (!chunkNeighbours.hasAllNeighbours()) {
         return std::nullopt;
     }
     return SparseVoxelOctTree::Neighbours{
-        .xMinus = chunkNeighbours.xMinus->m_data,
-        .xPlus = chunkNeighbours.xPlus->m_data,
-        .yMinus = chunkNeighbours.yMinus->m_data,
-        .yPlus = chunkNeighbours.yPlus->m_data,
-        .zMinus = chunkNeighbours.zMinus->m_data,
-        .zPlus = chunkNeighbours.zPlus->m_data,
-    };
-}
-
-std::optional<Chunk::SparseVoxelOctTree::ExtendedNeighbours> Chunk::getNeighbours(const ExtendedChukNeighbours &chunkNeighbours) {
-    if (!chunkNeighbours.hasAllNeighbours()) {
-        return std::nullopt;
-    }
-    return SparseVoxelOctTree::ExtendedNeighbours{
         .xMinus = chunkNeighbours.xMinus->m_data,
         .xPlus = chunkNeighbours.xPlus->m_data,
         .yMinus = chunkNeighbours.yMinus->m_data,

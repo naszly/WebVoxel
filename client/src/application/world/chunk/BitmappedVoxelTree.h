@@ -118,38 +118,6 @@ public:
         const BitmappedVoxelTree& yPlus;
         const BitmappedVoxelTree& zMinus;
         const BitmappedVoxelTree& zPlus;
-    };
-
-    [[nodiscard]] auto getBitmap(const std::optional<Neighbours> &neighbours) const {
-        auto bitmap = getBitmapInternal();
-
-        if (!neighbours.has_value()) {
-            return bitmap;
-        }
-
-        auto neighboursV = neighbours.value();
-
-        for (uint32_t i = 1; i < BITMAP_SIZE - 1; i++) {
-            for (uint32_t j = 1; j < BITMAP_SIZE - 1; j++) {
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinus, NEG_SIDE, i, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlus, POS_SIDE, i, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yMinus, i, NEG_SIDE, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yPlus, i, POS_SIDE, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.zMinus, i, j, NEG_SIDE);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.zPlus, i, j, POS_SIDE);
-            }
-        }
-
-        return bitmap;
-    }
-
-    struct ExtendedNeighbours {
-        const BitmappedVoxelTree& xMinus;
-        const BitmappedVoxelTree& xPlus;
-        const BitmappedVoxelTree& yMinus;
-        const BitmappedVoxelTree& yPlus;
-        const BitmappedVoxelTree& zMinus;
-        const BitmappedVoxelTree& zPlus;
 
         const BitmappedVoxelTree& xMinusYMinus;
         const BitmappedVoxelTree& xMinusYPlus;
@@ -174,7 +142,7 @@ public:
         const BitmappedVoxelTree& xPlusYPlusZPlus;
     };
 
-    [[nodiscard]] auto getBitmap(const std::optional<ExtendedNeighbours> &neighbours) const {
+    [[nodiscard]] auto getBitmap(const std::optional<Neighbours> &neighbours) const {
         auto bitmap = getBitmapInternal();
 
         if (!neighbours.has_value()) {
