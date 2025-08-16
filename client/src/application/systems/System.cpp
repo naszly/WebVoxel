@@ -1,26 +1,18 @@
 #include "System.h"
 #include "application/Application.h"
 
-Camera& System::getCamera() {
-    return Application::getInstance().getCamera();
-}
+ApplicationData& System::getApplicationData() const { return m_app->getApplicationData(); }
 
-const Input& System::getInput() {
-    return Application::getInstance().getInput();
-}
+Camera& System::getCamera() const { return m_app->getCamera(); }
 
-World& System::getWorld() {
-    return Application::getInstance().getWorld();
-}
+const Input& System::getInput() const { return m_app->getInput(); }
 
-const WebGpuContext& System::getWebGpuContext() {
-    return *Application::getInstance().getWebGpuContext();
-}
+World& System::getWorld() const { return m_app->getWorld(); }
 
-const WebGpuSurface& System::getWebGpuSurface() {
-    return Application::getInstance().getWebGpuSurface();
-}
+const WebGpuContext& System::getWebGpuContext() const { return *m_app->getWebGpuContext(); }
 
-GLFWwindow * System::getGlfwWindow() {
-    return Application::getInstance().getGlfwWindow();
-}
+const WebGpuSurface& System::getWebGpuSurface() const { return m_app->getWebGpuSurface(); }
+
+GLFWwindow* System::getGlfwWindow() const { return m_app->getGlfwWindow(); }
+
+BlockTextureManager& System::getBlockTextureManager() const { return m_app->getBlockTextureManager(); }

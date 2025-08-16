@@ -36,7 +36,7 @@ void ControllerSystem::onEvent(Event &event) {
     Camera& camera = getCamera();
     World& world = getWorld();
     const Input& input = getInput();
-    const ApplicationData &appData = Application::getInstance().getApplicationData();
+    const ApplicationData& appData = getApplicationData();
 
     EventDispatcher dispatcher(event);
 

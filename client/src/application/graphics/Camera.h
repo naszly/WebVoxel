@@ -10,9 +10,6 @@ public:
     Camera() = default;
     ~Camera() = default;
 
-    Camera(const Camera&) = delete;
-    Camera& operator=(const Camera&) = delete;
-
     constexpr static float DEFAULT_FOV = glm::radians(66.0f);
     constexpr static float NEAR = 0.01f;
     constexpr static float FAR = 1200.0f;

@@ -12,7 +12,7 @@ public:
     GuiSystem() : System() {}
 
 private:
-    static void setImGuiDisplaySize();
+    void setImGuiDisplaySize() const;
     bool m_ambientOcclusion = true;
     bool m_lighting = true;
     bool m_fog = true;

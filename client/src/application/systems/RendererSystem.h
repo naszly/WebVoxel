@@ -101,7 +101,7 @@ private:
     [[nodiscard]] bool hasAllNeighbours(const World &world, const Chunk& chunk) const;
 
     template<typename VertexT>
-    static ChunkVertexBuffer createChunkVertexBuffer(glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel);
+    ChunkVertexBuffer createChunkVertexBuffer(glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel);
 
     template<typename VertexT>
     static void getVertices(const ChunkBitmap &bitmap,

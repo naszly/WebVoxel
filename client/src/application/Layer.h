@@ -53,6 +53,12 @@ public:
         m_systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
     }
 
+    void setAppReference(Application& app) const {
+        for (auto& system : m_systems) {
+            system->setAppReference(app);
+        }
+    }
+
     template<typename T>
     T* getSystem() {
         for (const auto& system : m_systems) {

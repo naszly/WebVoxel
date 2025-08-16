@@ -48,12 +48,12 @@ void GuiSystem::initialize() {
     io.IniFilename = nullptr;
 #endif
 
-    if (const auto rendererSystem = Application::getInstance().getSystem<RendererSystem>()) {
+    if (const auto rendererSystem = getApplication().getSystem<RendererSystem>()) {
         m_ambientOcclusion = rendererSystem->getAmbientOcclusion();
     }
 }
 
-void GuiSystem::setImGuiDisplaySize() {
+void GuiSystem::setImGuiDisplaySize() const {
     ImGuiIO& io = ImGui::GetIO();
 
     const int surfaceWidth = getWebGpuSurface().getWidth();
@@ -107,7 +107,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::End();
 
-    ApplicationData &appData = Application::getInstance().getApplicationData();
+    ApplicationData& appData = getApplicationData();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
@@ -131,7 +131,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         Chunk::cleanFs();
     }
 
-    if (const auto renderer = Application::getInstance().getSystem<RendererSystem>()) {
+    if (const auto renderer = getApplication().getSystem<RendererSystem>()) {
         if (ImGui::Button("Export timestamps")) {
             renderer->exportTimestamps();
         }
@@ -194,7 +194,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 }
 
 void GuiSystem::update(float dt) {
-    if (const auto rendererSystem = Application::getInstance().getSystem<RendererSystem>()) {
+    if (const auto rendererSystem = getApplication().getSystem<RendererSystem>()) {
         if (rendererSystem->getAmbientOcclusion() != m_ambientOcclusion) {
             rendererSystem->setAmbientOcclusion(m_ambientOcclusion);
         }

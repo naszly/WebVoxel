@@ -13,9 +13,7 @@ void RendererSystem::initialize() {
     m_viewportWidth = getWebGpuSurface().getWidth();
     m_viewportHeight = getWebGpuSurface().getHeight();
 
-    Camera &camera = Application::getInstance().getCamera();
-
-    camera.setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
+    getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
     initializeBuffers();
     createDepthTexture();
@@ -51,7 +49,7 @@ void RendererSystem::initialize() {
 }
 
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
-    const Camera &camera = Application::getInstance().getCamera();
+    const Camera& camera = getCamera();
 
     m_uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
     m_uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
@@ -100,8 +98,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     renderPassDesc.label = WGPUStringView{"RendererSystem RenderPass", WGPU_STRLEN};
 
-    Application &app = Application::getInstance();
-    auto &appData = app.getApplicationData();
+    auto& appData = getApplicationData();
 
     const WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
@@ -287,8 +284,7 @@ void RendererSystem::onEvent(Event &event) {
 
         createDepthTexture();
 
-        Camera &camera = Application::getInstance().getCamera();
-        camera.setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
+        getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
         return true;
     });
@@ -413,7 +409,7 @@ void RendererSystem::createRenderPipeline() {
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
-    auto& blockTextureManager = Application::getInstance().getBlockTextureManager();
+    auto& blockTextureManager = getBlockTextureManager();
 
     // Create the bind group for texture ids
     WGPUBindGroupEntry textureIdsBgEntry{};

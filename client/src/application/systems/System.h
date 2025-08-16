@@ -3,6 +3,10 @@
 #include "core/Window.h"
 #include "../graphics/Camera.h"
 #include "../world/World.h"
+#include "application/graphics/BlockTextureManager.h"
+
+struct ApplicationData;
+class Application;
 
 class System {
 public:
@@ -19,11 +23,18 @@ public:
     virtual void update(float dt) = 0;
     virtual void onEvent(Event& event) = 0;
 
+    void setAppReference(Application& app) { m_app = &app; }
+
 protected:
-    static Camera& getCamera();
-    static const Input& getInput();
-    static World& getWorld();
-    static const WebGpuContext& getWebGpuContext();
-    static const WebGpuSurface& getWebGpuSurface();
-    static GLFWwindow* getGlfwWindow();
+    Application& getApplication() const { return *m_app; }
+    ApplicationData& getApplicationData() const;
+    Camera& getCamera() const;
+    const Input& getInput() const;
+    World& getWorld() const;
+    const WebGpuContext& getWebGpuContext() const;
+    const WebGpuSurface& getWebGpuSurface() const;
+    GLFWwindow* getGlfwWindow() const;
+    BlockTextureManager& getBlockTextureManager() const;
+private:
+    Application* m_app = nullptr;
 };

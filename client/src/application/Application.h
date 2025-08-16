@@ -5,9 +5,9 @@
 
 #include "graphics/Camera.h"
 #include "Layer.h"
+#include "common/Exception.h"
 #include "core/Window.h"
 #include "graphics/BlockTextureManager.h"
-#include "graphics/TextureArray.h"
 #include "world/World.h"
 
 struct ApplicationData {
@@ -20,19 +20,13 @@ struct ApplicationData {
 };
 
 class Application {
+    friend class ApplicationBuilder;
 public:
-    static Application& getInstance();
-
     void start(int width, int height);
 
     void stop();
 
     void cleanUp();
-
-    Layer& createLayer() {
-        m_layers.push_back(std::make_unique<Layer>());
-        return *m_layers.back();
-    }
 
     [[nodiscard]] std::shared_ptr<WebGpuContext> getWebGpuContext() const {
         return m_window->getWebGpuContext();
@@ -50,7 +44,7 @@ public:
         return m_window->getGlfwWindow();
     }
 
-    [[nodiscard]] World& getWorld() {
+    [[nodiscard]] World& getWorld() const {
         return *m_world;
     }
 
@@ -77,7 +71,7 @@ public:
     }
 
 private:
-    Application() = default;
+    explicit Application(std::vector<std::unique_ptr<Layer>> layers) : m_layers(std::move(layers)) {}
 
     std::vector<std::unique_ptr<Layer>> m_layers;
     std::unique_ptr<Window> m_window;
@@ -100,4 +94,30 @@ private:
 #if defined(__EMSCRIPTEN__)
     static void emscriptenMainLoop(void* arg);
 #endif
+};
+
+class ApplicationBuilder {
+public:
+    ApplicationBuilder();
+    ~ApplicationBuilder() = default;
+    ApplicationBuilder(const ApplicationBuilder&) = delete;
+    ApplicationBuilder(ApplicationBuilder&&) = delete;
+    ApplicationBuilder& operator=(const ApplicationBuilder&) = delete;
+    ApplicationBuilder& operator=(ApplicationBuilder&&) = delete;
+
+    // Add a new layer and return its index
+    size_t addLayer();
+
+    // Add a system to a specific layer
+    template<typename T, typename... Args>
+    ApplicationBuilder& addSystemToLayer(const size_t layerIndex, Args&&... args) {
+        static_assert(std::is_base_of_v<System, T>, "T must inherit from System");
+        if (layerIndex >= m_layers.size()) throw Exception("Layer index out of bounds");
+        m_layers[layerIndex]->pushSystem<T>(std::forward<Args>(args)...);
+        return *this;
+    }
+
+    Application build();
+private:
+    std::vector<std::unique_ptr<Layer>> m_layers;
 };

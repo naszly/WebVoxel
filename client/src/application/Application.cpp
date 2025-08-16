@@ -6,11 +6,6 @@
 #include <chrono>
 #include <ranges>
 
-Application & Application::getInstance() {
-    static Application instance;
-    return instance;
-}
-
 #if defined(__EMSCRIPTEN__)
 void Application::emscriptenMainLoop(void* arg) {
     auto app = static_cast<Application*>(arg);
@@ -178,4 +173,19 @@ void Application::mainLoop() {
     render();
 
     lastTime = now;
+}
+
+ApplicationBuilder::ApplicationBuilder() = default;
+
+size_t ApplicationBuilder::addLayer() {
+    m_layers.push_back(std::make_unique<Layer>());
+    return m_layers.size() - 1;
+}
+
+Application ApplicationBuilder::build() {
+    Application app(std::move(m_layers));
+    for (const auto& layer : app.m_layers) {
+        layer->setAppReference(app);
+    }
+    return app;
 }

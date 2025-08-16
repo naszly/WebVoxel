@@ -12,26 +12,29 @@
 #include "application/systems/VoxWorldLoaderSystem.h"
 
 int main(const int argc, char** argv) {
-
     LogCore::info("Hello, World!");
-
     FileSystem::initialize();
-
-    Application& app = Application::getInstance();
 
     const int width = (argc > 1) ? std::stoi(argv[1]) : 800;
     const int height = (argc > 2) ? std::stoi(argv[2]) : 600;
     const std::optional<int> voxWorldModelIndex = (argc > 3) ? std::make_optional(std::stoi(argv[3])) : std::nullopt;
 
-    auto& layer = app.createLayer();
-    layer.pushSystem<RendererSystem>();
-    layer.pushSystem<ControllerSystem>();
-    voxWorldModelIndex.has_value()
-        ? layer.pushSystem<VoxWorldLoaderSystem>(voxWorldModelIndex.value())
-        : layer.pushSystem<ChunkManagementSystem>();
+    // Build application layers and systems
+    ApplicationBuilder builder;
 
-    auto& guiLayer = app.createLayer();
-    guiLayer.pushSystem<GuiSystem>();
+    const size_t mainLayerIdx = builder.addLayer();
+    builder.addSystemToLayer<RendererSystem>(mainLayerIdx)
+           .addSystemToLayer<ControllerSystem>(mainLayerIdx);
+    if (voxWorldModelIndex) {
+        builder.addSystemToLayer<VoxWorldLoaderSystem>(mainLayerIdx, *voxWorldModelIndex);
+    } else {
+        builder.addSystemToLayer<ChunkManagementSystem>(mainLayerIdx);
+    }
+
+    const size_t guiLayerIdx = builder.addLayer();
+    builder.addSystemToLayer<GuiSystem>(guiLayerIdx);
+
+    Application app = builder.build();
 
     try {
         app.start(width, height);
