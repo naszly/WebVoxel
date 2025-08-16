@@ -213,7 +213,7 @@ std::vector<std::reference_wrapper<Chunk>> RendererSystem::collectDirtyChunks(Wo
     return dirtyChunks;
 }
 
-void RendererSystem::processDirtyChunks(World& world, std::vector<std::reference_wrapper<Chunk>>& dirtyChunks) {
+void RendererSystem::processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks) {
     const size_t maxChunksToProcess = 3 + dirtyChunks.size() / 8;
     size_t processedChunks = 0;
 
@@ -232,14 +232,10 @@ void RendererSystem::processDirtyChunks(World& world, std::vector<std::reference
 
         ChunkVertexBuffer buffer;
 
-        auto getVoxelLambda = [&](const uint32_t x, const uint32_t y, const uint32_t z) {
-            return chunk.getVoxel(x, y, z);
-        };
-
         if (m_ambientOcclusion) {
-            buffer = createChunkVertexBuffer<VertexDataAo>(position, bitmap.value(), getVoxelLambda);
+            buffer = createChunkVertexBuffer<VertexDataAo>(chunk, bitmap.value());
         } else {
-            buffer = createChunkVertexBuffer<VertexData>(position, bitmap.value(), getVoxelLambda);
+            buffer = createChunkVertexBuffer<VertexData>(chunk, bitmap.value());
         }
 
         auto it = m_chunkVertexBuffers.find(position);
@@ -807,15 +803,14 @@ bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
 }
 
 template<typename VertexT>
-RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const glm::ivec3 position,
-                                                                          const ChunkBitmap &bitmap,
-                                                                          const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel) {
+RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const Chunk& chunk,
+                                                                          const ChunkBitmap &bitmap) {
     ChunkVertexBuffer vertexBuffer;
 
     static std::vector<VertexT> points;
     points.clear();
 
-    getVertices(bitmap, getVoxel, points);
+    getVertices(chunk, bitmap, points);
 
     if (points.empty()) {
         return vertexBuffer;
@@ -824,7 +819,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
     const auto device = getWebGpuContext().getDevice();
     const auto queue = wgpuDeviceGetQueue(device);
 
-    const auto chunkPosition = glm::vec4(position, 0.0f);
+    const auto chunkPosition = glm::vec4(chunk.getPosition(), 0.0f);
 
     const size_t bufferSize = points.size() * sizeof(VertexT) + sizeof(chunkPosition);
 
@@ -851,8 +846,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 }
 
 template<typename VertexT>
-void RendererSystem::getVertices(const ChunkBitmap &bitmap,
-    const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel, std::vector<VertexT> &vertices) {
+void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexT> &vertices) {
     constexpr uint32_t bitmapSizeSquared = BITMAP_SIZE * BITMAP_SIZE;
 
     for (uint32_t i = bitmapSizeSquared; i < bitmapSizeSquared * (BITMAP_SIZE - 1); i++) {
@@ -876,7 +870,7 @@ void RendererSystem::getVertices(const ChunkBitmap &bitmap,
             const uint8_t vz = z-1;
 
             if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
-                const auto& voxel = getVoxel(vx, vy, vz);
+                const auto& voxel = chunk.getVoxel(vx, vy, vz);
 
                 if constexpr (std::is_same_v<VertexT, VertexDataAo>) {
                     const auto ao = getAmbientOcclusion(bitmap, x, y, z);

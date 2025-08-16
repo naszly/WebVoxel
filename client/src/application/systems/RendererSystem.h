@@ -87,7 +87,7 @@ private:
     void initializeBuffers();
 
     std::vector<std::reference_wrapper<Chunk>> collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const;
-    void processDirtyChunks(World& world, std::vector<std::reference_wrapper<Chunk>>& dirtyChunks);
+    void processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks);
     void removeFarChunkBuffers(const glm::ivec3& playerChunk);
 
     void exportTimestampsInternal() const;
@@ -100,12 +100,10 @@ private:
     [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
     template<typename VertexT>
-    ChunkVertexBuffer createChunkVertexBuffer(glm::ivec3 position, const ChunkBitmap& bitmap, const std::function<VoxelData(uint32_t, uint32_t, uint32_t)>& getVoxel);
+    ChunkVertexBuffer createChunkVertexBuffer(const Chunk& chunk, const ChunkBitmap& bitmap);
 
     template<typename VertexT>
-    static void getVertices(const ChunkBitmap &bitmap,
-                                     const std::function<VoxelData(uint32_t, uint32_t, uint32_t)> &getVoxel,
-                                     std::vector<VertexT> &vertices);
+    void getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexT> &vertices);
 
     static AmbientOcclusion getAmbientOcclusion(const ChunkBitmap& bitmap, uint32_t x, uint32_t y, uint32_t z);
 };
