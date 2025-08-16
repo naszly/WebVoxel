@@ -114,9 +114,10 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
         return vec4f(0.0, 0.0, 0.0, 1.0);
     }
 
-    // Clamp NDC bounds to [-1, 1] for partially visible billboards
-    minNdc = clamp(minNdc, vec2f(-1.0), vec2f(1.0));
-    maxNdc = clamp(maxNdc, vec2f(-1.0), vec2f(1.0));
+    // Expand bounds slightly before clamping to avoid missing edge pixels
+    let epsilon = vec2f(0.0001, 0.0001);
+    minNdc = clamp(minNdc - epsilon, vec2f(-1.0), vec2f(1.0));
+    maxNdc = clamp(maxNdc + epsilon, vec2f(-1.0), vec2f(1.0));
 
     // Calculate the center and size of the billboard in NDC
     let centerNdc = 0.5 * (minNdc + maxNdc);
