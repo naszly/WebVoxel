@@ -17,7 +17,9 @@ public:
     WorldGenerator(WorldGenerator&&) = delete;
     WorldGenerator& operator=(WorldGenerator&&) = delete;
 
-    std::vector<uint8_t> genUniformGrid2D(int chunkPosX, int chunkPosZ);
+    std::vector<uint8_t> generateTerrainHeights(int chunkPosX, int chunkPosZ);
+
+    std::vector<uint8_t> generateCaveDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
 
     void pruneCacheByDistance(const glm::ivec3& currentPosition, int distance);
 
@@ -25,7 +27,9 @@ private:
     using ChunkCoord = std::pair<int, int>;
     HashMap<ChunkCoord, std::vector<uint8_t>> m_gridCache;
     Threading::Lock m_cacheLock;
-    const FastNoise::SmartNode<> m_fnGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
+    const FastNoise::SmartNode<> m_terrainGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
+    const FastNoise::SmartNode<> m_caveGenerator = FastNoise::NewFromEncodedNodeTree("EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==");
+
     const float m_noiseFrequency = 0.0004f;
     const int m_noiseSeed = 0;
 };

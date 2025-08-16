@@ -8,26 +8,45 @@
 #include <zlib.h>
 
 void Chunk::generate(WorldGenerator& generator) {
-    thread_local std::vector<uint8_t> noise;
+    thread_local std::vector<uint8_t> terrainHeightMap;
+    thread_local std::vector<uint8_t> caveDensityMap;
 
     const bool isSurfaceChunk = m_position.y >= 0 && m_position.y * WIDTH < 256;
+    const bool isUndergroundChunk = m_position.y < 0;
+
     if (isSurfaceChunk) {
-        noise = generator.genUniformGrid2D(m_position.x, m_position.z);
+        terrainHeightMap = generator.generateTerrainHeights(m_position.x, m_position.z);
     }
+
+    if (isSurfaceChunk || isUndergroundChunk) {
+        caveDensityMap = generator.generateCaveDensityMap(m_position.x, m_position.y, m_position.z);
+    }
+
+    auto isCaveAt = [&](int i, int j, int k) -> bool {
+        int caveIdx = i * WIDTH * WIDTH + j * WIDTH + k;
+        return caveDensityMap.size() > caveIdx && caveDensityMap[caveIdx] > 125;
+    };
 
     for (int i = 0; i < WIDTH; i++) {
         for (int j = 0; j < WIDTH; j++) {
             for (int k = 0; k < WIDTH; k++) {
                 if (isSurfaceChunk) {
-                    const int noiseValue = noise[i * WIDTH + k];
+                    const int noiseIdx = i * WIDTH + k;
+                    const int noiseValue = terrainHeightMap[noiseIdx];
                     const int height = m_position.y * WIDTH + j;
-                    if (noiseValue == height) {
-                        m_data.setVoxel(i, j, k, VoxelData(BlockId::Grass));
-                    } else if (noiseValue > height) {
-                        m_data.setVoxel(i, j, k, VoxelData(BlockId::Dirt));
+                    if (height <= noiseValue && !isCaveAt(i, j, k)) {
+                        if (height == noiseValue) {
+                            m_data.setVoxel(i, j, k, VoxelData(BlockId::Grass));
+                        } else if (height >= noiseValue - 2) {
+                            m_data.setVoxel(i, j, k, VoxelData(BlockId::Dirt));
+                        } else {
+                            m_data.setVoxel(i, j, k, VoxelData(BlockId::Stone));
+                        }
                     }
-                } else if (m_position.y < 0) {
-                    m_data.setVoxel(i, j, k, VoxelData(BlockId::Stone));
+                } else if (isUndergroundChunk) {
+                    if (!isCaveAt(i, j, k)) {
+                        m_data.setVoxel(i, j, k, VoxelData(BlockId::Stone));
+                    }
                 }
             }
         }

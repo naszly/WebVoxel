@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-std::vector<uint8_t> WorldGenerator::genUniformGrid2D(int chunkPosX, int chunkPosZ) {
+std::vector<uint8_t> WorldGenerator::generateTerrainHeights(int chunkPosX, int chunkPosZ) {
     Threading::ScopedLock lock(&m_cacheLock);
     ChunkCoord coord{chunkPosX, chunkPosZ};
     if (const auto it = m_gridCache.find(coord); it != m_gridCache.end()) {
@@ -17,7 +17,7 @@ std::vector<uint8_t> WorldGenerator::genUniformGrid2D(int chunkPosX, int chunkPo
     constexpr int xSize = Chunk::WIDTH;
     constexpr int ySize = Chunk::WIDTH;
 
-    m_fnGenerator->GenUniformGrid2D(floatGrid.data(), xStart, yStart, xSize, ySize, m_noiseFrequency, m_noiseSeed);
+    m_terrainGenerator->GenUniformGrid2D(floatGrid.data(), xStart, yStart, xSize, ySize, m_noiseFrequency, m_noiseSeed);
 
     std::vector<uint8_t> uint8Grid(floatGrid.size());
     std::ranges::transform(floatGrid, uint8Grid.begin(), [](const float v) {
@@ -25,6 +25,25 @@ std::vector<uint8_t> WorldGenerator::genUniformGrid2D(int chunkPosX, int chunkPo
     });
 
     return m_gridCache.emplace(coord, std::move(uint8Grid)).first->second;
+}
+
+std::vector<uint8_t> WorldGenerator::generateCaveDensityMap(const int chunkPosX, const int chunkPosY, const int chunkPosZ) const {
+    std::vector<float> floatGrid(Chunk::WIDTH * Chunk::WIDTH * Chunk::WIDTH);
+    const int xStart = chunkPosZ * Chunk::WIDTH;
+    const int yStart = chunkPosY * Chunk::WIDTH;
+    const int zStart = chunkPosX * Chunk::WIDTH;
+    constexpr int xSize = Chunk::WIDTH;
+    constexpr int ySize = Chunk::WIDTH;
+    constexpr int zSize = Chunk::WIDTH;
+
+    m_caveGenerator->GenUniformGrid3D(floatGrid.data(), xStart, yStart, zStart, xSize, ySize, zSize, 0.005, m_noiseSeed);
+
+    std::vector<uint8_t> uint8Grid(floatGrid.size());
+    std::ranges::transform(floatGrid, uint8Grid.begin(), [](const float v) {
+        return static_cast<uint8_t>((v + 1.0f) * 127.5f);
+    });
+
+    return uint8Grid;
 }
 
 void WorldGenerator::pruneCacheByDistance(const glm::ivec3& currentPosition, const int distance) {
