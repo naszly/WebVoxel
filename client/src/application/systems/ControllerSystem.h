@@ -26,7 +26,9 @@ private:
     static constexpr auto KEY_MENU = KeyCode::E;
 
     // Camera physics constants
-    static constexpr glm::vec3 CAMERA_COLLISION_HALF_EXTENTS = glm::vec3(0.45f, 1.55f, 0.45f);
+    static constexpr auto CAMERA_COLLISION_EXTENTS = glm::vec3(0.75f, 1.8f, 0.75f);
+    static constexpr auto CAMERA_COLLISION_HALF_EXTENTS = CAMERA_COLLISION_EXTENTS * 0.5f;
+    static constexpr float CAMERA_EYE_OFFSET_Y = -CAMERA_COLLISION_HALF_EXTENTS.y + 1.5f;
     static constexpr float CAMERA_GRAVITY = -60.0f;
     static constexpr float CAMERA_JUMP_SPEED = 12.0f;
     static constexpr float CAMERA_BASE_SPEED = 9.0f;

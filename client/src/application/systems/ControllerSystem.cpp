@@ -208,7 +208,8 @@ float ControllerSystem::computeCameraSpeed(const Input& input) {
 void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::vec3 velocity) {
     constexpr glm::vec3 boxHalfExtents = CAMERA_COLLISION_HALF_EXTENTS;
     const World& world = getWorld();
-    glm::vec3 position = camera.getPosition();
+    float epsilon = 1e-5f; // small epsilon to avoid precision issues
+    glm::vec3 position = camera.getPosition() - glm::vec3(0, CAMERA_EYE_OFFSET_Y - epsilon, 0);
 
     for (int sweep = 0; sweep < 3; ++sweep) {
         float earliestHit = 1.0f;
@@ -245,7 +246,7 @@ void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::vec3 velocity) 
         }
     }
 
-    camera.setPosition(position);
+    camera.setPosition(position + glm::vec3(0, CAMERA_EYE_OFFSET_Y, 0)); // set eye above center
 }
 
 void ControllerSystem::animateCameraFov(const float dt, const Input& input, Camera& camera) {
