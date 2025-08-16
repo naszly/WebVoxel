@@ -34,7 +34,7 @@ class BlockTextureManager {
     friend class BlockTextureManagerBuilder;
     BlockTextureManager(const std::vector<const char*>& textureFiles, const WebGpuContext& webGpuContext);
 
-    size_t blockIdToIndex(const BlockId& block) const;
+    static size_t blockIdToIndex(const BlockId& block);
     TextureId textureNameToId(const char* textureName) const;
 
     void setTextureForEastFace(const BlockId& block, TextureId textureId);
@@ -47,9 +47,9 @@ class BlockTextureManager {
     void initializeStorageBuffer(const WebGpuContext& webGpuContext);
 
 public:
-    WGPUBuffer getTextureIdsBuffer() const;
-    uint64_t getTextureIdsBufferSize() const;
-    WGPUTextureView getTextureArrayView() const;
+    [[nodiscard]] WGPUBuffer getTextureIdsBuffer() const;
+    [[nodiscard]] uint64_t getTextureIdsBufferSize() const;
+    [[nodiscard]] WGPUTextureView getTextureArrayView() const;
 
 private:
     std::vector<BlockTextures> m_blockTextures;
@@ -67,7 +67,7 @@ public:
     BlockTextureManagerBuilder& setTextureForTopFace(const BlockId& block, const char* texture);
     BlockTextureManagerBuilder& setTextureForBottomFace(const BlockId& block, const char* texture);
 
-    std::unique_ptr<BlockTextureManager> build() const;
+    [[nodiscard]] std::unique_ptr<BlockTextureManager> build() const;
 
 private:
     std::vector<const char*> m_textureFiles;

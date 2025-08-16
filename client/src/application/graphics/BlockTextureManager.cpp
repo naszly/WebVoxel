@@ -2,7 +2,7 @@
 
 BlockTextureManager::BlockTextureManager(const std::vector<const char*>& textureFiles,
                                          const WebGpuContext& webGpuContext) {
-    m_textureArray = std::make_unique<TextureArray>(webGpuContext, 16, 16, 4);
+    m_textureArray = std::make_unique<TextureArray>(webGpuContext, 16, 16, textureFiles.size());
 
     m_textureArray->loadTexturesRgba(textureFiles);
 
@@ -13,8 +13,8 @@ BlockTextureManager::BlockTextureManager(const std::vector<const char*>& texture
     m_blockTextures.resize(static_cast<size_t>(BlockId::Count));
 }
 
-size_t BlockTextureManager::blockIdToIndex(const BlockId& block) const {
-    const size_t index = static_cast<size_t>(block);
+size_t BlockTextureManager::blockIdToIndex(const BlockId& block) {
+    const auto index = static_cast<size_t>(block);
     assert(index < m_blockTextures.size());
     return index;
 }
