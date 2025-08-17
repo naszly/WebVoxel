@@ -855,12 +855,15 @@ void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, 
             continue;
         }
 
-        const bool isVisible = bitmap.test(i) &
-                               !(bitmap.test(i-1) & bitmap.test(i+1) &
-                                 bitmap.test(i-BITMAP_SIZE) & bitmap.test(i+BITMAP_SIZE) &
-                                 bitmap.test(i-bitmapSizeSquared) & bitmap.test(i+bitmapSizeSquared));
+        const bool nx = bitmap.test(i - 1);
+        const bool px = bitmap.test(i + 1);
+        const bool ny = bitmap.test(i - BITMAP_SIZE);
+        const bool py = bitmap.test(i + BITMAP_SIZE);
+        const bool nz = bitmap.test(i - bitmapSizeSquared);
+        const bool pz = bitmap.test(i + bitmapSizeSquared);
+        const bool surrounded = nx & px & ny & py & nz & pz;
 
-        if (isVisible) {
+        if (bitmap.test(i) & ~surrounded) {
             const uint32_t x = (i / (bitmapSizeSquared));
             const uint32_t y = ((i % (bitmapSizeSquared)) / BITMAP_SIZE);
             const uint32_t z = (i % BITMAP_SIZE);
@@ -885,73 +888,38 @@ void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, 
 
 AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkBitmap &bitmap,
                                                      const uint32_t x, const uint32_t y, const uint32_t z) {
-    auto ao = AmbientOcclusion::None;
-
-    auto test = [&](const int dx, const int dy, const int dz) {
-        return bitmap.test((x+dx) * BITMAP_SIZE * BITMAP_SIZE + (y+dy) * BITMAP_SIZE + (z+dz));
+    struct OffsetFlag {
+        int dx, dy, dz;
+        AmbientOcclusion flag;
     };
 
-    if (test(-1, -1, -1)) {
-        ao |= AmbientOcclusion::CornerNxNyNz;
-    }
-    if (test(-1, -1, 1)) {
-        ao |= AmbientOcclusion::CornerNxNyPz;
-    }
-    if (test(-1, 1, -1)) {
-        ao |= AmbientOcclusion::CornerNxPyNz;
-    }
-    if (test(-1, 1, 1)) {
-        ao |= AmbientOcclusion::CornerNxPyPz;
-    }
-    if (test(1, -1, -1)) {
-        ao |= AmbientOcclusion::CornerPxNyNz;
-    }
-    if (test(1, -1, 1)) {
-        ao |= AmbientOcclusion::CornerPxNyPz;
-    }
-    if (test(1, 1, -1)) {
-        ao |= AmbientOcclusion::CornerPxPyNz;
-    }
-    if (test(1, 1, 1)) {
-        ao |= AmbientOcclusion::CornerPxPyPz;
-    }
+    static constexpr OffsetFlag table[] = {
+        {-1, -1, -1, AmbientOcclusion::CornerNxNyNz},
+        {-1, -1,  1, AmbientOcclusion::CornerNxNyPz},
+        {-1,  1, -1, AmbientOcclusion::CornerNxPyNz},
+        {-1,  1,  1, AmbientOcclusion::CornerNxPyPz},
+        { 1, -1, -1, AmbientOcclusion::CornerPxNyNz},
+        { 1, -1,  1, AmbientOcclusion::CornerPxNyPz},
+        { 1,  1, -1, AmbientOcclusion::CornerPxPyNz},
+        { 1,  1,  1, AmbientOcclusion::CornerPxPyPz},
+        {-1, -1,  0, AmbientOcclusion::EdgeNxNy},
+        {-1,  1,  0, AmbientOcclusion::EdgeNxPy},
+        { 1, -1,  0, AmbientOcclusion::EdgePxNy},
+        { 1,  1,  0, AmbientOcclusion::EdgePxPy},
+        {-1,  0, -1, AmbientOcclusion::EdgeNxNz},
+        {-1,  0,  1, AmbientOcclusion::EdgeNxPz},
+        { 1,  0, -1, AmbientOcclusion::EdgePxNz},
+        { 1,  0,  1, AmbientOcclusion::EdgePxPz},
+        { 0, -1, -1, AmbientOcclusion::EdgeNyNz},
+        { 0, -1,  1, AmbientOcclusion::EdgeNyPz},
+        { 0,  1, -1, AmbientOcclusion::EdgePyNz},
+        { 0,  1,  1, AmbientOcclusion::EdgePyPz},
+    };
 
-    if (test(-1, -1, 0)) {
-        ao |= AmbientOcclusion::EdgeNxNy;
+    auto ao = AmbientOcclusion::None;
+    for (const auto& [dx, dy, dz, flag] : table) {
+        const uint32_t mask = bitmap.test((x + dx) * BITMAP_SIZE * BITMAP_SIZE + (y + dy) * BITMAP_SIZE + (z + dz));
+        ao |= static_cast<AmbientOcclusion>(mask * static_cast<uint32_t>(flag));
     }
-    if (test(-1, 1, 0)) {
-        ao |= AmbientOcclusion::EdgeNxPy;
-    }
-    if (test(1, -1, 0)) {
-        ao |= AmbientOcclusion::EdgePxNy;
-    }
-    if (test(1, 1, 0)) {
-        ao |= AmbientOcclusion::EdgePxPy;
-    }
-    if (test(-1, 0, -1)) {
-        ao |= AmbientOcclusion::EdgeNxNz;
-    }
-    if (test(-1, 0, 1)) {
-        ao |= AmbientOcclusion::EdgeNxPz;
-    }
-    if (test(1, 0, -1)) {
-        ao |= AmbientOcclusion::EdgePxNz;
-    }
-    if (test(1, 0, 1)) {
-        ao |= AmbientOcclusion::EdgePxPz;
-    }
-    if (test(0, -1, -1)) {
-        ao |= AmbientOcclusion::EdgeNyNz;
-    }
-    if (test(0, -1, 1)) {
-        ao |= AmbientOcclusion::EdgeNyPz;
-    }
-    if (test(0, 1, -1)) {
-        ao |= AmbientOcclusion::EdgePyNz;
-    }
-    if (test(0, 1, 1)) {
-        ao |= AmbientOcclusion::EdgePyPz;
-    }
-
     return ao;
 }
