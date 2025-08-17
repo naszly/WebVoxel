@@ -5,20 +5,20 @@
 
 class VoxelData {
 public:
-    constexpr VoxelData() : m_data(0), m_hasTexture(false) {}
+    constexpr VoxelData() = default;
     VoxelData(const uint8_t r, const uint8_t g, const uint8_t b) : VoxelData{VoxelColor(r, g, b)} {}
-    explicit VoxelData(const VoxelColor color) : m_hasTexture(false) { setVoxelColor(color); }
-    explicit VoxelData(const BlockId blockId) : m_hasTexture(true) { setBlockId(blockId); }
+    explicit VoxelData(const VoxelColor color) { setVoxelColor(color); }
+    explicit VoxelData(const BlockId blockId) { setBlockId(blockId); }
 
-    VoxelColor getColor() const {
+    [[nodiscard]] VoxelColor getColor() const {
         const uint32_t packedColor = m_data;
         const uint8_t r = (packedColor >> 16) & 0xFF;
         const uint8_t g = (packedColor >> 8) & 0xFF;
         const uint8_t b = (packedColor >> 0) & 0xFF;
-        return VoxelColor(r, g, b);
+        return {r, g, b};
     }
 
-    BlockId getBlockId() const {
+    [[nodiscard]] BlockId getBlockId() const {
         return static_cast<BlockId>(m_data);
     }
 
@@ -40,10 +40,11 @@ public:
     }
 
 private:
-    uint32_t m_data : 24;
-    bool m_hasTexture : 1;
+    uint32_t m_data : 24 {0};
+    bool m_hasTexture : 1 {false};
 
     void setVoxelColor(const VoxelColor color) {
+        m_hasTexture = false;
         const uint32_t packedColor =
             (static_cast<uint32_t>(color.r) << 16) |
             (static_cast<uint32_t>(color.g) << 8) |
@@ -51,6 +52,7 @@ private:
         m_data = packedColor;
     }
     void setBlockId(const BlockId blockId) {
+        m_hasTexture = true;
         m_data = static_cast<uint32_t>(blockId);
     }
 };
