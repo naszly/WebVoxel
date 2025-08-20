@@ -455,7 +455,7 @@ void RendererSystem::createRenderPipeline() {
             .shaderLocation = 4,
         }
     };
-    uint32_t voxelAttributeCount = 3;  // Always use ambient occlusion format
+    uint32_t voxelAttributeCount = voxelAttributes.size();
 
     voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
@@ -492,7 +492,7 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.bufferCount = bufferLayouts.size();
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
-    pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMainAo", WGPU_STRLEN};
+    pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
     pipelineDesc.vertex.constantCount = vertexConstants.size();
     pipelineDesc.vertex.constants = vertexConstants.data();
 
@@ -777,7 +777,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
                                                                           const ChunkBitmap &bitmap) {
     ChunkVertexBuffer vertexBuffer;
 
-    static std::vector<VertexDataAo> points;
+    static std::vector<VertexData> points;
     points.clear();
 
     getVertices(chunk, bitmap, points);
@@ -791,7 +791,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 
     const auto chunkPosition = glm::vec4(chunk.getPosition(), 0.0f);
 
-    const size_t bufferSize = points.size() * sizeof(VertexDataAo) + sizeof(chunkPosition);
+    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
 
     WGPUBufferDescriptor descriptor{};
     descriptor.size = bufferSize;
@@ -807,15 +807,15 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
         data.resize(bufferSize);
     }
 
-    memcpy(data.data(), points.data(), points.size() * sizeof(VertexDataAo));
-    memcpy(data.data() + points.size() * sizeof(VertexDataAo), &chunkPosition, sizeof(chunkPosition));
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
+    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
 
     wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
     return vertexBuffer;
 }
 
-void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexDataAo> &vertices) {
+void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexData> &vertices) {
     constexpr uint32_t bitmapSizeSquared = BITMAP_SIZE * BITMAP_SIZE;
 
     for (uint32_t i = bitmapSizeSquared; i < bitmapSizeSquared * (BITMAP_SIZE - 1); i++) {

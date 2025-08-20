@@ -94,7 +94,7 @@ private:
 
     ChunkVertexBuffer createChunkVertexBuffer(const Chunk& chunk, const ChunkBitmap& bitmap);
 
-    void getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexDataAo> &vertices);
+    void getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexData> &vertices);
 
     static AmbientOcclusion getAmbientOcclusion(const ChunkBitmap& bitmap, uint32_t x, uint32_t y, uint32_t z);
 };
