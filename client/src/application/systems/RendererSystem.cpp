@@ -844,7 +844,7 @@ void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, 
             if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
                 const auto& voxel = chunk.getVoxel(vx, vy, vz);
                 const auto ao = getAmbientOcclusion(bitmap, x, y, z);
-                vertices.emplace_back(VertexData{vx, vy, vz, 1, voxel}, ao);
+                vertices.emplace_back(vx, vy, vz, 1, voxel, ao);
             }
         }
     }
