@@ -47,10 +47,6 @@ void GuiSystem::initialize() {
     // You may manually call LoadIniSettingsFromMemory() to load settings from your own storage.
     io.IniFilename = nullptr;
 #endif
-
-    if (const auto rendererSystem = getApplication().getSystem<RendererSystem>()) {
-        m_ambientOcclusion = rendererSystem->getAmbientOcclusion();
-    }
 }
 
 void GuiSystem::setImGuiDisplaySize() const {
@@ -137,7 +133,6 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         }
     }
 
-    ImGui::Checkbox("Ambient occlusion", &m_ambientOcclusion);
     ImGui::Checkbox("Lighting", &m_lighting);
     ImGui::Checkbox("Fog", &m_fog);
 
@@ -195,9 +190,6 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
 void GuiSystem::update(float dt) {
     if (const auto rendererSystem = getApplication().getSystem<RendererSystem>()) {
-        if (rendererSystem->getAmbientOcclusion() != m_ambientOcclusion) {
-            rendererSystem->setAmbientOcclusion(m_ambientOcclusion);
-        }
         if (rendererSystem->getLighting() != m_lighting) {
             rendererSystem->setLighting(m_lighting);
         }

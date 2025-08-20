@@ -396,9 +396,7 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
             color = input.voxelColor;
         }
 
-        if (AO) {
-            color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
-        }
+        color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
 
         if (LIGHTING) {
             const lightDir: vec3f = normalize(vec3f(0.2f, 0.8f, -0.5f));

@@ -16,12 +16,6 @@ public:
 
     explicit RendererSystem() : System() {}
 
-    [[nodiscard]] bool getAmbientOcclusion() const {
-        return m_ambientOcclusion;
-    }
-
-    void setAmbientOcclusion(bool ambientOcclusion);
-
     [[nodiscard]] bool getLighting() const {
         return m_lighting;
     }
@@ -37,7 +31,6 @@ public:
     void exportTimestamps() const;
 
 private:
-    bool m_ambientOcclusion = true;
     bool m_lighting = true;
     bool m_fog = true;
     const int m_sampleCount = 1;
@@ -99,11 +92,9 @@ private:
 
     [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
-    template<typename VertexT>
     ChunkVertexBuffer createChunkVertexBuffer(const Chunk& chunk, const ChunkBitmap& bitmap);
 
-    template<typename VertexT>
-    void getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexT> &vertices);
+    void getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexDataAo> &vertices);
 
     static AmbientOcclusion getAmbientOcclusion(const ChunkBitmap& bitmap, uint32_t x, uint32_t y, uint32_t z);
 };
