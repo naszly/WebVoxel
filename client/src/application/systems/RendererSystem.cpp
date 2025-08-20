@@ -232,11 +232,7 @@ void RendererSystem::processDirtyChunks(const World& world, const std::vector<st
 
         ChunkVertexBuffer buffer;
 
-        if (m_ambientOcclusion) {
-            buffer = createChunkVertexBuffer<VertexDataAo>(chunk, bitmap.value());
-        } else {
-            buffer = createChunkVertexBuffer<VertexData>(chunk, bitmap.value());
-        }
+        buffer = createChunkVertexBuffer(chunk, bitmap.value());
 
         auto it = m_chunkVertexBuffers.find(position);
         if (it != m_chunkVertexBuffers.end()) {
@@ -284,23 +280,6 @@ void RendererSystem::onEvent(Event &event) {
 
         return true;
     });
-}
-
-void RendererSystem::setAmbientOcclusion(const bool ambientOcclusion) {
-    if (m_ambientOcclusion != ambientOcclusion) {
-        // Buffers and pipeline needs to be recreated because the vertex format is different
-        for (auto &[position, vertexBuffer] : m_chunkVertexBuffers ) {
-            wgpuBufferRelease(vertexBuffer.buffer);
-            if (const auto chunk = getWorld().tryGetChunk(position)) {
-                chunk->setGpuBufferDirty();
-            }
-        }
-        m_chunkVertexBuffers.clear();
-        wgpuRenderPipelineRelease(m_renderPipeline);
-
-        m_ambientOcclusion = ambientOcclusion;
-        createRenderPipeline();
-    }
 }
 
 void RendererSystem::setLighting(const bool lighting) {
@@ -476,7 +455,7 @@ void RendererSystem::createRenderPipeline() {
             .shaderLocation = 4,
         }
     };
-    uint32_t voxelAttributeCount = m_ambientOcclusion ? 3 : 2;
+    uint32_t voxelAttributeCount = voxelAttributes.size();
 
     voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
@@ -513,11 +492,7 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.bufferCount = bufferLayouts.size();
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
-    if (m_ambientOcclusion) {
-        pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMainAo", WGPU_STRLEN};
-    } else {
-        pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
-    }
+    pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
     pipelineDesc.vertex.constantCount = vertexConstants.size();
     pipelineDesc.vertex.constants = vertexConstants.data();
 
@@ -540,10 +515,6 @@ void RendererSystem::createRenderPipeline() {
     colorTarget.writeMask = WGPUColorWriteMask_All;
 
     const std::array fragmentConstants{
-        WGPUConstantEntry{
-            .key = WGPUStringView{"AO", WGPU_STRLEN},
-            .value = static_cast<double>(m_ambientOcclusion),
-        },
         WGPUConstantEntry{
             .key = WGPUStringView{"LIGHTING", WGPU_STRLEN},
             .value = static_cast<double>(m_lighting),
@@ -802,12 +773,11 @@ bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
     return neighbours.hasAllNeighbours();
 }
 
-template<typename VertexT>
 RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const Chunk& chunk,
                                                                           const ChunkBitmap &bitmap) {
     ChunkVertexBuffer vertexBuffer;
 
-    static std::vector<VertexT> points;
+    static std::vector<VertexData> points;
     points.clear();
 
     getVertices(chunk, bitmap, points);
@@ -821,7 +791,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 
     const auto chunkPosition = glm::vec4(chunk.getPosition(), 0.0f);
 
-    const size_t bufferSize = points.size() * sizeof(VertexT) + sizeof(chunkPosition);
+    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
 
     WGPUBufferDescriptor descriptor{};
     descriptor.size = bufferSize;
@@ -837,16 +807,15 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
         data.resize(bufferSize);
     }
 
-    memcpy(data.data(), points.data(), points.size() * sizeof(VertexT));
-    memcpy(data.data() + points.size() * sizeof(VertexT), &chunkPosition, sizeof(chunkPosition));
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
+    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
 
     wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
     return vertexBuffer;
 }
 
-template<typename VertexT>
-void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexT> &vertices) {
+void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexData> &vertices) {
     constexpr uint32_t bitmapSizeSquared = BITMAP_SIZE * BITMAP_SIZE;
 
     for (uint32_t i = bitmapSizeSquared; i < bitmapSizeSquared * (BITMAP_SIZE - 1); i++) {
@@ -874,13 +843,8 @@ void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, 
 
             if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
                 const auto& voxel = chunk.getVoxel(vx, vy, vz);
-
-                if constexpr (std::is_same_v<VertexT, VertexDataAo>) {
-                    const auto ao = getAmbientOcclusion(bitmap, x, y, z);
-                    vertices.emplace_back(VertexData{vx, vy, vz, 1, voxel}, ao);
-                } else {
-                    vertices.emplace_back(vx, vy, vz, 1, voxel);
-                }
+                const auto ao = getAmbientOcclusion(bitmap, x, y, z);
+                vertices.emplace_back(vx, vy, vz, 1, voxel, ao);
             }
         }
     }

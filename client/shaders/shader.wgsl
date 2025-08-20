@@ -1,5 +1,4 @@
 override CHUNK_SIZE: f32 = 64.0;
-override AO: bool = false;
 override LIGHTING: bool = false;
 override FOG: bool = false;
 
@@ -28,13 +27,6 @@ struct BlockTextures {
 @group(0) @binding(2) var textureArray: texture_2d_array<f32>;
 
 struct VertexInput {
-    @location(0) vertexPosition: vec2f,
-    @location(1) voxelPosition: u32,
-    @location(2) voxelData: u32,
-    @location(3) chunkPosition: vec3f,
-}
-
-struct VertexInputAo {
     @location(0) vertexPosition: vec2f,
     @location(1) voxelPosition: u32,
     @location(2) voxelData: u32,
@@ -132,7 +124,7 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
     return vec4f(billboardNdc, depth, 1.0);
 }
 
-fn processVertex(vertex: VertexInputAo) -> VertexOut {
+fn processVertex(vertex: VertexInput) -> VertexOut {
     let vertexPosition: vec2f = vertex.vertexPosition.xy;
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
@@ -156,17 +148,6 @@ fn processVertex(vertex: VertexInputAo) -> VertexOut {
 }
 
 @vertex fn vsMain(vertex: VertexInput) -> VertexOut {
-    let vertexAo: VertexInputAo = VertexInputAo(
-        vertex.vertexPosition,
-        vertex.voxelPosition,
-        vertex.voxelData,
-        vertex.chunkPosition,
-        0
-    );
-    return processVertex(vertexAo);
-}
-
-@vertex fn vsMainAo(vertex: VertexInputAo) -> VertexOut {
     return processVertex(vertex);
 }
 
@@ -396,9 +377,7 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
             color = input.voxelColor;
         }
 
-        if (AO) {
-            color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
-        }
+        color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
 
         if (LIGHTING) {
             const lightDir: vec3f = normalize(vec3f(0.2f, 0.8f, -0.5f));
