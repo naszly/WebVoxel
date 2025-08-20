@@ -455,7 +455,7 @@ void RendererSystem::createRenderPipeline() {
             .shaderLocation = 4,
         }
     };
-    uint32_t voxelAttributeCount = m_ambientOcclusion ? 3 : 2;
+    uint32_t voxelAttributeCount = 3;  // Always use ambient occlusion format
 
     voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
@@ -492,11 +492,7 @@ void RendererSystem::createRenderPipeline() {
     pipelineDesc.vertex.bufferCount = bufferLayouts.size();
     pipelineDesc.vertex.buffers = bufferLayouts.data();
     pipelineDesc.vertex.module = shaderModule;
-    if (m_ambientOcclusion) {
-        pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMainAo", WGPU_STRLEN};
-    } else {
-        pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
-    }
+    pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMainAo", WGPU_STRLEN};
     pipelineDesc.vertex.constantCount = vertexConstants.size();
     pipelineDesc.vertex.constants = vertexConstants.data();
 
@@ -795,7 +791,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 
     const auto chunkPosition = glm::vec4(chunk.getPosition(), 0.0f);
 
-    const size_t bufferSize = points.size() * sizeof(VertexT) + sizeof(chunkPosition);
+    const size_t bufferSize = points.size() * sizeof(VertexDataAo) + sizeof(chunkPosition);
 
     WGPUBufferDescriptor descriptor{};
     descriptor.size = bufferSize;
@@ -811,8 +807,8 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
         data.resize(bufferSize);
     }
 
-    memcpy(data.data(), points.data(), points.size() * sizeof(VertexT));
-    memcpy(data.data() + points.size() * sizeof(VertexT), &chunkPosition, sizeof(chunkPosition));
+    memcpy(data.data(), points.data(), points.size() * sizeof(VertexDataAo));
+    memcpy(data.data() + points.size() * sizeof(VertexDataAo), &chunkPosition, sizeof(chunkPosition));
 
     wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
