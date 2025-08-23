@@ -4,10 +4,11 @@
 #include <cstring>
 #include <cassert>
 
-template<uint32_t Size, typename DataT = uint_fast32_t>
+template<uint32_t SizeInBits, typename DataT = uint_fast32_t>
 class Bitmap {
 public:
     static constexpr uint32_t WORD_SIZE = sizeof(DataT);
+    static constexpr uint32_t BITS_PER_WORD = WORD_SIZE * 8;
 
     Bitmap() {
         memset(m_data, 0, sizeof(m_data));
@@ -18,18 +19,18 @@ public:
     }
 
     void set(const uint32_t i) {
-        assert(i < Size); [[assume(i < Size)]];
-        m_data[i / WORD_SIZE] |= 1u << (i % WORD_SIZE);
+        assert(i < SizeInBits); [[assume(i < SizeInBits)]];
+        m_data[i / BITS_PER_WORD] |= 1u << (i % BITS_PER_WORD);
     }
 
     void clear(const uint32_t i) {
-        assert(i < Size); [[assume(i < Size)]];
-        m_data[i / WORD_SIZE] &= ~(1u << (i % WORD_SIZE));
+        assert(i < SizeInBits); [[assume(i < SizeInBits)]];
+        m_data[i / BITS_PER_WORD] &= ~(1u << (i % BITS_PER_WORD));
     }
 
     [[nodiscard]] bool test(const uint32_t i) const {
-        assert(i < Size); [[assume(i < Size)]];
-        return (m_data[i / WORD_SIZE] >> (i % WORD_SIZE)) & 1u;
+        assert(i < SizeInBits); [[assume(i < SizeInBits)]];
+        return (m_data[i / BITS_PER_WORD] >> (i % BITS_PER_WORD)) & 1u;
     }
 
     [[nodiscard]] bool testWord(const uint32_t i) const {
@@ -46,6 +47,6 @@ public:
     }
 
 private:
-    static constexpr uint32_t DATA_SIZE = Size / WORD_SIZE + (Size % WORD_SIZE != 0);
+    static constexpr uint32_t DATA_SIZE = (SizeInBits + BITS_PER_WORD - 1) / BITS_PER_WORD;
     DataT m_data[DATA_SIZE]{};
 };
