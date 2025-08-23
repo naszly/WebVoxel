@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cassert>
 
-template<uint32_t SizeInBits, typename DataT = uint_fast32_t>
+template<uint32_t SizeInBits, typename DataT = uint32_t>
 class Bitmap {
 public:
     static constexpr uint32_t WORD_SIZE = sizeof(DataT);
