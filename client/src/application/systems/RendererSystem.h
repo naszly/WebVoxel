@@ -86,22 +86,20 @@ private:
 
     void exportTimestampsInternal() const;
 
-    using ChunkNeighbourhoodBitmaps = std::array<std::array<std::array<const Bitmap<Chunk::WIDTH * Chunk::WIDTH * Chunk::WIDTH>*, 3>, 3>, 3>;
-
     [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
-    [[nodiscard]] static bool testBitmaps(const ChunkNeighbourhoodBitmaps& bitmaps, uint32_t x, uint32_t y, uint32_t z);
+    [[nodiscard]] static bool testBitmaps(const ChunkNeighborhood& neighborChunks, uint32_t x, uint32_t y, uint32_t z);
 
     [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const;
 
     static void getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices);
 
-    static AmbientOcclusion getAmbientOcclusion(const ChunkNeighbourhoodBitmaps& bitmaps, uint32_t x, uint32_t y, uint32_t z);
+    static AmbientOcclusion getAmbientOcclusion(const ChunkNeighborhood& neighborChunks, uint32_t x, uint32_t y, uint32_t z);
 
     // using unique_ptr to allocate on the heap to avoid stack overflow
     using LightMap = std::array<std::array<std::array<BlockLightInfo, Chunk::WIDTH*3>, Chunk::WIDTH*3>, Chunk::WIDTH*3>;
     using LightMapPtr = std::unique_ptr<LightMap>;
 
-    static LightMap& propagateLight(const ChunkNeighbourhoodBitmaps& bitmaps,
+    static LightMap& propagateLight(const ChunkNeighborhood& neighborChunks,
                                     const std::vector<Chunk::LightSource>& lights);
 };

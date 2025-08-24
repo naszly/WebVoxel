@@ -26,10 +26,7 @@ bool ChunkNeighborhood::anyNeighbourDirty() const {
     return false;
 }
 
-const Chunk* ChunkNeighborhood::getChunk(const int dx, const int dy, const int dz) const {
-    const int x = dx + 1, y = dy + 1, z = dz + 1;
-    if (x < 3 && y < 3 && z < 3) {
-        return neighborhood[x][y][z];
-    }
-    return nullptr;
+const Chunk* ChunkNeighborhood::getChunk(const int x, const int y, const int z) const {
+    assert(x < 3 && y < 3 && z < 3);
+    return neighborhood[x][y][z];
 }

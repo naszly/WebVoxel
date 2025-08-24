@@ -162,16 +162,16 @@ public:
         BlockLightInfo lightInfo;
     };
 
-    std::vector<LightSource> getLightSources(const int dx = 0, const int dy = 0, const int dz = 0) const {
+    std::vector<LightSource> getLightSources(const int xOffset = 0, const int yOffset = 0, const int zOffset = 0) const {
         std::vector<LightSource> lights;
         lights.reserve(m_litVoxels.size());
         for (const auto& [x, y, z] : m_litVoxels) {
             const VoxelData& voxel = getVoxel(x, y, z);
             assert(!voxel.isEmpty() && voxel.getBlock().emitsLight());
             lights.push_back({
-                static_cast<int>(x) + dx * static_cast<int>(WIDTH),
-                static_cast<int>(y) + dy * static_cast<int>(WIDTH),
-                static_cast<int>(z) + dz * static_cast<int>(WIDTH),
+                static_cast<int>(x) + xOffset * static_cast<int>(WIDTH),
+                static_cast<int>(y) + yOffset * static_cast<int>(WIDTH),
+                static_cast<int>(z) + zOffset * static_cast<int>(WIDTH),
                 voxel.getBlock().getLightInfo()
             });
         }

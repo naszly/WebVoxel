@@ -767,7 +767,7 @@ bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
     return neighbours.hasAllNeighbours();
 }
 
-bool RendererSystem::testBitmaps(const ChunkNeighbourhoodBitmaps& bitmaps, const uint32_t x, const uint32_t y, const uint32_t z) {
+bool RendererSystem::testBitmaps(const ChunkNeighborhood& neighborChunks, const uint32_t x, const uint32_t y, const uint32_t z) {
     assert(x < 3 * Chunk::WIDTH && y < 3 * Chunk::WIDTH && z < 3 * Chunk::WIDTH);
     const uint32_t cnx = x / Chunk::WIDTH;
     const uint32_t cny = y / Chunk::WIDTH;
@@ -776,7 +776,7 @@ bool RendererSystem::testBitmaps(const ChunkNeighbourhoodBitmaps& bitmaps, const
     const uint32_t by = y % Chunk::WIDTH;
     const uint32_t bz = z % Chunk::WIDTH;
     const uint32_t index = bx * Chunk::WIDTH * Chunk::WIDTH + by * Chunk::WIDTH + bz;
-    return bitmaps[cnx][cny][cnz]->test(index);
+    return neighborChunks.getChunk(cnx,cny,cnz)->getBitmap().test(index);
 }
 
 RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const {
@@ -794,7 +794,7 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
     const auto device = getWebGpuContext().getDevice();
     const auto queue = wgpuDeviceGetQueue(device);
 
-    const auto& centerChunk = *neighborChunks.getChunk(0,0,0);
+    const auto& centerChunk = *neighborChunks.getCenterChunk();
     const auto chunkPosition = glm::vec4(centerChunk.getPosition(), 0.0f);
 
     const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
@@ -822,53 +822,35 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
 }
 
 void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices) {
-    const auto& centerChunk = *neighborChunks.getChunk(0,0,0);
+    const auto& centerChunk = *neighborChunks.getCenterChunk();
 
     // Find all light sources in the chunk
     std::vector<Chunk::LightSource> lights;
-    for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                const auto& chunk = *neighborChunks.getChunk(dx, dy, dz);
-                auto chunkLight = chunk.getLightSources(dx, dy, dz);
+    for (int x = 0; x < 3; ++x) {
+        for (int y = 0; y < 3; ++y) {
+            for (int z = 0; z < 3; ++z) {
+                const auto& chunk = *neighborChunks.getChunk(x, y, z);
+                auto chunkLight = chunk.getLightSources(x-1, y-1, z-1);
                 lights.insert(lights.end(), chunkLight.begin(), chunkLight.end());
             }
         }
     }
 
-    const ChunkNeighbourhoodBitmaps neighbourhoodBitmaps{
-        std::array{
-            std::array{&neighborChunks.getChunk(-1,-1,-1)->getBitmap(), &neighborChunks.getChunk(-1,-1,0)->getBitmap(), &neighborChunks.getChunk(-1,-1,1)->getBitmap()},
-            std::array{&neighborChunks.getChunk(-1,0,-1)->getBitmap(),  &neighborChunks.getChunk(-1,0,0)->getBitmap(),  &neighborChunks.getChunk(-1,0,1)->getBitmap()},
-            std::array{&neighborChunks.getChunk(-1,1,-1)->getBitmap(),  &neighborChunks.getChunk(-1,1,0)->getBitmap(),  &neighborChunks.getChunk(-1,1,1)->getBitmap()}
-        },
-        std::array{
-            std::array{&neighborChunks.getChunk(0,-1,-1)->getBitmap(),  &neighborChunks.getChunk(0,-1,0)->getBitmap(),  &neighborChunks.getChunk(0,-1,1)->getBitmap()},
-            std::array{&neighborChunks.getChunk(0,0,-1)->getBitmap(),   &neighborChunks.getChunk(0,0,0)->getBitmap(),   &neighborChunks.getChunk(0,0,1)->getBitmap()},
-            std::array{&neighborChunks.getChunk(0,1,-1)->getBitmap(),   &neighborChunks.getChunk(0,1,0)->getBitmap(),   &neighborChunks.getChunk(0,1,1)->getBitmap()}
-        },
-        std::array{
-            std::array{&neighborChunks.getChunk(1,-1,-1)->getBitmap(),  &neighborChunks.getChunk(1,-1,0)->getBitmap(),  &neighborChunks.getChunk(1,-1,1)->getBitmap()},
-            std::array{&neighborChunks.getChunk(1,0,-1)->getBitmap(),   &neighborChunks.getChunk(1,0,0)->getBitmap(),   &neighborChunks.getChunk(1,0,1)->getBitmap()},
-            std::array{&neighborChunks.getChunk(1,1,-1)->getBitmap(),   &neighborChunks.getChunk(1,1,0)->getBitmap(),   &neighborChunks.getChunk(1,1,1)->getBitmap()}
-        }
-    };
-
-    const auto& lightMap = propagateLight(neighbourhoodBitmaps, lights);
+    const auto& lightMap = propagateLight(neighborChunks, lights);
 
     // The chunk is now in the center of a 3*WIDTH bitmap, so valid voxel region is:
     // x, y, z in [WIDTH, 2*WIDTH)
     for (uint32_t x = Chunk::WIDTH; x < 2 * Chunk::WIDTH; ++x) {
         for (uint32_t y = Chunk::WIDTH; y < 2 * Chunk::WIDTH; ++y) {
             for (uint32_t z = Chunk::WIDTH; z < 2 * Chunk::WIDTH; ++z) {
-                if (testBitmaps(neighbourhoodBitmaps, x, y, z)) {
+                if (testBitmaps(neighborChunks, x, y, z)) {
                     // Check if not fully surrounded
-                    const bool nx = testBitmaps(neighbourhoodBitmaps, x-1, y, z);
-                    const bool px = testBitmaps(neighbourhoodBitmaps, x+1, y, z);
-                    const bool ny = testBitmaps(neighbourhoodBitmaps, x, y-1, z);
-                    const bool py = testBitmaps(neighbourhoodBitmaps, x, y+1, z);
-                    const bool nz = testBitmaps(neighbourhoodBitmaps, x, y, z-1);
-                    const bool pz = testBitmaps(neighbourhoodBitmaps, x, y, z+1);
+                    const bool nx = testBitmaps(neighborChunks, x-1, y, z);
+                    const bool px = testBitmaps(neighborChunks, x+1, y, z);
+                    const bool ny = testBitmaps(neighborChunks, x, y-1, z);
+                    const bool py = testBitmaps(neighborChunks, x, y+1, z);
+                    const bool nz = testBitmaps(neighborChunks, x, y, z-1);
+                    const bool pz = testBitmaps(neighborChunks, x, y, z+1);
                     const bool surrounded = nx & px & ny & py & nz & pz;
                     if (!surrounded) {
                         const uint8_t vx = x - Chunk::WIDTH;
@@ -889,7 +871,7 @@ void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::v
 
                             VertexData voxelData = {
                                 vx, vy, vz, 1, voxel,
-                                getAmbientOcclusion(neighbourhoodBitmaps, x, y, z),
+                                getAmbientOcclusion(neighborChunks, x, y, z),
                                 voxelLight
                             };
 
@@ -902,7 +884,7 @@ void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::v
     }
 }
 
-AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighbourhoodBitmaps &bitmaps,
+AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighborhood &neighborChunks,
                                                      const uint32_t x, const uint32_t y, const uint32_t z) {
     struct OffsetFlag {
         int dx, dy, dz;
@@ -934,13 +916,13 @@ AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighbourhoodBit
 
     auto ao = AmbientOcclusion::None;
     for (const auto& [dx, dy, dz, flag] : table) {
-        const uint32_t mask = testBitmaps(bitmaps, dx + x, dy + y, dz + z);
+        const uint32_t mask = testBitmaps(neighborChunks, dx + x, dy + y, dz + z);
         ao |= static_cast<AmbientOcclusion>(mask * static_cast<uint32_t>(flag));
     }
     return ao;
 }
 
-RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighbourhoodBitmaps& bitmaps,
+RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighborhood& neighborChunks,
                                                          const std::vector<Chunk::LightSource>& lights) {
     static constexpr int LIGHT_GRID_DIM = Chunk::WIDTH * 3;
     static constexpr int LIGHT_GRID_SIZE = LIGHT_GRID_DIM * LIGHT_GRID_DIM * LIGHT_GRID_DIM;
@@ -988,7 +970,7 @@ RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighbourhoo
                 nx >= LIGHT_GRID_DIM || ny >= LIGHT_GRID_DIM || nz >= LIGHT_GRID_DIM)
                 continue;
 
-            if (testBitmaps(bitmaps, nx, ny, nz))
+            if (testBitmaps(neighborChunks, nx, ny, nz))
                 continue;
 
             auto& dst = lightMap[nx][ny][nz];
