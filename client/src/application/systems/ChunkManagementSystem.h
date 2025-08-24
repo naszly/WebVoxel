@@ -41,9 +41,9 @@ private:
         }
     };
 
-    static constexpr int FAST_ACCESS_RADIUS = 5;
-    static constexpr int LOAD_ZONE_RADIUS_XZ = 11;
-    static constexpr int LOAD_ZONE_RADIUS_Y = 7;
+    static constexpr int FAST_ACCESS_RADIUS = 8;
+    static constexpr int LOAD_ZONE_RADIUS_XZ = 20;
+    static constexpr int LOAD_ZONE_RADIUS_Y = 12;
     static constexpr int UNLOAD_ZONE_RADIUS_XZ = LOAD_ZONE_RADIUS_XZ + 1;
     static constexpr int UNLOAD_ZONE_RADIUS_Y = LOAD_ZONE_RADIUS_Y + 1;
 

@@ -214,7 +214,7 @@ std::vector<std::reference_wrapper<Chunk>> RendererSystem::collectDirtyChunks(Wo
 }
 
 void RendererSystem::processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks) {
-    const size_t maxChunksToProcess = 3 + dirtyChunks.size() / 8;
+    const size_t maxChunksToProcess = 6 + dirtyChunks.size() / 8;
     size_t processedChunks = 0;
 
     for (auto &chunkRef: dirtyChunks) {

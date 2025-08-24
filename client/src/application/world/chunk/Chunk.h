@@ -11,7 +11,7 @@
 #include "common/Utils.h"
 
 class Chunk {
-    static constexpr size_t TREE_DEPTH = 6;
+    static constexpr size_t TREE_DEPTH = 5;
     static constexpr size_t NODE_COUNT_PER_AXIS = 2;
     using SparseVoxelOctTree = BitmappedVoxelTree<TREE_DEPTH, NODE_COUNT_PER_AXIS>;
 public:
