@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Block.h"
 #include "BlockId.h"
 #include "VoxelColor.h"
 
@@ -20,6 +21,10 @@ public:
 
     [[nodiscard]] BlockId getBlockId() const {
         return static_cast<BlockId>(m_data);
+    }
+
+    [[nodiscard]] Block getBlock() const {
+        return Block(getBlockId());
     }
 
     [[nodiscard]] bool isEmpty() const {
