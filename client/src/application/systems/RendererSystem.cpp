@@ -1,7 +1,5 @@
 #include "RendererSystem.h"
 
-#include <queue>
-
 #include "application/Application.h"
 #include "application/domain/BlockLightInfo.h"
 #include "core/events/ApplicationEvent.h"
@@ -944,54 +942,63 @@ AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighbourhoodBit
 
 RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighbourhoodBitmaps& bitmaps,
                                                          const std::vector<Chunk::LightSource>& lights) {
-    static auto lightMapPtr = std::make_unique<std::array<std::array<std::array<BlockLightInfo, Chunk::WIDTH*3>, Chunk::WIDTH*3>, Chunk::WIDTH*3>>();
-    auto& lightMap = *lightMapPtr;
+    static constexpr int LIGHT_GRID_DIM = Chunk::WIDTH * 3;
+    static constexpr int LIGHT_GRID_SIZE = LIGHT_GRID_DIM * LIGHT_GRID_DIM * LIGHT_GRID_DIM;
+    static constexpr int NEIGHBOR_DIRS = 6;
 
-    // clear light map
-    for (auto& plane : lightMap) {
-        for (auto& row : plane) {
-            for (auto& cell : row) {
-                cell = BlockLightInfo{};
-            }
-        }
+    struct Storage {
+        LightMap map{};
+        CircularBuffer<Chunk::LightSource, LIGHT_GRID_SIZE> queue{};
+    };
+    static auto storage = std::make_unique<Storage>();
+    auto& lightMap = storage->map;
+    auto& queue    = storage->queue;
+
+    static_assert(std::is_trivially_copyable_v<BlockLightInfo>);
+    std::fill_n(&lightMap[0][0][0], LIGHT_GRID_SIZE, BlockLightInfo{});
+
+    queue.clear();
+
+    for (const auto& [lx0, ly0, lz0, lightInfo] : lights) {
+        const int gx = lx0 + Chunk::WIDTH;
+        const int gy = ly0 + Chunk::WIDTH;
+        const int gz = lz0 + Chunk::WIDTH;
+        if (gx < 0 || gy < 0 || gz < 0 ||
+            gx >= LIGHT_GRID_DIM || gy >= LIGHT_GRID_DIM || gz >= LIGHT_GRID_DIM)
+            continue;
+        queue.push({gx, gy, gz, lightInfo});
+        lightMap[gx][gy][gz] = lightInfo;
     }
 
-    std::queue<Chunk::LightSource> q;
-    for (const auto& [x, y, z, lightInfo] : lights) {
-        const int lx = x + Chunk::WIDTH;
-        const int ly = y + Chunk::WIDTH;
-        const int lz = z + Chunk::WIDTH;
-        if (lx < 0 || ly < 0 || lz < 0 || lx >= Chunk::WIDTH*3 || ly >= Chunk::WIDTH*3 || lz >= Chunk::WIDTH*3)
-            continue;
-        q.push(Chunk::LightSource{lx, ly, lz, lightInfo});
-        lightMap[lx][ly][lz] = lightInfo;
-    }
+    static constexpr int DX[NEIGHBOR_DIRS] = { 1,-1, 0, 0, 0, 0 };
+    static constexpr int DY[NEIGHBOR_DIRS] = { 0, 0, 1,-1, 0, 0 };
+    static constexpr int DZ[NEIGHBOR_DIRS] = { 0, 0, 0, 0, 1,-1 };
 
-    constexpr int dx[6] = {1, -1, 0, 0, 0, 0};
-    constexpr int dy[6] = {0, 0, 1, -1, 0, 0};
-    constexpr int dz[6] = {0, 0, 0, 0, 1, -1};
+    while (!queue.empty()) {
+        auto [x, y, z, srcLight] = queue.pop();
+        const int next = srcLight.getIntensity() - 1;
+        if (next < 0) continue;
 
-    while (!q.empty()) {
-        auto [x, y, z, lightInfo] = q.front();
-        q.pop();
-        const int nextIntensity = lightInfo.getIntensity() - 1;
-        if (nextIntensity < 0)
-            continue;
-        for (int dir = 0; dir < 6; ++dir) {
-            int nx = x + dx[dir];
-            int ny = y + dy[dir];
-            int nz = z + dz[dir];
-            if (nx < 0 || ny < 0 || nz < 0 || nx >= Chunk::WIDTH*3 || ny >= Chunk::WIDTH*3 || nz >= Chunk::WIDTH*3)
+        for (int d = 0; d < NEIGHBOR_DIRS; ++d) {
+            const int nx = x + DX[d];
+            const int ny = y + DY[d];
+            const int nz = z + DZ[d];
+
+            if (nx < 0 || ny < 0 || nz < 0 ||
+                nx >= LIGHT_GRID_DIM || ny >= LIGHT_GRID_DIM || nz >= LIGHT_GRID_DIM)
                 continue;
+
             if (testBitmaps(bitmaps, nx, ny, nz))
                 continue;
-            auto& neighbor = lightMap[nx][ny][nz];
-            if (neighbor.getIntensity() < nextIntensity) {
-                neighbor = lightInfo;
-                neighbor.setIntensity(nextIntensity);
-                q.push(Chunk::LightSource{nx, ny, nz, neighbor});
-            }
+
+            auto& dst = lightMap[nx][ny][nz];
+            if (dst.getIntensity() >= next)
+                continue;
+
+            dst.setIntensity(next);
+            queue.push({nx, ny, nz, dst});
         }
     }
+
     return lightMap;
 }
