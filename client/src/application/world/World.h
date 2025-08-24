@@ -1,6 +1,7 @@
 #pragma once
 
 #include "chunk/Chunk.h"
+#include "chunk/ChunkNeighborhood.h"
 #include "ChunkMap.h"
 
 class World {
@@ -17,7 +18,7 @@ public:
 
     Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
 
-    ChukNeighbours getExtendedChunkNeighbours(const glm::ivec3 &chunkPos) const;
+    ChunkNeighborhood getChunkNeighborhood(const glm::ivec3 &chunkPos) const;
 
     [[nodiscard]] auto countChunks() const { return m_chunks.countChunks(); }
 

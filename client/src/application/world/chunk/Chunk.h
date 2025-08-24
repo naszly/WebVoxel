@@ -5,7 +5,6 @@
 #include <glm/vec3.hpp>
 #include <vector>
 
-#include "ChunkNeighbours.h"
 #include "BitmappedVoxelTree.h"
 #include "application/world/WorldGenerator.h"
 #include "common/Utils.h"
@@ -123,8 +122,8 @@ public:
         m_saveFileDirty = false;
     }
 
-    [[nodiscard]] auto getBitmap(const ChukNeighbours& chunkNeighbours) const {
-        return m_data.getBitmap(getNeighbours(chunkNeighbours));
+    [[nodiscard]] const auto& getBitmap() const {
+        return m_data.getBitmap();
     }
 
     [[nodiscard]] bool fileExists() const;
@@ -168,6 +167,4 @@ private:
             + std::to_string(m_position.z) + "."
             + std::to_string(WIDTH) + ".compressed.chunk";
     }
-
-    static std::optional<SparseVoxelOctTree::Neighbours> getNeighbours(const ChukNeighbours &chunkNeighbours);
 };

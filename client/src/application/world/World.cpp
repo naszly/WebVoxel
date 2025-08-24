@@ -1,36 +1,17 @@
 #include "World.h"
+#include <array>
 
-ChukNeighbours World::getExtendedChunkNeighbours(const glm::ivec3 &chunkPos) const {
-    return {
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 0, 1)),
-
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 0, 1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, 0)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 0, 1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, -1, 1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(0, 1, 1)),
-
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, -1, 1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(-1, 1, 1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, -1, 1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, -1)),
-        m_chunks.tryGetChunk(chunkPos + glm::ivec3(1, 1, 1)),
-    };
+ChunkNeighborhood World::getChunkNeighborhood(const glm::ivec3 &chunkPos) const {
+    std::array<std::array<std::array<const Chunk*, 3>, 3>, 3> neighbours{};
+    for (int x = 0; x < 3; ++x) {
+        for (int y = 0; y < 3; ++y) {
+            for (int z = 0; z < 3; ++z) {
+                glm::ivec3 offset(x - 1, y - 1, z - 1);
+                neighbours[x][y][z] = m_chunks.tryGetChunk(chunkPos + offset);
+            }
+        }
+    }
+    return ChunkNeighborhood(neighbours);
 }
 
 bool World::hasChunk(const glm::ivec3 &chunkPos) const {

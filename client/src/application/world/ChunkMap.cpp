@@ -83,7 +83,7 @@ void ChunkMap::setVoxel(const WorldCoordinate &coord, const VoxelData &voxel) {
 
     getChunk(cPos).setVoxel(voxel, lPos.x, lPos.y, lPos.z);
 
-    setNeighboursDirtyIfEdge(cPos, lPos);
+    setNeighboursDirty(cPos);
 }
 
 Chunk* ChunkMap::queueVoxelToSet(const WorldCoordinate& coord, const VoxelData& voxel) {
@@ -97,10 +97,7 @@ Chunk* ChunkMap::queueVoxelToSet(const WorldCoordinate& coord, const VoxelData& 
 }
 
 void ChunkMap::executeQueuedVoxelsToSet(Chunk* chunk) {
-    for (const auto& queuedVoxel : chunk->getQueuedVoxelsToSet()) {
-        setNeighboursDirtyIfEdge(chunk->getPosition(), queuedVoxel.position);
-    }
-
+    setNeighboursDirty(chunk->getPosition());
     chunk->executeQueuedVoxelsToSet();
 }
 
@@ -117,24 +114,6 @@ void ChunkMap::setNeighboursDirty(const glm::ivec3 &key) {
                 if (dx == 0 && dy == 0 && dz == 0) continue;
 
                 setChunkDirty(key + glm::ivec3(dx, dy, dz));
-            }
-        }
-    }
-}
-
-void ChunkMap::setNeighboursDirtyIfEdge(const glm::ivec3 &key, const glm::ivec3 &pos) {
-    for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                if (dx == 0 && dy == 0 && dz == 0) continue;
-
-                const bool xEdge = (dx == 0) || (dx == -1 && pos.x == 0) || (dx == 1 && pos.x == Chunk::WIDTH - 1);
-                const bool yEdge = (dy == 0) || (dy == -1 && pos.y == 0) || (dy == 1 && pos.y == Chunk::WIDTH - 1);
-                const bool zEdge = (dz == 0) || (dz == -1 && pos.z == 0) || (dz == 1 && pos.z == Chunk::WIDTH - 1);
-
-                if (xEdge && yEdge && zEdge) {
-                    setChunkDirty(key + glm::ivec3(dx, dy, dz));
-                }
             }
         }
     }

@@ -51,6 +51,4 @@ private:
     void setChunkDirty(const glm::ivec3& key);
 
     void setNeighboursDirty(const glm::ivec3& key);
-
-    void setNeighboursDirtyIfEdge(const glm::ivec3& key, const glm::ivec3& pos);
 };

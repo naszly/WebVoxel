@@ -99,39 +99,3 @@ void Chunk::load() {
 void Chunk::cleanFs() {
     FileSystem::cleanFiles(".chunk");
 }
-
-std::optional<Chunk::SparseVoxelOctTree::Neighbours> Chunk::getNeighbours(const ChukNeighbours &chunkNeighbours) {
-    if (!chunkNeighbours.hasAllNeighbours()) {
-        return std::nullopt;
-    }
-    return SparseVoxelOctTree::Neighbours{
-        .xMinus = chunkNeighbours.xMinus->m_data,
-        .xPlus = chunkNeighbours.xPlus->m_data,
-        .yMinus = chunkNeighbours.yMinus->m_data,
-        .yPlus = chunkNeighbours.yPlus->m_data,
-        .zMinus = chunkNeighbours.zMinus->m_data,
-        .zPlus = chunkNeighbours.zPlus->m_data,
-
-        .xMinusYMinus = chunkNeighbours.xMinusYMinus->m_data,
-        .xMinusYPlus = chunkNeighbours.xMinusYPlus->m_data,
-        .xMinusZMinus = chunkNeighbours.xMinusZMinus->m_data,
-        .xMinusZPlus = chunkNeighbours.xMinusZPlus->m_data,
-        .xPlusYMinus = chunkNeighbours.xPlusYMinus->m_data,
-        .xPlusYPlus = chunkNeighbours.xPlusYPlus->m_data,
-        .xPlusZMinus = chunkNeighbours.xPlusZMinus->m_data,
-        .xPlusZPlus = chunkNeighbours.xPlusZPlus->m_data,
-        .yMinusZMinus = chunkNeighbours.yMinusZMinus->m_data,
-        .yMinusZPlus = chunkNeighbours.yMinusZPlus->m_data,
-        .yPlusZMinus = chunkNeighbours.yPlusZMinus->m_data,
-        .yPlusZPlus = chunkNeighbours.yPlusZPlus->m_data,
-
-        .xMinusYMinusZMinus = chunkNeighbours.xMinusYMinusZMinus->m_data,
-        .xMinusYMinusZPlus = chunkNeighbours.xMinusYMinusZPlus->m_data,
-        .xMinusYPlusZMinus = chunkNeighbours.xMinusYPlusZMinus->m_data,
-        .xMinusYPlusZPlus = chunkNeighbours.xMinusYPlusZPlus->m_data,
-        .xPlusYMinusZMinus = chunkNeighbours.xPlusYMinusZMinus->m_data,
-        .xPlusYMinusZPlus = chunkNeighbours.xPlusYMinusZPlus->m_data,
-        .xPlusYPlusZMinus = chunkNeighbours.xPlusYPlusZMinus->m_data,
-        .xPlusYPlusZPlus = chunkNeighbours.xPlusYPlusZPlus->m_data,
-    };
-}

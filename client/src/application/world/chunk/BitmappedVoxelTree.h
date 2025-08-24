@@ -8,9 +8,8 @@
 template<uint32_t Depth, uint32_t BaseSize>
 class BitmappedVoxelTree {
     constexpr static uint32_t SIZE = Utils::pow(BaseSize, Depth);
-    static constexpr uint32_t BITMAP_SIZE = SIZE + 2;
     using VoxelTreeT = DynamicallyMappedKTree<VoxelData,Depth, BaseSize>;
-    using BitmapT = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
+    using BitmapT = Bitmap<SIZE * SIZE * SIZE>;
     using BitmapPtr = std::unique_ptr<BitmapT>;
 public:
     BitmappedVoxelTree() {
@@ -59,7 +58,7 @@ public:
     }
 
     void setVoxel(const uint32_t x, const uint32_t y, const uint32_t z, const VoxelData &voxel) {
-        uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
+        uint32_t i = calculateIndex(x, y, z);
         BitmapT& bitmap = getBitmapInternal();
         if (voxel.isEmpty()) {
             bitmap.clear(i);
@@ -70,8 +69,8 @@ public:
     }
 
     [[nodiscard]] bool hasVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
-        uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
-        return getBitmapInternal().test(i);
+        uint32_t i = calculateIndex(x, y, z);
+        return getBitmap().test(i);
     }
 
     [[nodiscard]] bool isEmpty() const {
@@ -89,7 +88,7 @@ public:
             for (uint32_t y = 0; y < SIZE; y++) {
                 for (uint32_t z = 0; z < SIZE; z++) {
                     if (!getVoxel(x, y, z).isEmpty()) {
-                        uint32_t i = calculateIndex(x+1, y+1, z+1, BITMAP_SIZE);
+                        uint32_t i = calculateIndex(x, y, z);
                         bitmap->set(i);
                     }
                 }
@@ -107,84 +106,8 @@ public:
         return isTreeCompressed() && isBitmapCompressed();
     }
 
-    [[nodiscard]] auto getBitmap() const {
+    const BitmapT& getBitmap() const {
         return getBitmapInternal();
-    }
-
-    struct Neighbours {
-        const BitmappedVoxelTree& xMinus;
-        const BitmappedVoxelTree& xPlus;
-        const BitmappedVoxelTree& yMinus;
-        const BitmappedVoxelTree& yPlus;
-        const BitmappedVoxelTree& zMinus;
-        const BitmappedVoxelTree& zPlus;
-
-        const BitmappedVoxelTree& xMinusYMinus;
-        const BitmappedVoxelTree& xMinusYPlus;
-        const BitmappedVoxelTree& xMinusZMinus;
-        const BitmappedVoxelTree& xMinusZPlus;
-        const BitmappedVoxelTree& xPlusYMinus;
-        const BitmappedVoxelTree& xPlusYPlus;
-        const BitmappedVoxelTree& xPlusZMinus;
-        const BitmappedVoxelTree& xPlusZPlus;
-        const BitmappedVoxelTree& yMinusZMinus;
-        const BitmappedVoxelTree& yMinusZPlus;
-        const BitmappedVoxelTree& yPlusZMinus;
-        const BitmappedVoxelTree& yPlusZPlus;
-
-        const BitmappedVoxelTree& xMinusYMinusZMinus;
-        const BitmappedVoxelTree& xMinusYMinusZPlus;
-        const BitmappedVoxelTree& xMinusYPlusZMinus;
-        const BitmappedVoxelTree& xMinusYPlusZPlus;
-        const BitmappedVoxelTree& xPlusYMinusZMinus;
-        const BitmappedVoxelTree& xPlusYMinusZPlus;
-        const BitmappedVoxelTree& xPlusYPlusZMinus;
-        const BitmappedVoxelTree& xPlusYPlusZPlus;
-    };
-
-    [[nodiscard]] auto getBitmap(const std::optional<Neighbours> &neighbours) const {
-        auto bitmap = getBitmapInternal();
-
-        if (!neighbours.has_value()) {
-            return bitmap;
-        }
-
-        auto neighboursV = neighbours.value();
-
-        for (uint32_t i = 1; i < BITMAP_SIZE - 1; i++) {
-            for (uint32_t j = 1; j < BITMAP_SIZE - 1; j++) {
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinus, NEG_SIDE, i, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlus, POS_SIDE, i, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yMinus, i, NEG_SIDE, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yPlus, i, POS_SIDE, j);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.zMinus, i, j, NEG_SIDE);
-                setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.zPlus, i, j, POS_SIDE);
-            }
-
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusYMinus, NEG_SIDE, NEG_SIDE, i);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusYPlus, NEG_SIDE, POS_SIDE, i);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusYMinus, POS_SIDE, NEG_SIDE, i);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusYPlus, POS_SIDE, POS_SIDE, i);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusZMinus, NEG_SIDE, i, NEG_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusZPlus, NEG_SIDE, i, POS_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusZMinus, POS_SIDE, i, NEG_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusZPlus, POS_SIDE, i, POS_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yMinusZMinus, i, NEG_SIDE, NEG_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yMinusZPlus, i, NEG_SIDE, POS_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yPlusZMinus, i, POS_SIDE, NEG_SIDE);
-            setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.yPlusZPlus, i, POS_SIDE, POS_SIDE);
-        }
-
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusYMinusZMinus, NEG_SIDE, NEG_SIDE, NEG_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusYMinusZPlus, NEG_SIDE, NEG_SIDE, POS_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusYPlusZMinus, NEG_SIDE, POS_SIDE, NEG_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xMinusYPlusZPlus, NEG_SIDE, POS_SIDE, POS_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusYMinusZMinus, POS_SIDE, NEG_SIDE, NEG_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusYMinusZPlus, POS_SIDE, NEG_SIDE, POS_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusYPlusZMinus, POS_SIDE, POS_SIDE, NEG_SIDE);
-        setBitmapIfNeighbourHasVoxel(bitmap, neighboursV.xPlusYPlusZPlus, POS_SIDE, POS_SIDE, POS_SIDE);
-
-        return bitmap;
     }
 
 private:
@@ -192,9 +115,6 @@ private:
     mutable std::variant<BitmapPtr, std::vector<char>> m_bitmap{};
 
     size_t m_treeDecompressedLength{};
-
-    static constexpr size_t NEG_SIDE = 0;
-    static constexpr size_t POS_SIDE = BITMAP_SIZE - 1;
 
     VoxelTreeT& getTree() const {
         if (std::holds_alternative<VoxelTreeT>(m_tree)) {
@@ -255,18 +175,7 @@ private:
         return !std::holds_alternative<BitmapPtr>(m_bitmap);
     }
 
-    static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t bitmapSize) {
-        return x * bitmapSize * bitmapSize + y * bitmapSize + z;
-    }
-
-    static void setBitmapIfNeighbourHasVoxel(BitmapT& bitmap, const BitmappedVoxelTree& neighbour,
-                                             const uint32_t x, const uint32_t y, const uint32_t z) {
-        const uint32_t vx = (x - 1) % SIZE;
-        const uint32_t vy = (y - 1) % SIZE;
-        const uint32_t vz = (z - 1) % SIZE;
-        if (neighbour.hasVoxel(vx, vy, vz)) {
-            const uint32_t i = calculateIndex(x, y, z, BITMAP_SIZE);
-            bitmap.set(i);
-        }
+    static uint32_t calculateIndex(const uint32_t x, const uint32_t y, const uint32_t z) {
+        return x * SIZE * SIZE + y * SIZE + z;
     }
 };
