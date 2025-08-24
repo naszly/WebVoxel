@@ -31,6 +31,7 @@ public:
         m_gpuBufferDirty = other.m_gpuBufferDirty;
         m_saveFileDirty = other.m_saveFileDirty;
         m_lastEdit = other.m_lastEdit;
+        m_litVoxels = other.m_litVoxels;
     }
 
     Chunk& operator=(const Chunk& other) {
@@ -40,6 +41,7 @@ public:
             m_gpuBufferDirty = other.m_gpuBufferDirty;
             m_saveFileDirty = other.m_saveFileDirty;
             m_lastEdit = other.m_lastEdit;
+            m_litVoxels = other.m_litVoxels;
         }
         return *this;
     }
@@ -52,6 +54,7 @@ public:
         m_lastEdit = other.m_lastEdit;
         other.m_gpuBufferDirty = false;
         other.m_saveFileDirty = false;
+        m_litVoxels = std::move(other.m_litVoxels);
     }
 
     Chunk& operator=(Chunk&& other) noexcept {
@@ -63,6 +66,7 @@ public:
             m_lastEdit = other.m_lastEdit;
             other.m_gpuBufferDirty = false;
             other.m_saveFileDirty = false;
+            m_litVoxels = std::move(other.m_litVoxels);
         }
         return *this;
     }
@@ -82,7 +86,7 @@ public:
     }
 
     void setVoxel(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
-        m_data.setVoxel(x, y, z, voxel);
+        setVoxelInternal(voxel, x, y, z);
         m_gpuBufferDirty = true;
         m_saveFileDirty = true;
         m_lastEdit = std::chrono::steady_clock::now();
@@ -94,7 +98,7 @@ public:
 
     void executeQueuedVoxelsToSet() {
         for (const auto& [pos, voxel] : m_queuedVoxelsToSet) {
-            m_data.setVoxel(pos.x, pos.y, pos.z, voxel);
+            setVoxelInternal(voxel, pos.x, pos.y, pos.z);
         }
         m_queuedVoxelsToSet.resize(0);
         m_gpuBufferDirty = true;
@@ -152,6 +156,27 @@ public:
     };
 
     std::vector<QueuedVoxelOp>& getQueuedVoxelsToSet() { return m_queuedVoxelsToSet; }
+
+    struct LightSource {
+        int x, y, z;
+        BlockLightInfo lightInfo;
+    };
+
+    std::vector<LightSource> getLightSources(const int dx = 0, const int dy = 0, const int dz = 0) const {
+        std::vector<LightSource> lights;
+        lights.reserve(m_litVoxels.size());
+        for (const auto& [x, y, z] : m_litVoxels) {
+            const VoxelData& voxel = getVoxel(x, y, z);
+            assert(!voxel.isEmpty() && voxel.getBlock().emitsLight());
+            lights.push_back({
+                static_cast<int>(x) + dx * static_cast<int>(WIDTH),
+                static_cast<int>(y) + dy * static_cast<int>(WIDTH),
+                static_cast<int>(z) + dz * static_cast<int>(WIDTH),
+                voxel.getBlock().getLightInfo()
+            });
+        }
+        return lights;
+    }
 private:
     glm::ivec3 m_position{};
     SparseVoxelOctTree m_data{};
@@ -160,6 +185,28 @@ private:
     std::chrono::steady_clock::time_point m_lastEdit;
 
     std::vector<QueuedVoxelOp> m_queuedVoxelsToSet;
+
+    struct LightPos {
+        uint8_t x,y,z;
+
+        template <typename H>
+        friend H AbslHashValue(H h, const LightPos& v) {
+            return H::combine(std::move(h), v.x, v.y, v.z);
+        }
+        bool operator==(const LightPos& other) const {
+            return x == other.x && y == other.y && z == other.z;
+        }
+    };
+    HashSet<LightPos> m_litVoxels;
+
+    void setVoxelInternal(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
+        m_data.setVoxel(x, y, z, voxel);
+        if (voxel.getBlock().emitsLight()) {
+            m_litVoxels.insert({static_cast<uint8_t>(x), static_cast<uint8_t>(y), static_cast<uint8_t>(z)});
+        } else {
+            m_litVoxels.erase({static_cast<uint8_t>(x), static_cast<uint8_t>(y), static_cast<uint8_t>(z)});
+        }
+    }
 
     [[nodiscard]] std::string getFileName() const {
         return std::to_string(m_position.x) + "."

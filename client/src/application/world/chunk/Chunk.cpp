@@ -94,6 +94,20 @@ void Chunk::load() {
     } else {
         LogApp::info("Chunk data loaded from file: {}", fileName);
     }
+
+    m_litVoxels.clear();
+    for (uint32_t x = 0; x < WIDTH; ++x) {
+        for (uint32_t y = 0; y < WIDTH; ++y) {
+            for (uint32_t z = 0; z < WIDTH; ++z) {
+                if (m_data.hasVoxel(x, y, z)) {
+                    const VoxelData& voxel = getVoxel(x, y, z);
+                    if (voxel.getBlock().emitsLight()) {
+                        m_litVoxels.insert({static_cast<uint8_t>(x), static_cast<uint8_t>(y), static_cast<uint8_t>(z)});
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Chunk::cleanFs() {

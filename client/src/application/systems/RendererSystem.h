@@ -6,6 +6,7 @@
 
 #include "common/datastructures/HashMap.h"
 #include "../graphics/VertexData.h"
+#include "application/domain/BlockLightInfo.h"
 
 class RendererSystem final : public System {
 public:
@@ -85,16 +86,22 @@ private:
 
     void exportTimestampsInternal() const;
 
-    static constexpr uint32_t BITMAP_SIZE = Chunk::WIDTH + 2;
-    using ChunkBitmap = Bitmap<BITMAP_SIZE * BITMAP_SIZE * BITMAP_SIZE>;
-
-    [[nodiscard]] static std::optional<ChunkBitmap> getBitmap(const World &world, const Chunk& chunk);
+    using ChunkNeighbourhoodBitmaps = std::array<std::array<std::array<const Bitmap<Chunk::WIDTH * Chunk::WIDTH * Chunk::WIDTH>*, 3>, 3>, 3>;
 
     [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
-    ChunkVertexBuffer createChunkVertexBuffer(const Chunk& chunk, const ChunkBitmap& bitmap);
+    [[nodiscard]] static bool testBitmaps(const ChunkNeighbourhoodBitmaps& bitmaps, uint32_t x, uint32_t y, uint32_t z);
 
-    void getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexData> &vertices);
+    [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const;
 
-    static AmbientOcclusion getAmbientOcclusion(const ChunkBitmap& bitmap, uint32_t x, uint32_t y, uint32_t z);
+    static void getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices);
+
+    static AmbientOcclusion getAmbientOcclusion(const ChunkNeighbourhoodBitmaps& bitmaps, uint32_t x, uint32_t y, uint32_t z);
+
+    // using unique_ptr to allocate on the heap to avoid stack overflow
+    using LightMap = std::array<std::array<std::array<BlockLightInfo, Chunk::WIDTH*3>, Chunk::WIDTH*3>, Chunk::WIDTH*3>;
+    using LightMapPtr = std::unique_ptr<LightMap>;
+
+    static LightMap& propagateLight(const ChunkNeighbourhoodBitmaps& bitmaps,
+                                    const std::vector<Chunk::LightSource>& lights);
 };

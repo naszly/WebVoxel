@@ -1,6 +1,9 @@
 #include "RendererSystem.h"
 
+#include <queue>
+
 #include "application/Application.h"
+#include "application/domain/BlockLightInfo.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
@@ -224,15 +227,15 @@ void RendererSystem::processDirtyChunks(const World& world, const std::vector<st
 
         auto& chunk = chunkRef.get();
         auto position = chunk.getPosition();
-        auto bitmap = getBitmap(world, chunk);
+        auto chunkNeighborhood = world.getChunkNeighborhood(position);
 
-        if (!bitmap) {
+        if (!chunkNeighborhood.hasAllNeighbours()) {
             continue;
         }
 
         ChunkVertexBuffer buffer;
 
-        buffer = createChunkVertexBuffer(chunk, bitmap.value());
+        buffer = createChunkVertexBuffer(chunkNeighborhood);
 
         auto it = m_chunkVertexBuffers.find(position);
         if (it != m_chunkVertexBuffers.end()) {
@@ -445,21 +448,27 @@ void RendererSystem::createRenderPipeline() {
         // Id
         WGPUVertexAttribute{
             .format = WGPUVertexFormat_Uint32,
-            .offset = 1 * sizeof(uint32_t),
+            .offset = offsetof(VertexData, voxel),
             .shaderLocation = 2,
         },
         // Ambient Occlusion
         WGPUVertexAttribute{
             .format = WGPUVertexFormat_Uint32,
-            .offset = 2 * sizeof(uint32_t),
+            .offset = offsetof(VertexData, ambientOcclusion),
             .shaderLocation = 4,
+        },
+        // Light
+        WGPUVertexAttribute{
+            .format = WGPUVertexFormat_Uint32,
+            .offset = offsetof(VertexData, light),
+            .shaderLocation = 5,
         }
     };
     uint32_t voxelAttributeCount = voxelAttributes.size();
 
     voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
     voxelVertexBufferLayout.attributes = voxelAttributes.data();
-    voxelVertexBufferLayout.arrayStride = voxelAttributeCount * sizeof(uint32_t);
+    voxelVertexBufferLayout.arrayStride = sizeof(VertexData);
     voxelVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
 
     WGPUVertexBufferLayout chunkVertexBufferLayout{};
@@ -755,32 +764,30 @@ void RendererSystem::exportTimestampsInternal() const {
     }
 }
 
-std::optional<RendererSystem::ChunkBitmap> RendererSystem::getBitmap(const World &world, const Chunk &chunk) {
-    const auto chunkPosition = chunk.getPosition();
-
-    const auto neighbours = world.getExtendedChunkNeighbours(chunkPosition);
-
-    if (neighbours.hasAllNeighbours()) {
-        auto bitmap = chunk.getBitmap(neighbours);
-        return std::make_optional(bitmap);
-    }
-
-    return std::nullopt;
-}
-
 bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
-    const auto neighbours = world.getExtendedChunkNeighbours(chunk.getPosition());
+    const auto neighbours = world.getChunkNeighborhood(chunk.getPosition());
     return neighbours.hasAllNeighbours();
 }
 
-RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const Chunk& chunk,
-                                                                          const ChunkBitmap &bitmap) {
+bool RendererSystem::testBitmaps(const ChunkNeighbourhoodBitmaps& bitmaps, const uint32_t x, const uint32_t y, const uint32_t z) {
+    assert(x < 3 * Chunk::WIDTH && y < 3 * Chunk::WIDTH && z < 3 * Chunk::WIDTH);
+    const uint32_t cnx = x / Chunk::WIDTH;
+    const uint32_t cny = y / Chunk::WIDTH;
+    const uint32_t cnz = z / Chunk::WIDTH;
+    const uint32_t bx = x % Chunk::WIDTH;
+    const uint32_t by = y % Chunk::WIDTH;
+    const uint32_t bz = z % Chunk::WIDTH;
+    const uint32_t index = bx * Chunk::WIDTH * Chunk::WIDTH + by * Chunk::WIDTH + bz;
+    return bitmaps[cnx][cny][cnz]->test(index);
+}
+
+RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const {
     ChunkVertexBuffer vertexBuffer;
 
     static std::vector<VertexData> points;
     points.clear();
 
-    getVertices(chunk, bitmap, points);
+    getVertices(neighborChunks, points);
 
     if (points.empty()) {
         return vertexBuffer;
@@ -789,7 +796,8 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
     const auto device = getWebGpuContext().getDevice();
     const auto queue = wgpuDeviceGetQueue(device);
 
-    const auto chunkPosition = glm::vec4(chunk.getPosition(), 0.0f);
+    const auto& centerChunk = *neighborChunks.getChunk(0,0,0);
+    const auto chunkPosition = glm::vec4(centerChunk.getPosition(), 0.0f);
 
     const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
 
@@ -815,42 +823,88 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
     return vertexBuffer;
 }
 
-void RendererSystem::getVertices(const Chunk& chunk, const ChunkBitmap &bitmap, std::vector<VertexData> &vertices) {
-    constexpr uint32_t bitmapSizeSquared = BITMAP_SIZE * BITMAP_SIZE;
+void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices) {
+    const auto& centerChunk = *neighborChunks.getChunk(0,0,0);
 
-    for (uint32_t i = bitmapSizeSquared; i < bitmapSizeSquared * (BITMAP_SIZE - 1); i++) {
-        if (i % ChunkBitmap::WORD_SIZE == 0 && !bitmap.testWord(i / ChunkBitmap::WORD_SIZE)) {
-            i += ChunkBitmap::WORD_SIZE - 1;
-            continue;
+    // Find all light sources in the chunk
+    std::vector<Chunk::LightSource> lights;
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                const auto& chunk = *neighborChunks.getChunk(dx, dy, dz);
+                auto chunkLight = chunk.getLightSources(dx, dy, dz);
+                lights.insert(lights.end(), chunkLight.begin(), chunkLight.end());
+            }
         }
+    }
 
-        const bool nx = bitmap.test(i - 1);
-        const bool px = bitmap.test(i + 1);
-        const bool ny = bitmap.test(i - BITMAP_SIZE);
-        const bool py = bitmap.test(i + BITMAP_SIZE);
-        const bool nz = bitmap.test(i - bitmapSizeSquared);
-        const bool pz = bitmap.test(i + bitmapSizeSquared);
-        const bool surrounded = nx & px & ny & py & nz & pz;
+    const ChunkNeighbourhoodBitmaps neighbourhoodBitmaps{
+        std::array{
+            std::array{&neighborChunks.getChunk(-1,-1,-1)->getBitmap(), &neighborChunks.getChunk(-1,-1,0)->getBitmap(), &neighborChunks.getChunk(-1,-1,1)->getBitmap()},
+            std::array{&neighborChunks.getChunk(-1,0,-1)->getBitmap(),  &neighborChunks.getChunk(-1,0,0)->getBitmap(),  &neighborChunks.getChunk(-1,0,1)->getBitmap()},
+            std::array{&neighborChunks.getChunk(-1,1,-1)->getBitmap(),  &neighborChunks.getChunk(-1,1,0)->getBitmap(),  &neighborChunks.getChunk(-1,1,1)->getBitmap()}
+        },
+        std::array{
+            std::array{&neighborChunks.getChunk(0,-1,-1)->getBitmap(),  &neighborChunks.getChunk(0,-1,0)->getBitmap(),  &neighborChunks.getChunk(0,-1,1)->getBitmap()},
+            std::array{&neighborChunks.getChunk(0,0,-1)->getBitmap(),   &neighborChunks.getChunk(0,0,0)->getBitmap(),   &neighborChunks.getChunk(0,0,1)->getBitmap()},
+            std::array{&neighborChunks.getChunk(0,1,-1)->getBitmap(),   &neighborChunks.getChunk(0,1,0)->getBitmap(),   &neighborChunks.getChunk(0,1,1)->getBitmap()}
+        },
+        std::array{
+            std::array{&neighborChunks.getChunk(1,-1,-1)->getBitmap(),  &neighborChunks.getChunk(1,-1,0)->getBitmap(),  &neighborChunks.getChunk(1,-1,1)->getBitmap()},
+            std::array{&neighborChunks.getChunk(1,0,-1)->getBitmap(),   &neighborChunks.getChunk(1,0,0)->getBitmap(),   &neighborChunks.getChunk(1,0,1)->getBitmap()},
+            std::array{&neighborChunks.getChunk(1,1,-1)->getBitmap(),   &neighborChunks.getChunk(1,1,0)->getBitmap(),   &neighborChunks.getChunk(1,1,1)->getBitmap()}
+        }
+    };
 
-        if (bitmap.test(i) & ~surrounded) {
-            const uint32_t x = (i / (bitmapSizeSquared));
-            const uint32_t y = ((i % (bitmapSizeSquared)) / BITMAP_SIZE);
-            const uint32_t z = (i % BITMAP_SIZE);
+    const auto& lightMap = propagateLight(neighbourhoodBitmaps, lights);
 
-            const uint8_t vx = x-1;
-            const uint8_t vy = y-1;
-            const uint8_t vz = z-1;
+    // The chunk is now in the center of a 3*WIDTH bitmap, so valid voxel region is:
+    // x, y, z in [WIDTH, 2*WIDTH)
+    for (uint32_t x = Chunk::WIDTH; x < 2 * Chunk::WIDTH; ++x) {
+        for (uint32_t y = Chunk::WIDTH; y < 2 * Chunk::WIDTH; ++y) {
+            for (uint32_t z = Chunk::WIDTH; z < 2 * Chunk::WIDTH; ++z) {
+                if (testBitmaps(neighbourhoodBitmaps, x, y, z)) {
+                    // Check if not fully surrounded
+                    const bool nx = testBitmaps(neighbourhoodBitmaps, x-1, y, z);
+                    const bool px = testBitmaps(neighbourhoodBitmaps, x+1, y, z);
+                    const bool ny = testBitmaps(neighbourhoodBitmaps, x, y-1, z);
+                    const bool py = testBitmaps(neighbourhoodBitmaps, x, y+1, z);
+                    const bool nz = testBitmaps(neighbourhoodBitmaps, x, y, z-1);
+                    const bool pz = testBitmaps(neighbourhoodBitmaps, x, y, z+1);
+                    const bool surrounded = nx & px & ny & py & nz & pz;
+                    if (!surrounded) {
+                        const uint8_t vx = x - Chunk::WIDTH;
+                        const uint8_t vy = y - Chunk::WIDTH;
+                        const uint8_t vz = z - Chunk::WIDTH;
+                        if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
+                            const auto& voxel = centerChunk.getVoxel(vx, vy, vz);
 
-            if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
-                const auto& voxel = chunk.getVoxel(vx, vy, vz);
-                const auto ao = getAmbientOcclusion(bitmap, x, y, z);
-                vertices.emplace_back(vx, vy, vz, 1, voxel, ao);
+                            const auto& faceNxLightIntensity = lightMap[x - 1][y][z];
+                            const auto& facePxLightIntensity = lightMap[x + 1][y][z];
+                            const auto& faceNyLightIntensity = lightMap[x][y - 1][z];
+                            const auto& facePyLightIntensity = lightMap[x][y + 1][z];
+                            const auto& faceNzLightIntensity = lightMap[x][y][z - 1];
+                            const auto& facePzLightIntensity = lightMap[x][y][z + 1];
+                            const auto voxelLight = PackedLight(faceNxLightIntensity, facePxLightIntensity,
+                                                                faceNyLightIntensity, facePyLightIntensity,
+                                                                faceNzLightIntensity, facePzLightIntensity);
+
+                            VertexData voxelData = {
+                                vx, vy, vz, 1, voxel,
+                                getAmbientOcclusion(neighbourhoodBitmaps, x, y, z),
+                                voxelLight
+                            };
+
+                            vertices.emplace_back(voxelData);
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkBitmap &bitmap,
+AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighbourhoodBitmaps &bitmaps,
                                                      const uint32_t x, const uint32_t y, const uint32_t z) {
     struct OffsetFlag {
         int dx, dy, dz;
@@ -882,8 +936,62 @@ AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkBitmap &bitmap,
 
     auto ao = AmbientOcclusion::None;
     for (const auto& [dx, dy, dz, flag] : table) {
-        const uint32_t mask = bitmap.test((x + dx) * BITMAP_SIZE * BITMAP_SIZE + (y + dy) * BITMAP_SIZE + (z + dz));
+        const uint32_t mask = testBitmaps(bitmaps, dx + x, dy + y, dz + z);
         ao |= static_cast<AmbientOcclusion>(mask * static_cast<uint32_t>(flag));
     }
     return ao;
+}
+
+RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighbourhoodBitmaps& bitmaps,
+                                                         const std::vector<Chunk::LightSource>& lights) {
+    static auto lightMapPtr = std::make_unique<std::array<std::array<std::array<BlockLightInfo, Chunk::WIDTH*3>, Chunk::WIDTH*3>, Chunk::WIDTH*3>>();
+    auto& lightMap = *lightMapPtr;
+
+    // clear light map
+    for (auto& plane : lightMap) {
+        for (auto& row : plane) {
+            for (auto& cell : row) {
+                cell = BlockLightInfo{};
+            }
+        }
+    }
+
+    std::queue<Chunk::LightSource> q;
+    for (const auto& [x, y, z, lightInfo] : lights) {
+        const int lx = x + Chunk::WIDTH;
+        const int ly = y + Chunk::WIDTH;
+        const int lz = z + Chunk::WIDTH;
+        if (lx < 0 || ly < 0 || lz < 0 || lx >= Chunk::WIDTH*3 || ly >= Chunk::WIDTH*3 || lz >= Chunk::WIDTH*3)
+            continue;
+        q.push(Chunk::LightSource{lx, ly, lz, lightInfo});
+        lightMap[lx][ly][lz] = lightInfo;
+    }
+
+    constexpr int dx[6] = {1, -1, 0, 0, 0, 0};
+    constexpr int dy[6] = {0, 0, 1, -1, 0, 0};
+    constexpr int dz[6] = {0, 0, 0, 0, 1, -1};
+
+    while (!q.empty()) {
+        auto [x, y, z, lightInfo] = q.front();
+        q.pop();
+        const int nextIntensity = lightInfo.getIntensity() - 1;
+        if (nextIntensity < 0)
+            continue;
+        for (int dir = 0; dir < 6; ++dir) {
+            int nx = x + dx[dir];
+            int ny = y + dy[dir];
+            int nz = z + dz[dir];
+            if (nx < 0 || ny < 0 || nz < 0 || nx >= Chunk::WIDTH*3 || ny >= Chunk::WIDTH*3 || nz >= Chunk::WIDTH*3)
+                continue;
+            if (testBitmaps(bitmaps, nx, ny, nz))
+                continue;
+            auto& neighbor = lightMap[nx][ny][nz];
+            if (neighbor.getIntensity() < nextIntensity) {
+                neighbor = lightInfo;
+                neighbor.setIntensity(nextIntensity);
+                q.push(Chunk::LightSource{nx, ny, nz, neighbor});
+            }
+        }
+    }
+    return lightMap;
 }

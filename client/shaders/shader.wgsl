@@ -32,6 +32,7 @@ struct VertexInput {
     @location(2) voxelData: u32,
     @location(3) chunkPosition: vec3f,
     @location(4) ambientOcclusion: u32,
+    @location(5) light: u32,
 }
 
 struct VertexOut {
@@ -42,6 +43,12 @@ struct VertexOut {
     @location(3) @interpolate(flat) isTexturedVoxel: u32,
     @location(4) @interpolate(flat) blockId: u32,
     @location(5) @interpolate(flat) voxelColor: vec3f,
+    @location(6) faceLightNx: vec3f,
+    @location(7) faceLightPx: vec3f,
+    @location(8) faceLightNy: vec3f,
+    @location(9) faceLightPy: vec3f,
+    @location(10) faceLightNz: vec3f,
+    @location(11) faceLightPz: vec3f,
 }
 
 struct FragmentIn {
@@ -52,6 +59,12 @@ struct FragmentIn {
     @location(3) @interpolate(flat) isTexturedVoxel: u32,
     @location(4) @interpolate(flat) blockId: u32,
     @location(5) @interpolate(flat) voxelColor: vec3f,
+    @location(6) faceLightNx: vec3f,
+    @location(7) faceLightPx: vec3f,
+    @location(8) faceLightNy: vec3f,
+    @location(9) faceLightPy: vec3f,
+    @location(10) faceLightNz: vec3f,
+    @location(11) faceLightPz: vec3f,
 }
 
 struct FragmentOut {
@@ -124,6 +137,17 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
     return vec4f(billboardNdc, depth, 1.0);
 }
 
+fn unpackPackedLight(packed: u32) -> array<vec3f, 6> {
+    let nx = f32((packed >> 0u) & 0x1Fu) / 31.0;
+    let px = f32((packed >> 5u) & 0x1Fu) / 31.0;
+    let ny = f32((packed >> 10u) & 0x1Fu) / 31.0;
+    let py = f32((packed >> 15u) & 0x1Fu) / 31.0;
+    let nz = f32((packed >> 20u) & 0x1Fu) / 31.0;
+    let pz = f32((packed >> 25u) & 0x1Fu) / 31.0;
+
+    return array<vec3f, 6>(vec3f(nx), vec3f(px), vec3f(ny), vec3f(py), vec3f(nz), vec3f(pz));
+}
+
 fn processVertex(vertex: VertexInput) -> VertexOut {
     let vertexPosition: vec2f = vertex.vertexPosition.xy;
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
@@ -131,6 +155,8 @@ fn processVertex(vertex: VertexInput) -> VertexOut {
 
     let voxelSize = instanceVoxelPosition.w;
     let voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
+
+    let faceLights = unpackPackedLight(vertex.light);
 
     var out: VertexOut;
     out.pos = calculateBillboard(voxelPosition, voxelSize, vertexPosition);
@@ -144,6 +170,12 @@ fn processVertex(vertex: VertexInput) -> VertexOut {
         f32((vertex.voxelData >> 8u) & 0xFFu) / 255.0,
         f32(vertex.voxelData & 0xFFu) / 255.0
     );
+    out.faceLightNx = faceLights[planeNx];
+    out.faceLightPx = faceLights[planePx];
+    out.faceLightNy = faceLights[planeNy];
+    out.faceLightPy = faceLights[planePy];
+    out.faceLightNz = faceLights[planeNz];
+    out.faceLightPz = faceLights[planePz];
     return out;
 }
 
@@ -279,7 +311,7 @@ fn getAmbientOcclusion(cornerNuNv: u32, cornerNuPv: u32, cornerPuNv: u32, corner
         factor *= 1.0 - uv.x * uv.y;
     }
 
-    return mix(0.25, 1.0, sin(factor * HALF_PI));
+    return mix(0.5, 1.0, sin(factor * HALF_PI));
 }
 
 fn applyAmbientOcclusion(color: vec3f, uv: vec2f, plane: u32, ambientOcclusion: u32) -> vec3f {
@@ -379,12 +411,18 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
 
         color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
 
+        let faceLights = array<vec3f, 6>(
+            input.faceLightNx,
+            input.faceLightPx,
+            input.faceLightNy,
+            input.faceLightPy,
+            input.faceLightNz,
+            input.faceLightPz
+        );
+
         if (LIGHTING) {
-            const lightDir: vec3f = normalize(vec3f(0.2f, 0.8f, -0.5f));
-            const ambientLight: f32 = 0.3f;
-            let directionalLight: f32 = max(dot(hit.normal, lightDir), 0.0f) * 0.7f;
-            let light = ambientLight + directionalLight;
-            color *= light;
+            let ambient = 0.12;
+            color *= faceLights[hit.plane] * (1.0 - ambient) + ambient;
         }
 
         if (FOG) {
