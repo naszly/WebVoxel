@@ -3,9 +3,8 @@ override LIGHTING: bool = false;
 override FOG: bool = false;
 
 const POINT_LIGHT: bool = true;
-const POINT_LIGHT_RANGE: f32 = 24.0;
-const POINT_LIGHT_INTENSITY: f32 = 1.0;
-const POINT_LIGHT_COLOR: vec3f = vec3f(1.0, 0.85, 0.6);
+const POINT_LIGHT_RANGE: f32 = 64.0;
+const POINT_LIGHT_INTENSITY: f32 = 1.5;
 
 const PI: f32 = 3.14159265359;
 const HALF_PI: f32 = 1.57079632679;
@@ -18,6 +17,7 @@ struct Uniforms {
     viewportSize: vec2f,
     nearPlane: f32,
     farPlane: f32,
+    time: f32,
 }
 struct BlockTextures {
     eastTextureId: u32,
@@ -399,6 +399,71 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
     }
 }
 
+struct TorchFlicker {
+    color: vec3f,
+    intensity: f32,
+    rangeScale: f32,
+    posOffset: vec3f,
+}
+
+fn hash11u(x: u32) -> f32 {
+    var h = x;
+    h ^= h * 0x3d20adeau;
+    h ^= h >> 15;
+    h *= 0x05526c56u;
+    h ^= h >> 15;
+    return f32(h & 0x00FFFFFFu) * (1.0 / 16777216.0);
+}
+
+fn torchFlicker(t: f32) -> TorchFlicker {
+    // 1) Low‑freq base wave
+    let baseWave = sin(t * 1.35); // [-1,1]
+
+    // 2) Smoothed value noise
+    let noiseRate = 3.0;                    // samples per second
+    let nf      = t * noiseRate;
+    let seg     = u32(floor(nf));
+    let f       = fract(nf);
+    let fHerm   = f * f * (3.0 - 2.0 * f);  // smoothstep
+    let r0      = hash11u(seg + 101u);
+    let r1      = hash11u(seg + 102u);
+    let noise01 = mix(r0, r1, fHerm);       // [0,1]
+    let noise   = noise01 * 2.0 - 1.0;      // [-1,1]
+
+    // 3) Combine & gentle shaping
+    let composite = baseWave * 0.55 + noise * 0.45;       // ~[-1,1]
+    let c01 = composite * 0.5 + 0.5;                      // [0,1]
+    let shaped = mix(c01 * c01, c01, 0.4);                // soften highs
+    let centered = (shaped - 0.5) * 2.0;                  // back to ~[-1,1]
+
+    // 4) Final intensity
+    let base = 0.90;
+    let amp  = 0.055;
+    let flicker = base + centered * amp;                  // ~[base-amp, base+amp]
+
+    // 5) Range scaling
+    let rangeScale = 0.97 + (flicker - base) * 0.25;
+
+    // 6) Color warmth
+    let warmLow  = vec3f(1.0, 0.63, 0.37);
+    let warmHigh = vec3f(1.0, 0.86, 0.55);
+    let warmth = clamp((flicker - (base - 0.03)) / 0.13, 0.0, 1.0);
+    let color = mix(warmLow, warmHigh, warmth);
+
+    // 7) Positional jitter via slower smoothed noise
+    let jRate = 0.8;
+    let jf    = t * jRate;
+    let jseg  = u32(floor(jf));
+    let jfFr  = fract(jf);
+    let jfSm  = jfFr * jfFr * (3.0 - 2.0 * jfFr);
+    let jx = mix(hash11u(jseg + 1001u), hash11u(jseg + 1002u), jfSm) * 2.0 - 1.0;
+    let jy = mix(hash11u(jseg + 2001u), hash11u(jseg + 2002u), jfSm) * 2.0 - 1.0;
+    let jz = mix(hash11u(jseg + 3001u), hash11u(jseg + 3002u), jfSm) * 2.0 - 1.0;
+    let posOffset = vec3f(jx * 0.025, jy * 0.018, jz * 0.025);
+
+    return TorchFlicker(color, flicker, rangeScale, posOffset);
+}
+
 @fragment fn fsMain(input: FragmentIn) -> FragmentOut {
     var output: FragmentOut;
 
@@ -433,19 +498,25 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
                 input.faceLightNy, input.faceLightPy,
                 input.faceLightNz, input.faceLightPz
             )[hit.plane];
-            lightingFactor *= faceLight * (1.0 - ambient) + vec3f(ambient);
+            lightingFactor *= faceLight * intensity * (1.0 - ambient) + vec3f(ambient);
         }
 
-        // Add point light as an extra diffuse term (additive into lightingFactor)
         if (POINT_LIGHT) {
-            let hitPoint = ray.direction * hit.distance;      // camera space hit position
-            let toLight = -hitPoint;                          // light at camera origin
+            let t = u.time;
+            let flick = torchFlicker(t);
+
+            let hitPoint = ray.direction * hit.distance;
+            let lightPos = flick.posOffset;
+            let toLight = lightPos - hitPoint;
             let dist = length(toLight);
-            if (dist < POINT_LIGHT_RANGE) {
+            let range = POINT_LIGHT_RANGE * flick.rangeScale;
+
+            if (dist < range) {
                 let lightDir = toLight / dist;
-                let attenuation = pow(max(0.0, 1.0 - dist / POINT_LIGHT_RANGE), 2.0);
+                let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
                 let ndl = max(dot(hit.normal, lightDir), 0.0);
-                lightingFactor += POINT_LIGHT_COLOR * ndl * attenuation * POINT_LIGHT_INTENSITY;
+
+                lightingFactor += flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
             }
         }
 

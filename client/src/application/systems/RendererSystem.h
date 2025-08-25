@@ -44,6 +44,8 @@ private:
         glm::vec2 viewportSize;
         float nearPlane;
         float farPlane;
+        float time;
+        glm::vec3 padding;
     };
     static_assert(sizeof(Uniforms) % 16 == 0);
 

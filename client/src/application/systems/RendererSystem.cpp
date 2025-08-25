@@ -187,14 +187,21 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     }
 }
 
-void RendererSystem::update(float dt) {
+void RendererSystem::update(const float dt) {
     World &world = getWorld();
     const glm::vec3 playerPosition = getCamera().getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
-    auto dirtyChunks = collectDirtyChunks(world, playerChunk);
+    const auto dirtyChunks = collectDirtyChunks(world, playerChunk);
     processDirtyChunks(world, dirtyChunks);
     removeFarChunkBuffers(playerChunk);
+
+    static float timeAccumulator = 0.0f;
+    timeAccumulator += dt;
+    if (timeAccumulator >= 1e+8) {
+        timeAccumulator -= 1e+8;
+    }
+    m_uniformData.time = timeAccumulator;
 }
 
 std::vector<std::reference_wrapper<Chunk>> RendererSystem::collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const {
