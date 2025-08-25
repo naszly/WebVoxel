@@ -4,7 +4,7 @@ override FOG: bool = true;
 
 override POINT_LIGHT: bool = true;
 const POINT_LIGHT_RANGE: f32 = 64.0;
-const POINT_LIGHT_INTENSITY: f32 = 1.5;
+const POINT_LIGHT_INTENSITY: f32 = 2.3;
 
 const PI: f32 = 3.14159265359;
 const HALF_PI: f32 = 1.57079632679;
@@ -491,33 +491,38 @@ fn torchFlicker(t: f32) -> TorchFlicker {
 
         var lightingFactor = vec3f(1.0);
         if (LIGHTING) {
-            let ambient = 0.05;
-            let intensity = 0.73;
+            let ambient : f32 = 0.05;
             let faceLight = array<vec3f,6>(
                 input.faceLightNx, input.faceLightPx,
                 input.faceLightNy, input.faceLightPy,
                 input.faceLightNz, input.faceLightPz
             )[hit.plane];
-            lightingFactor *= faceLight * intensity * (1.0 - ambient) + vec3f(ambient);
-        }
+            let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
 
-        if (POINT_LIGHT) {
-            let t = u.time;
-            let flick = torchFlicker(t);
+            var pointLight = vec3f(0.0);
 
-            let hitPoint = ray.direction * hit.distance;
-            let lightPos = flick.posOffset;
-            let toLight = lightPos - hitPoint;
-            let dist = length(toLight);
-            let range = POINT_LIGHT_RANGE * flick.rangeScale;
+            if (POINT_LIGHT) {
+                let t = u.time;
+                let flick = torchFlicker(t);
 
-            if (dist < range) {
-                let lightDir = toLight / dist;
-                let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
-                let ndl = max(dot(hit.normal, lightDir), 0.0);
+                let hitPoint = ray.direction * hit.distance;
+                let lightPos = flick.posOffset;
+                let toLight = lightPos - hitPoint;
+                let dist = length(toLight);
+                let range = POINT_LIGHT_RANGE * flick.rangeScale;
 
-                lightingFactor += flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
+                if (dist < range) {
+                    let lightDir = toLight / dist;
+                    let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
+                    let ndl = max(dot(hit.normal, lightDir), 0.0);
+
+                    pointLight = flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
+                }
             }
+
+            let combinedLight = baseLight + pointLight * (vec3f(1.0) - baseLight);
+
+            lightingFactor = combinedLight / (combinedLight + vec3f(0.75));;
         }
 
         var color = albedo * lightingFactor;
