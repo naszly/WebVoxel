@@ -2,6 +2,11 @@ override CHUNK_SIZE: f32 = 64.0;
 override LIGHTING: bool = false;
 override FOG: bool = false;
 
+const POINT_LIGHT: bool = true;
+const POINT_LIGHT_RANGE: f32 = 24.0;
+const POINT_LIGHT_INTENSITY: f32 = 1.0;
+const POINT_LIGHT_COLOR: vec3f = vec3f(1.0, 0.85, 0.6);
+
 const PI: f32 = 3.14159265359;
 const HALF_PI: f32 = 1.57079632679;
 
@@ -408,30 +413,44 @@ fn remapUv(uv: vec2f, plane: u32) -> vec2f {
     let hit: Hit = intersectBox(box, ray);
 
     if (hit.isHit) {
-        var color: vec3f;
+        var albedo: vec3f;
         if (input.isTexturedVoxel != 0) {
-            var textureId: u32 = getTextureId(input.blockId, hit.plane);
-            var uv = remapUv(hit.uv, hit.plane);
-            color = textureLoad(textureArray, vec2i(uv * 16.0f), textureId, 0).rgb;
+            let textureId: u32 = getTextureId(input.blockId, hit.plane);
+            let uv = remapUv(hit.uv, hit.plane);
+            albedo = textureLoad(textureArray, vec2i(uv * 16.0f), textureId, 0).rgb;
         } else {
-            color = input.voxelColor;
+            albedo = input.voxelColor;
         }
 
-        color = applyAmbientOcclusion(color, hit.uv, hit.plane, input.ambientOcclusion);
+        albedo = applyAmbientOcclusion(albedo, hit.uv, hit.plane, input.ambientOcclusion);
 
-        let faceLights = array<vec3f, 6>(
-            input.faceLightNx,
-            input.faceLightPx,
-            input.faceLightNy,
-            input.faceLightPy,
-            input.faceLightNz,
-            input.faceLightPz
-        );
-
+        var lightingFactor = vec3f(1.0);
         if (LIGHTING) {
-            let ambient = 0.12;
-            color *= faceLights[hit.plane] * (1.0 - ambient) + ambient;
+            let ambient = 0.05;
+            let intensity = 0.73;
+            let faceLight = array<vec3f,6>(
+                input.faceLightNx, input.faceLightPx,
+                input.faceLightNy, input.faceLightPy,
+                input.faceLightNz, input.faceLightPz
+            )[hit.plane];
+            lightingFactor *= faceLight * (1.0 - ambient) + vec3f(ambient);
         }
+
+        // Add point light as an extra diffuse term (additive into lightingFactor)
+        if (POINT_LIGHT) {
+            let hitPoint = ray.direction * hit.distance;      // camera space hit position
+            let toLight = -hitPoint;                          // light at camera origin
+            let dist = length(toLight);
+            if (dist < POINT_LIGHT_RANGE) {
+                let lightDir = toLight / dist;
+                let attenuation = pow(max(0.0, 1.0 - dist / POINT_LIGHT_RANGE), 2.0);
+                let ndl = max(dot(hit.normal, lightDir), 0.0);
+                lightingFactor += POINT_LIGHT_COLOR * ndl * attenuation * POINT_LIGHT_INTENSITY;
+            }
+        }
+
+        var color = albedo * lightingFactor;
+        color = clamp(color, vec3f(0.0), vec3f(1.0));
 
         if (FOG) {
             let fogFactor: f32 = sqrt(clamp(hit.distance / u.farPlane, 0.0f, 1.0f)) * 0.3f;
