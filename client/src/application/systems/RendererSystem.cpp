@@ -73,7 +73,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     renderPassColorAttachment.resolveTarget = m_sampleCount > 1 ? targetView : nullptr;
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-    renderPassColorAttachment.clearValue = WGPUColor{0.66, 0.7, 0.9, 1.0};
+    renderPassColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
     renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
