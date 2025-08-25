@@ -133,8 +133,9 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         }
     }
 
-    ImGui::Checkbox("Lighting", &m_lighting);
+    ImGui::Checkbox("Lighting,", &m_lighting);
     ImGui::Checkbox("Fog", &m_fog);
+    ImGui::Checkbox("Torch", &m_pointLight);
 
     ImGui::End();
 
@@ -190,12 +191,12 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
 void GuiSystem::update(float dt) {
     if (const auto rendererSystem = getApplication().getSystem<RendererSystem>()) {
-        if (rendererSystem->getLighting() != m_lighting) {
+        if (rendererSystem->getLighting() != m_lighting)
             rendererSystem->setLighting(m_lighting);
-        }
-        if (rendererSystem->getFog() != m_fog) {
+        if (rendererSystem->getFog() != m_fog)
             rendererSystem->setFog(m_fog);
-        }
+        if (rendererSystem->getPointLight() != m_pointLight)
+            rendererSystem->setPointLight(m_pointLight);
     }
 }
 

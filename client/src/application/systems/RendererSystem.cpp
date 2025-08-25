@@ -304,6 +304,13 @@ void RendererSystem::setFog(const bool fog) {
     }
 }
 
+void RendererSystem::setPointLight(const bool pointLight) {
+    if (m_pointLight != pointLight) {
+        m_pointLight = pointLight;
+        createRenderPipeline();
+    }
+}
+
 void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
 
@@ -536,6 +543,10 @@ void RendererSystem::createRenderPipeline() {
         WGPUConstantEntry{
             .key = WGPUStringView{"FOG", WGPU_STRLEN},
             .value = static_cast<double>(m_fog),
+        },
+        WGPUConstantEntry{
+            .key = WGPUStringView{"POINT_LIGHT", WGPU_STRLEN},
+            .value = static_cast<double>(m_pointLight),
         }
     };
 

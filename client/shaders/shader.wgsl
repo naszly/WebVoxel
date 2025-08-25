@@ -1,8 +1,8 @@
 override CHUNK_SIZE: f32 = 64.0;
-override LIGHTING: bool = false;
-override FOG: bool = false;
+override LIGHTING: bool = true;
+override FOG: bool = true;
 
-const POINT_LIGHT: bool = true;
+override POINT_LIGHT: bool = true;
 const POINT_LIGHT_RANGE: f32 = 64.0;
 const POINT_LIGHT_INTENSITY: f32 = 1.5;
 

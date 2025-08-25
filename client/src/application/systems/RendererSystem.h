@@ -29,11 +29,18 @@ public:
 
     void setFog(bool fog);
 
+    [[nodiscard]] bool getPointLight() const {
+        return m_pointLight;
+    }
+
+    void setPointLight(bool pointLight);
+
     void exportTimestamps() const;
 
 private:
     bool m_lighting = true;
     bool m_fog = true;
+    bool m_pointLight = true;
     const int m_sampleCount = 1;
 
     struct Uniforms {
