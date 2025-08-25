@@ -34,7 +34,7 @@ class BlockTextureManager {
     friend class BlockTextureManagerBuilder;
     BlockTextureManager(const std::vector<const char*>& textureFiles, const WebGpuContext& webGpuContext);
 
-    static size_t blockIdToIndex(const BlockId& block);
+    size_t blockIdToIndex(const BlockId& block) const;
     TextureId textureNameToId(const char* textureName) const;
 
     void setTextureForEastFace(const BlockId& block, TextureId textureId);

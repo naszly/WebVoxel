@@ -13,7 +13,7 @@ BlockTextureManager::BlockTextureManager(const std::vector<const char*>& texture
     m_blockTextures.resize(static_cast<size_t>(BlockId::Count));
 }
 
-size_t BlockTextureManager::blockIdToIndex(const BlockId& block) {
+size_t BlockTextureManager::blockIdToIndex(const BlockId& block) const {
     const auto index = static_cast<size_t>(block);
     assert(index < m_blockTextures.size());
     return index;
