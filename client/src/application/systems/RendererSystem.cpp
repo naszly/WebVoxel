@@ -859,12 +859,12 @@ void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::v
                         if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
                             const auto& voxel = centerChunk.getVoxel(vx, vy, vz);
 
-                            const auto& faceNxLightIntensity = lightMap[x - 1][y][z];
-                            const auto& facePxLightIntensity = lightMap[x + 1][y][z];
-                            const auto& faceNyLightIntensity = lightMap[x][y - 1][z];
-                            const auto& facePyLightIntensity = lightMap[x][y + 1][z];
-                            const auto& faceNzLightIntensity = lightMap[x][y][z - 1];
-                            const auto& facePzLightIntensity = lightMap[x][y][z + 1];
+                            const auto& faceNxLightIntensity = getBlockLightInfo(lightMap, x - 1, y, z);
+                            const auto& facePxLightIntensity = getBlockLightInfo(lightMap, x + 1, y, z);
+                            const auto& faceNyLightIntensity = getBlockLightInfo(lightMap, x, y - 1, z);
+                            const auto& facePyLightIntensity = getBlockLightInfo(lightMap, x, y + 1, z);
+                            const auto& faceNzLightIntensity = getBlockLightInfo(lightMap, x, y, z - 1);
+                            const auto& facePzLightIntensity = getBlockLightInfo(lightMap, x, y, z + 1);
                             const auto voxelLight = PackedLight(faceNxLightIntensity, facePxLightIntensity,
                                                                 faceNyLightIntensity, facePyLightIntensity,
                                                                 faceNzLightIntensity, facePzLightIntensity);
@@ -924,61 +924,91 @@ AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighborhood &ne
 
 RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighborhood& neighborChunks,
                                                          const std::vector<Chunk::LightSource>& lights) {
-    static constexpr int LIGHT_GRID_DIM = Chunk::WIDTH * 3;
-    static constexpr int LIGHT_GRID_SIZE = LIGHT_GRID_DIM * LIGHT_GRID_DIM * LIGHT_GRID_DIM;
-    static constexpr int NEIGHBOR_DIRS = 6;
+    static constexpr int DIM = LIGHT_MAP_DIM;
+    static constexpr int STRIDE_Y = DIM;
+    static constexpr int STRIDE_X = DIM * DIM;
+    static constexpr uint8_t MAX_L = 31;
 
-    struct Storage {
-        LightMap map{};
-        CircularBuffer<Chunk::LightSource, LIGHT_GRID_SIZE> queue{};
-    };
-    static auto storage = std::make_unique<Storage>();
-    auto& lightMap = storage->map;
-    auto& queue    = storage->queue;
+    struct Dir { int dx, dy, dz; };
+    static constexpr auto DIRS = std::array<Dir,6>{{
+        { 1, 0, 0},{-1, 0, 0},
+        { 0, 1, 0},{ 0,-1, 0},
+        { 0, 0, 1},{ 0, 0,-1},
+    }};
 
-    static_assert(std::is_trivially_copyable_v<BlockLightInfo>);
-    std::fill_n(&lightMap[0][0][0], LIGHT_GRID_SIZE, BlockLightInfo{});
+    static constexpr std::array<int, DIRS.size()> OFFSETS = []{
+        std::array<int, DIRS.size()> offs{};
+        for (size_t i=0;i<DIRS.size();++i) {
+            offs[i] = DIRS[i].dx * STRIDE_X + DIRS[i].dy * STRIDE_Y + DIRS[i].dz;
+        }
+        return offs;
+    }();
 
-    queue.clear();
+    static std::array<std::vector<int>, MAX_L + 1> buckets;
+    for (auto& b : buckets) b.clear();
 
-    for (const auto& [lx0, ly0, lz0, lightInfo] : lights) {
-        const int gx = lx0 + Chunk::WIDTH;
-        const int gy = ly0 + Chunk::WIDTH;
-        const int gz = lz0 + Chunk::WIDTH;
-        if (gx < 0 || gy < 0 || gz < 0 ||
-            gx >= LIGHT_GRID_DIM || gy >= LIGHT_GRID_DIM || gz >= LIGHT_GRID_DIM)
-            continue;
-        queue.push({gx, gy, gz, lightInfo});
-        lightMap[gx][gy][gz] = lightInfo;
+    struct Storage { LightMap map; };
+    static Storage storage;
+    auto& lightMap = storage.map;
+    std::ranges::fill(lightMap, 0);
+
+    if (lights.empty())
+        return lightMap;
+
+    auto toIndex = [&](const int x, const int y, const int z){ return x * STRIDE_X + y * STRIDE_Y + z; };
+
+    for (const auto& [x, y, z, lightInfo] : lights) {
+        const int gx = x + Chunk::WIDTH;
+        const int gy = y + Chunk::WIDTH;
+        const int gz = z + Chunk::WIDTH;
+
+        assert(static_cast<unsigned>(gx) < DIM && static_cast<unsigned>(gy) < DIM && static_cast<unsigned>(gz) < DIM);
+
+        const uint8_t l = std::min<uint8_t>(lightInfo.getIntensity(), MAX_L);
+        const int idx = toIndex(gx,gy,gz);
+        if (l > lightMap[idx]) {
+            lightMap[idx] = l;
+            buckets[l].push_back(idx);
+        }
     }
 
-    static constexpr int DX[NEIGHBOR_DIRS] = { 1,-1, 0, 0, 0, 0 };
-    static constexpr int DY[NEIGHBOR_DIRS] = { 0, 0, 1,-1, 0, 0 };
-    static constexpr int DZ[NEIGHBOR_DIRS] = { 0, 0, 0, 0, 1,-1 };
+    if (std::ranges::all_of(lightMap, [](const uint8_t v){ return v==0; }))
+        return lightMap;
 
-    while (!queue.empty()) {
-        auto [x, y, z, srcLight] = queue.pop();
-        const int next = srcLight.getIntensity() - 1;
-        if (next < 0) continue;
-
-        for (int d = 0; d < NEIGHBOR_DIRS; ++d) {
-            const int nx = x + DX[d];
-            const int ny = y + DY[d];
-            const int nz = z + DZ[d];
-
-            if (nx < 0 || ny < 0 || nz < 0 ||
-                nx >= LIGHT_GRID_DIM || ny >= LIGHT_GRID_DIM || nz >= LIGHT_GRID_DIM)
+    for (int level = MAX_L; level > 0; --level) {
+        auto& bucket = buckets[level];
+        for (size_t i = 0; i < bucket.size(); ++i) {
+            const int idx = bucket[i];
+            if (lightMap[idx] != level)
                 continue;
 
-            if (testBitmaps(neighborChunks, nx, ny, nz))
-                continue;
+            const int x = idx / STRIDE_X;
+            const int y = (idx - x * STRIDE_X) / STRIDE_Y;
+            const int z = idx - x * STRIDE_X - y * STRIDE_Y;
 
-            auto& dst = lightMap[nx][ny][nz];
-            if (dst.getIntensity() >= next)
-                continue;
+            const uint8_t next = static_cast<uint8_t>(level - 1);
 
-            dst.setIntensity(next);
-            queue.push({nx, ny, nz, dst});
+            for (size_t d = 0; d < DIRS.size(); ++d) {
+                const auto& [dx, dy, dz] = DIRS[d];
+                const int nx = x + dx;
+                const int ny = y + dy;
+                const int nz = z + dz;
+
+                if (static_cast<unsigned>(nx) >= DIM ||
+                    static_cast<unsigned>(ny) >= DIM ||
+                    static_cast<unsigned>(nz) >= DIM)
+                    continue;
+
+                if (testBitmaps(neighborChunks, nx, ny, nz))
+                    continue;
+
+                int nextIdx = idx + OFFSETS[d];
+                if (lightMap[nextIdx] < next) {
+                    lightMap[nextIdx] = next;
+                    if (next > 0)
+                        buckets[next].push_back(nextIdx);
+                }
+            }
         }
     }
 
