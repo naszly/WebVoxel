@@ -46,14 +46,15 @@ struct VertexOut {
     @location(1) vSize: f32,
     @location(2) @interpolate(flat) ambientOcclusion: u32,
     @location(3) @interpolate(flat) isTexturedVoxel: u32,
-    @location(4) @interpolate(flat) blockId: u32,
-    @location(5) @interpolate(flat) voxelColor: vec3f,
-    @location(6) faceLightNx: vec3f,
-    @location(7) faceLightPx: vec3f,
-    @location(8) faceLightNy: vec3f,
-    @location(9) faceLightPy: vec3f,
-    @location(10) faceLightNz: vec3f,
-    @location(11) faceLightPz: vec3f,
+    @location(4) @interpolate(flat) emitsLight: u32,
+    @location(5) @interpolate(flat) blockId: u32,
+    @location(6) @interpolate(flat) voxelColor: vec3f,
+    @location(7) faceLightNx: vec3f,
+    @location(8) faceLightPx: vec3f,
+    @location(9) faceLightNy: vec3f,
+    @location(10) faceLightPy: vec3f,
+    @location(11) faceLightNz: vec3f,
+    @location(12) faceLightPz: vec3f,
 }
 
 struct FragmentIn {
@@ -62,14 +63,15 @@ struct FragmentIn {
     @location(1) vSize: f32,
     @location(2) @interpolate(flat) ambientOcclusion: u32,
     @location(3) @interpolate(flat) isTexturedVoxel: u32,
-    @location(4) @interpolate(flat) blockId: u32,
-    @location(5) @interpolate(flat) voxelColor: vec3f,
-    @location(6) faceLightNx: vec3f,
-    @location(7) faceLightPx: vec3f,
-    @location(8) faceLightNy: vec3f,
-    @location(9) faceLightPy: vec3f,
-    @location(10) faceLightNz: vec3f,
-    @location(11) faceLightPz: vec3f,
+    @location(4) @interpolate(flat) emitsLight: u32,
+    @location(5) @interpolate(flat) blockId: u32,
+    @location(6) @interpolate(flat) voxelColor: vec3f,
+    @location(7) faceLightNx: vec3f,
+    @location(8) faceLightPx: vec3f,
+    @location(9) faceLightNy: vec3f,
+    @location(10) faceLightPy: vec3f,
+    @location(11) faceLightNz: vec3f,
+    @location(12) faceLightPz: vec3f,
 }
 
 struct FragmentOut {
@@ -177,6 +179,7 @@ fn processVertex(vertex: VertexInput) -> VertexOut {
     out.vSize = voxelSize;
     out.ambientOcclusion = vertex.ambientOcclusion;
     out.isTexturedVoxel = ((vertex.voxelData >> 24u) & 1u);
+    out.emitsLight = ((vertex.voxelData >> 25u) & 1u);
     out.blockId = vertex.voxelData & 0xFFFFFFu;
     out.voxelColor = vec3f(
         f32((vertex.voxelData >> 16u) & 0xFFu) / 255.0,
@@ -437,8 +440,8 @@ fn torchFlicker(t: f32) -> TorchFlicker {
     let centered = (shaped - 0.5) * 2.0;                  // back to ~[-1,1]
 
     // 4) Final intensity
-    let base = 0.90;
-    let amp  = 0.055;
+    let base = 0.89;
+    let amp  = 0.066;
     let flicker = base + centered * amp;                  // ~[base-amp, base+amp]
 
     // 5) Range scaling
@@ -487,46 +490,56 @@ fn torchFlicker(t: f32) -> TorchFlicker {
             albedo = input.voxelColor;
         }
 
-        albedo = applyAmbientOcclusion(albedo, hit.uv, hit.plane, input.ambientOcclusion);
+        var color: vec3f;
 
-        var lightingFactor = vec3f(1.0);
-        if (LIGHTING) {
-            let ambient : f32 = 0.05;
-            let faceLight = array<vec3f,6>(
-                input.faceLightNx, input.faceLightPx,
-                input.faceLightNy, input.faceLightPy,
-                input.faceLightNz, input.faceLightPz
-            )[hit.plane];
-            let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
+        // Apply ambient occlusion and lighting only to non-emissive voxels
+        if (input.emitsLight == 0) {
+            albedo = applyAmbientOcclusion(albedo, hit.uv, hit.plane, input.ambientOcclusion);
 
-            var pointLight = vec3f(0.0);
+            var lightingFactor = vec3f(1.0);
+            if (LIGHTING) {
+                let ambient : f32 = 0.05;
+                let faceLight = array<vec3f,6>(
+                    input.faceLightNx, input.faceLightPx,
+                    input.faceLightNy, input.faceLightPy,
+                    input.faceLightNz, input.faceLightPz
+                )[hit.plane];
+                let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
 
-            if (POINT_LIGHT) {
-                let t = u.time;
-                let flick = torchFlicker(t);
+                var pointLight = vec3f(0.0);
 
-                let hitPoint = ray.direction * hit.distance;
-                let lightPos = flick.posOffset;
-                let toLight = lightPos - hitPoint;
-                let dist = length(toLight);
-                let range = POINT_LIGHT_RANGE * flick.rangeScale;
+                if (POINT_LIGHT) {
+                    let t = u.time;
+                    let flick = torchFlicker(t);
 
-                if (dist < range) {
-                    let lightDir = toLight / dist;
-                    let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
-                    let ndl = max(dot(hit.normal, lightDir), 0.0);
+                    let hitPoint = ray.direction * hit.distance;
+                    let lightPos = flick.posOffset;
+                    let toLight = lightPos - hitPoint;
+                    let dist = length(toLight);
+                    let range = POINT_LIGHT_RANGE * flick.rangeScale;
 
-                    pointLight = flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
+                    if (dist < range) {
+                        let lightDir = toLight / dist;
+                        let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
+                        let ndl = max(dot(hit.normal, lightDir), 0.0);
+
+                        pointLight = flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
+                    }
                 }
+
+                let combinedLight = baseLight + pointLight * (vec3f(1.0) - baseLight);
+
+                lightingFactor = combinedLight / (combinedLight + vec3f(0.75));;
             }
 
-            let combinedLight = baseLight + pointLight * (vec3f(1.0) - baseLight);
-
-            lightingFactor = combinedLight / (combinedLight + vec3f(0.75));;
+            color = albedo * lightingFactor;
+            color = clamp(color, vec3f(0.0), vec3f(1.0));
+        } else { // Emissive voxel
+            let t = u.time + dot(input.vPos, vec3f(12.9898, 78.2332, 37.7193));
+            let flick = torchFlicker(t);
+            color = albedo * flick.intensity;
+            color = clamp(color, vec3f(0.0), vec3f(1.0));
         }
-
-        var color = albedo * lightingFactor;
-        color = clamp(color, vec3f(0.0), vec3f(1.0));
 
         if (FOG) {
             let fogFactor: f32 = sqrt(clamp(hit.distance / u.farPlane, 0.0f, 1.0f)) * 0.3f;

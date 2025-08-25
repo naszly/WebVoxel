@@ -47,6 +47,7 @@ public:
 private:
     uint32_t m_data : 24 {0};
     bool m_hasTexture : 1 {false};
+    bool m_emitsLight : 1 {false};
 
     void setVoxelColor(const VoxelColor color) {
         m_hasTexture = false;
@@ -59,6 +60,7 @@ private:
     void setBlockId(const BlockId blockId) {
         m_hasTexture = true;
         m_data = static_cast<uint32_t>(blockId);
+        m_emitsLight = Block(blockId).emitsLight();
     }
 };
 
