@@ -138,12 +138,20 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
 }
 
 fn unpackPackedLight(packed: u32) -> array<vec3f, 6> {
-    let nx = f32((packed >> 0u) & 0x1Fu) / 31.0;
-    let px = f32((packed >> 5u) & 0x1Fu) / 31.0;
-    let ny = f32((packed >> 10u) & 0x1Fu) / 31.0;
-    let py = f32((packed >> 15u) & 0x1Fu) / 31.0;
-    let nz = f32((packed >> 20u) & 0x1Fu) / 31.0;
-    let pz = f32((packed >> 25u) & 0x1Fu) / 31.0;
+    var nx = f32((packed >> 0u) & 0x1Fu) / 31.0;
+    var px = f32((packed >> 5u) & 0x1Fu) / 31.0;
+    var ny = f32((packed >> 10u) & 0x1Fu) / 31.0;
+    var py = f32((packed >> 15u) & 0x1Fu) / 31.0;
+    var nz = f32((packed >> 20u) & 0x1Fu) / 31.0;
+    var pz = f32((packed >> 25u) & 0x1Fu) / 31.0;
+
+    let exponent = 2.2;
+    nx = pow(nx, exponent);
+    px = pow(px, exponent);
+    ny = pow(ny, exponent);
+    py = pow(py, exponent);
+    nz = pow(nz, exponent);
+    pz = pow(pz, exponent);
 
     return array<vec3f, 6>(vec3f(nx), vec3f(px), vec3f(ny), vec3f(py), vec3f(nz), vec3f(pz));
 }
