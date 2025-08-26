@@ -89,6 +89,8 @@ private:
     static std::string loadShader(const char* filename);
     void initializeBuffers();
 
+    auto getChunksToRender(const Camera& camera);
+
     std::vector<std::reference_wrapper<Chunk>> collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const;
     void processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks);
     void removeFarChunkBuffers(const glm::ivec3& playerChunk);

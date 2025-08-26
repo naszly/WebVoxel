@@ -49,6 +49,44 @@ void RendererSystem::initialize() {
     }
 }
 
+auto RendererSystem::getChunksToRender(const Camera& camera) {
+    struct SortEntry {
+        float distance2; // Squared distance to camera
+        ChunkVertexBuffer chunkVertexBuffer;
+    };
+    static std::vector<SortEntry> sortedChunks;
+    sortedChunks.clear();
+
+    const glm::vec3 camPos = camera.getPosition();
+    constexpr float chunkSize = static_cast<float>(Chunk::WIDTH);
+    constexpr float sqrt3 = 1.73205080757f;
+    constexpr float chunkSphereRadius = sqrt3 * chunkSize * 0.5f;
+    constexpr glm::vec3 chunkAabbHalfExtents = glm::vec3(chunkSize) * 0.5f;
+
+    for (auto &[position, chunkVertexBuffer] : m_chunkVertexBuffers) {
+        if (chunkVertexBuffer.vertexCount == 0) {
+            continue;
+        }
+
+        const auto chunkCenter = glm::vec3(position) * chunkSize + chunkAabbHalfExtents;
+
+        if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
+            continue;
+        }
+
+        float distance2 = glm::length2(chunkCenter - camPos);
+        sortedChunks.emplace_back(distance2, chunkVertexBuffer);
+    }
+
+    std::ranges::sort(sortedChunks, [&](const auto &a, const auto &b) {
+        return a.distance2 < b.distance2; // Front-to-back!
+    });
+
+    return sortedChunks | std::views::transform([](const auto &entry) -> auto & {
+        return entry.chunkVertexBuffer;
+    });
+}
+
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     const Camera& camera = getCamera();
 
@@ -60,14 +98,11 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     m_uniformData.nearPlane = Camera::NEAR;
     m_uniformData.farPlane = Camera::FAR;
 
-    // Update uniform buffer data
     wgpuQueueWriteBuffer(m_queue, m_uniformBuffer, 0, &m_uniformData, sizeof(Uniforms));
 
-    // Create the render pass that clears the screen with our color
     WGPURenderPassDescriptor renderPassDesc = {};
     renderPassDesc.nextInChain = nullptr;
 
-    // The attachment part of the render pass descriptor describes the target texture of the pass
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
     renderPassColorAttachment.view = m_sampleCount > 1 ? m_multisampleColorTextureView : targetView;
     renderPassColorAttachment.resolveTarget = m_sampleCount > 1 ? targetView : nullptr;
@@ -99,69 +134,35 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     renderPassDesc.label = WGPUStringView{"RendererSystem RenderPass", WGPU_STRLEN};
 
-    auto& appData = getApplicationData();
-
     const WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
-    // Select which render pipeline to use
     wgpuRenderPassEncoderSetPipeline(renderPass, m_renderPipeline);
-
-    // Set the bind group
     wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_uniformBindGroup, 0, nullptr);
-
-    // Set vertex buffer while encoding the render pass
     wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-
-    // Set index buffer
     wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
 
-    std::vector<std::pair<glm::vec3, ChunkVertexBuffer>> sortedChunks;
-
-    for (auto &[position, chunkVertexBuffer] : m_chunkVertexBuffers) {
-
-        if (chunkVertexBuffer.vertexCount == 0) {
-            continue;
-        }
-
-        const auto chunkCenter = glm::vec3(position) * static_cast<float>(Chunk::WIDTH) + glm::vec3(Chunk::WIDTH / 2.0f);
-
-        const float chunkSphereRadius = std::sqrt(3.0f) * static_cast<float>(Chunk::WIDTH) / 2.0f;
-
-        if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
-            continue;
-        }
-
-        sortedChunks.emplace_back(chunkCenter, chunkVertexBuffer);
-    }
-
-    const glm::vec3 camPos = camera.getPosition();
-
-    std::ranges::sort(sortedChunks, [&](const auto &a, const auto &b) {
-        const float distA = glm::length2(a.first - camPos);
-        const float distB = glm::length2(b.first - camPos);
-
-        return distA < distB; // Front-to-back!
-    });
-
+    auto& appData = getApplicationData();
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
 
-    for (auto &chunkVertexBuffer: sortedChunks | std::views::values) {
+    auto chunkVertexBuffers = getChunksToRender(camera);
+
+    for (auto &chunkVertexBuffer: chunkVertexBuffers) {
 
         auto &[buffer, vertexCount] = chunkVertexBuffer;
 
         appData.renderedChunks++;
         appData.renderedVoxels += vertexCount;
 
-        // Set voxel buffer
-        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, buffer, 0, wgpuBufferGetSize(buffer) - sizeof(glm::vec4));
+        const uint64_t totalSize = wgpuBufferGetSize(buffer);
+        const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
 
-        // Set chunk buffer
-        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, wgpuBufferGetSize(buffer) - sizeof(glm::vec4), sizeof(glm::vec4));
+        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
 
-        // Use instanced drawing
         wgpuRenderPassEncoderDrawIndexed(renderPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
     }
+
     wgpuRenderPassEncoderEnd(renderPass);
     wgpuRenderPassEncoderRelease(renderPass);
 
