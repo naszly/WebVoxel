@@ -136,11 +136,12 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Checkbox("Lighting,", &m_lighting);
     ImGui::Checkbox("Fog", &m_fog);
     ImGui::Checkbox("Torch", &m_pointLight);
+    ImGui::Checkbox("Multisampling", &m_multisampling);
 
     ImGui::End();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(0, 300), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
@@ -197,6 +198,8 @@ void GuiSystem::update(float dt) {
             rendererSystem->setFog(m_fog);
         if (rendererSystem->getPointLight() != m_pointLight)
             rendererSystem->setPointLight(m_pointLight);
+        if (rendererSystem->getMultisampling() != m_multisampling)
+            rendererSystem->setMultisampling(m_multisampling);
     }
 }
 

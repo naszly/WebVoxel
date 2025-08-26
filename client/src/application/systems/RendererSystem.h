@@ -35,13 +35,19 @@ public:
 
     void setPointLight(bool pointLight);
 
+    [[nodiscard]] bool getMultisampling() const {
+        return m_sampleCount > 1;
+    }
+
+    void setMultisampling(bool multisampling);
+
     void exportTimestamps() const;
 
 private:
     bool m_lighting = true;
     bool m_fog = true;
     bool m_pointLight = true;
-    const int m_sampleCount = 1;
+    int m_sampleCount = 4;
 
     struct Uniforms {
         glm::mat4 projectionViewMatrix;

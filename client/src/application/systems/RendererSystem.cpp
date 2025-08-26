@@ -312,6 +312,14 @@ void RendererSystem::setPointLight(const bool pointLight) {
     }
 }
 
+void RendererSystem::setMultisampling(const bool multisampling) {
+    if (multisampling != (m_sampleCount > 1)) {
+        m_sampleCount = multisampling ? 4 : 1;
+        createDepthTexture();
+        createRenderPipeline();
+    }
+}
+
 void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
 

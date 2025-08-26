@@ -59,6 +59,7 @@ struct VertexOut {
 
 struct FragmentIn {
     @builtin(position) fragPos: vec4f,
+    @builtin(sample_index) sampleIndex: u32,
     @location(0) vPos: vec3f,
     @location(1) vSize: f32,
     @location(2) @interpolate(flat) ambientOcclusion: u32,
