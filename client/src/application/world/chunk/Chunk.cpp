@@ -5,7 +5,38 @@
 #include "common/Log.h"
 #include "common/FileSystem.h"
 
-#include <zlib.h>
+
+static uint8_t hashXz(const int x, const int z) {
+    uint32_t v = static_cast<uint32_t>(x) * 0x27d4eb2d ^ static_cast<uint32_t>(z) * 0x85ebca6b;
+    v ^= v >> 15;
+    return static_cast<uint8_t>(v);
+}
+
+static BlockId layeredStone(const int surfaceH, const int globalY, const int x, const int z) {
+    // Depth below surface
+    int depth = surfaceH - globalY;
+    if (depth < 0) return BlockId::Stone;
+
+    // Jitter boundaries so stripes are not perfectly flat
+    const int jitter = hashXz(x, z) % 5 - 2;
+    depth += jitter;
+
+    // Stripe thickness
+    constexpr int stripe = 31;
+
+    const int band = depth / stripe;
+    // Pattern cycle
+    switch (band % 7) {
+    case 0: return BlockId::Stone;
+    case 1: return BlockId::Duskstone;
+    case 2: return BlockId::Duskstone;
+    case 3: return BlockId::Blackrock;
+    case 4: return BlockId::Blackrock;
+    case 5: return BlockId::Blackrock;
+    case 6: return BlockId::Duskstone;
+    default:return BlockId::Stone;
+    }
+}
 
 void Chunk::generate(WorldGenerator& generator) {
     thread_local std::vector<uint8_t> terrainHeightMap;
@@ -14,38 +45,39 @@ void Chunk::generate(WorldGenerator& generator) {
     const bool isSurfaceChunk = m_position.y >= 0 && m_position.y * WIDTH < 256;
     const bool isUndergroundChunk = m_position.y < 0;
 
-    if (isSurfaceChunk) {
-        terrainHeightMap = generator.generateTerrainHeights(m_position.x, m_position.z);
-    }
-
     if (isSurfaceChunk || isUndergroundChunk) {
+        terrainHeightMap = generator.generateTerrainHeights(m_position.x, m_position.z);
         caveDensityMap = generator.generateCaveDensityMap(m_position.x, m_position.y, m_position.z);
     }
 
-    auto isCaveAt = [&](int i, int j, int k) -> bool {
-        int caveIdx = i * WIDTH * WIDTH + j * WIDTH + k;
+    auto isCaveAt = [&](const int i, const int j, const int k) -> bool {
+        const int caveIdx = i * WIDTH * WIDTH + j * WIDTH + k;
         return caveDensityMap.size() > caveIdx && caveDensityMap[caveIdx] > 125;
     };
 
     for (int i = 0; i < WIDTH; i++) {
         for (int j = 0; j < WIDTH; j++) {
             for (int k = 0; k < WIDTH; k++) {
+                const int noiseIdx = i * WIDTH + k;
+                const int noiseValue = terrainHeightMap[noiseIdx];
+                const int height = m_position.y * WIDTH + j;
                 if (isSurfaceChunk) {
-                    const int noiseIdx = i * WIDTH + k;
-                    const int noiseValue = terrainHeightMap[noiseIdx];
-                    const int height = m_position.y * WIDTH + j;
                     if (height <= noiseValue && !isCaveAt(i, j, k)) {
                         if (height == noiseValue) {
                             m_data.setVoxel(i, j, k, VoxelData(BlockId::Grass));
                         } else if (height >= noiseValue - 2) {
                             m_data.setVoxel(i, j, k, VoxelData(BlockId::Dirt));
                         } else {
-                            m_data.setVoxel(i, j, k, VoxelData(BlockId::Stone));
+                            m_data.setVoxel(i, j, k, VoxelData(layeredStone(noiseValue, height,
+                                                          m_position.x * WIDTH + i,
+                                                          m_position.z * WIDTH + k)));
                         }
                     }
                 } else if (isUndergroundChunk) {
                     if (!isCaveAt(i, j, k)) {
-                        m_data.setVoxel(i, j, k, VoxelData(BlockId::Stone));
+                        m_data.setVoxel(i, j, k, VoxelData(layeredStone(noiseValue, height,
+                                                          m_position.x * WIDTH + i,
+                                                          m_position.z * WIDTH + k)));
                     }
                 }
             }
