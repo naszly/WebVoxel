@@ -29,14 +29,14 @@ void Application::start(const int width, const int height) {
             "textures/grass_side.png",
             "textures/dirt.png",
             "textures/stone.png",
-            "textures/sunstone.png",
+            "textures/moonlit_lantern.png",
         }, *getWebGpuContext())
     .setTextureForTopFace(BlockId::Grass, "textures/grass_top.png")
     .setTextureForSideFaces(BlockId::Grass, "textures/grass_side.png")
     .setTextureForBottomFace(BlockId::Grass, "textures/dirt.png")
     .setTextureForAllFaces(BlockId::Dirt, "textures/dirt.png")
     .setTextureForAllFaces(BlockId::Stone, "textures/stone.png")
-    .setTextureForAllFaces(BlockId::Sunstone, "textures/sunstone.png")
+    .setTextureForAllFaces(BlockId::MoonlitLantern, "textures/moonlit_lantern.png")
     .build();
 
     for (const auto& layer : m_layers) {

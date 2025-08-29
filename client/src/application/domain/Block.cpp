@@ -5,7 +5,7 @@
 
 typedef std::unordered_map<BlockId, BlockLightInfo> BlockLightMap;
 static const BlockLightMap BLOCK_LIGHT_INFO_MAP = {
-    { BlockId::Sunstone, BlockLightInfo{ 1.0f } }
+    { BlockId::MoonlitLantern, BlockLightInfo{ 1.0f } }
 };
 
 bool Block::emitsLight() const {
