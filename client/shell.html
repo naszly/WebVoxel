@@ -9,6 +9,8 @@
       font-family: arial;
       margin: 0;
       padding: 0;
+      background: #060708;
+      color: #e0e0e0;
     }
 
     .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
@@ -17,10 +19,16 @@
     /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
     canvas.emscripten { border: 0 none; background-color: black; }
 
+    canvas.emscripten:focus,
+    canvas.emscripten:focus-visible {
+      outline: 2px solid #3399FF;
+      box-shadow: 0 0 8px #3399FF;
+    }
+
     .spinner {
-      height: 30px;
-      width: 30px;
-      margin: 20px 0 0 20px;
+      height: 16px;
+      width: 16px;
+      margin: 4px;
       display: inline-block;
       vertical-align: top;
 
@@ -35,7 +43,7 @@
       border-top: 5px solid rgb(120, 120, 120);
 
       border-radius: 100%;
-      background-color: rgb(189, 215, 46);
+      background-color: rgb(51, 153, 255);
     }
 
     @-webkit-keyframes rotation {
@@ -70,6 +78,20 @@
     #controls {
       display: flex;
       justify-content: center;
+    }
+
+    button, input[type="button"] {
+      background-color: #222;
+      color: #e0e0e0;
+      border: 1px solid #444;
+      border-radius: 2px;
+      padding: 4px 8px;
+      margin: 2px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover, input[type="button"]:hover {
+      background-color: #333;
     }
   </style>
 </head>
