@@ -46,6 +46,23 @@ std::vector<uint8_t> WorldGenerator::generateCaveDensityMap(const int chunkPosX,
     return uint8Grid;
 }
 
+std::vector<uint8_t> WorldGenerator::generateOreDensityMap(const int chunkPosX, const int chunkPosY, const int chunkPosZ) const {
+    std::vector<float> floatGrid(Chunk::WIDTH * Chunk::WIDTH * Chunk::WIDTH);
+    const int xStart = chunkPosZ * Chunk::WIDTH;
+    const int yStart = chunkPosY * Chunk::WIDTH;
+    const int zStart = chunkPosX * Chunk::WIDTH;
+    m_oreGenerator->GenUniformGrid3D(floatGrid.data(),
+                                     xStart, yStart, zStart,
+                                     Chunk::WIDTH, Chunk::WIDTH, Chunk::WIDTH,
+                                     0.1f,
+                                     m_noiseSeed + 424242);
+    std::vector<uint8_t> out(floatGrid.size());
+    std::ranges::transform(floatGrid, out.begin(), [](const float v){
+        return static_cast<uint8_t>((v + 1.f) * 127.5f);
+    });
+    return out;
+}
+
 void WorldGenerator::pruneCacheByDistance(const glm::ivec3& currentPosition, const int distance) {
     Threading::ScopedLock lock(&m_cacheLock);
     const int distanceSquared = distance * distance;

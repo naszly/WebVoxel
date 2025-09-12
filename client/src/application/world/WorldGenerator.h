@@ -21,6 +21,8 @@ public:
 
     std::vector<uint8_t> generateCaveDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
 
+    std::vector<uint8_t> generateOreDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
+
     void pruneCacheByDistance(const glm::ivec3& currentPosition, int distance);
 
 private:
@@ -29,6 +31,7 @@ private:
     Threading::Lock m_cacheLock;
     const FastNoise::SmartNode<> m_terrainGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
     const FastNoise::SmartNode<> m_caveGenerator = FastNoise::NewFromEncodedNodeTree("EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==");
+    const FastNoise::SmartNode<> m_oreGenerator = FastNoise::New<FastNoise::OpenSimplex2>();
 
     const float m_noiseFrequency = 0.0004f;
     const int m_noiseSeed = 0;

@@ -12,6 +12,12 @@ static uint8_t hashXz(const int x, const int z) {
     return static_cast<uint8_t>(v);
 }
 
+static uint32_t hash3(const int x, const int y, const int z){
+    uint32_t h = static_cast<uint32_t>(x) * 0x8da6b343u ^ static_cast<uint32_t>(z) * 0xd8163841u ^ static_cast<uint32_t>(y) * 0xcb1ab31fu;
+    h ^= h >> 13; h *= 0x9e3779b1u; h ^= h >> 15;
+    return h;
+}
+
 static BlockId layeredStone(const int surfaceH, const int globalY, const int x, const int z) {
     // Depth below surface
     int depth = surfaceH - globalY;
@@ -38,9 +44,25 @@ static BlockId layeredStone(const int surfaceH, const int globalY, const int x, 
     }
 }
 
+static BlockId maybeOre(const BlockId base, const uint8_t oreNoise,
+                        const int gx, const int gy, const int gz) {
+    if (base != BlockId::Blackrock) return base;
+
+    if (oreNoise >= 225) {
+        return BlockId::EclipseCrystal;
+    }
+    if (oreNoise >= 210) {
+        if ((hash3(gx,gy,gz) & 0xFF) > 180) {
+            return BlockId::EclipseCrystal;
+        }
+    }
+    return base;
+}
+
 void Chunk::generate(WorldGenerator& generator) {
     thread_local std::vector<uint8_t> terrainHeightMap;
     thread_local std::vector<uint8_t> caveDensityMap;
+    thread_local std::vector<uint8_t> oreDensityMap;
 
     const bool isSurfaceChunk = m_position.y >= 0 && m_position.y * WIDTH < 256;
     const bool isUndergroundChunk = m_position.y < 0;
@@ -48,6 +70,7 @@ void Chunk::generate(WorldGenerator& generator) {
     if (isSurfaceChunk || isUndergroundChunk) {
         terrainHeightMap = generator.generateTerrainHeights(m_position.x, m_position.z);
         caveDensityMap = generator.generateCaveDensityMap(m_position.x, m_position.y, m_position.z);
+        oreDensityMap = generator.generateOreDensityMap(m_position.x, m_position.y, m_position.z);
     }
 
     auto isCaveAt = [&](const int i, const int j, const int k) -> bool {
@@ -64,20 +87,27 @@ void Chunk::generate(WorldGenerator& generator) {
                 if (isSurfaceChunk) {
                     if (height <= noiseValue && !isCaveAt(i, j, k)) {
                         if (height == noiseValue) {
-                            m_data.setVoxel(i, j, k, VoxelData(BlockId::Grass));
+                            setVoxelInternal(VoxelData(BlockId::Grass), i, j, k);
                         } else if (height >= noiseValue - 2) {
-                            m_data.setVoxel(i, j, k, VoxelData(BlockId::Dirt));
+                            setVoxelInternal(VoxelData(BlockId::Dirt), i, j, k);
                         } else {
-                            m_data.setVoxel(i, j, k, VoxelData(layeredStone(noiseValue, height,
-                                                          m_position.x * WIDTH + i,
-                                                          m_position.z * WIDTH + k)));
+                            setVoxelInternal(VoxelData(layeredStone(noiseValue, height,
+                                                       m_position.x * WIDTH + i,
+                                                       m_position.z * WIDTH + k)), i, j, k);
                         }
                     }
                 } else if (isUndergroundChunk) {
                     if (!isCaveAt(i, j, k)) {
-                        m_data.setVoxel(i, j, k, VoxelData(layeredStone(noiseValue, height,
-                                                          m_position.x * WIDTH + i,
-                                                          m_position.z * WIDTH + k)));
+                        BlockId b = layeredStone(noiseValue, height,
+                                               m_position.x * WIDTH + i,
+                                               m_position.z * WIDTH + k);
+                        const int oreIdx = i * WIDTH * WIDTH + j * WIDTH + k;
+                        b = maybeOre(b, oreDensityMap[oreIdx],
+                                     m_position.x * WIDTH + i,
+                                     height,
+                                     m_position.z * WIDTH + k);
+
+                        setVoxelInternal(VoxelData(b), i, j, k);
                     }
                 }
             }

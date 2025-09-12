@@ -496,49 +496,51 @@ fn torchFlicker(t: f32) -> TorchFlicker {
         // Apply ambient occlusion and lighting only to non-emissive voxels
         if (input.emitsLight == 0) {
             albedo = applyAmbientOcclusion(albedo, hit.uv, hit.plane, input.ambientOcclusion);
+        }
 
-            var lightingFactor = vec3f(1.0);
-            if (LIGHTING) {
-                let ambient : f32 = 0.05;
-                let faceLight = array<vec3f,6>(
-                    input.faceLightNx, input.faceLightPx,
-                    input.faceLightNy, input.faceLightPy,
-                    input.faceLightNz, input.faceLightPz
-                )[hit.plane];
-                let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
+        var lightingFactor = vec3f(1.0);
+        if (LIGHTING) {
+            let ambient : f32 = 0.033;
+            let faceLight = array<vec3f,6>(
+                input.faceLightNx, input.faceLightPx,
+                input.faceLightNy, input.faceLightPy,
+                input.faceLightNz, input.faceLightPz
+            )[hit.plane];
+            let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
 
-                var pointLight = vec3f(0.0);
+            var pointLight = vec3f(0.0);
 
-                if (POINT_LIGHT) {
-                    let t = u.time;
-                    let flick = torchFlicker(t);
+            if (POINT_LIGHT) {
+                let t = u.time;
+                let flick = torchFlicker(t);
 
-                    let hitPoint = ray.direction * hit.distance;
-                    let lightPos = flick.posOffset;
-                    let toLight = lightPos - hitPoint;
-                    let dist = length(toLight);
-                    let range = POINT_LIGHT_RANGE * flick.rangeScale;
+                let hitPoint = ray.direction * hit.distance;
+                let lightPos = flick.posOffset;
+                let toLight = lightPos - hitPoint;
+                let dist = length(toLight);
+                let range = POINT_LIGHT_RANGE * flick.rangeScale;
 
-                    if (dist < range) {
-                        let lightDir = toLight / dist;
-                        let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
-                        let ndl = max(dot(hit.normal, lightDir), 0.0);
+                if (dist < range) {
+                    let lightDir = toLight / dist;
+                    let attenuation = pow(max(0.0, 1.0 - dist / range), 2.2);
+                    let ndl = max(dot(hit.normal, lightDir), 0.0);
 
-                        pointLight = flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
-                    }
+                    pointLight = flick.color * ndl * attenuation * (POINT_LIGHT_INTENSITY * flick.intensity);
                 }
-
-                let combinedLight = baseLight + pointLight * (vec3f(1.0) - baseLight);
-
-                lightingFactor = combinedLight / (combinedLight + vec3f(0.75));;
             }
 
-            color = albedo * lightingFactor;
-            color = clamp(color, vec3f(0.0), vec3f(1.0));
-        } else { // Emissive voxel
+            let combinedLight = baseLight + pointLight * (vec3f(1.0) - baseLight);
+
+            lightingFactor = combinedLight / (combinedLight + vec3f(0.75));;
+        }
+
+        color = albedo * lightingFactor;
+        color = clamp(color, vec3f(0.0), vec3f(1.0));
+
+        if (input.emitsLight == 1) { // Emissive voxel
             let t = u.time + dot(input.vPos, vec3f(12.9898, 78.2332, 37.7193));
             let flick = torchFlicker(t);
-            color = albedo * flick.intensity;
+            color *= flick.intensity;
             color = clamp(color, vec3f(0.0), vec3f(1.0));
         }
 
