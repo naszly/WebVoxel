@@ -9,12 +9,12 @@
 #include "imgui.h"
 
 bool Input::isKeyPressed(KeyCode keyCode) const {
-    auto state = glfwGetKey(m_glfwWindow, static_cast<int>(keyCode));
+    const auto state = glfwGetKey(m_glfwWindow, static_cast<int>(keyCode));
     return state == GLFW_PRESS;
 }
 
 bool Input::isMouseButtonPressed(MouseCode mouseCode) const {
-    auto state = glfwGetMouseButton(m_glfwWindow, static_cast<int>(mouseCode));
+    const auto state = glfwGetMouseButton(m_glfwWindow, static_cast<int>(mouseCode));
     return state == GLFW_PRESS;
 }
 

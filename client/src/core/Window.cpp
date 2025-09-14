@@ -96,7 +96,7 @@ Window::Window(const WindowCreationConfig& config) : m_eventCallback(config.even
     });
 
     glfwSetWindowSizeCallback(m_window, [](GLFWwindow *glfwWindow, const int width, const int height) {
-        Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
+        const Window* window = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
 
         window->m_webGpuSurface->resize();
 

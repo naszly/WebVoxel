@@ -75,7 +75,7 @@ WGPUTextureFormat WebGpuSurface::getPreferredFormat(const WGPUSurfaceCapabilitie
                                                     const std::initializer_list<WGPUTextureFormat> preferredFormats) {
     std::vector availableFormats(capabilities.formats, capabilities.formats + capabilities.formatCount);
 
-    auto it = std::ranges::find_first_of(availableFormats, preferredFormats);
+    const auto it = std::ranges::find_first_of(availableFormats, preferredFormats);
 
     if (it != availableFormats.end()) {
         return *it;
