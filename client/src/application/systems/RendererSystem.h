@@ -104,6 +104,4 @@ private:
     [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const;
 
     static void getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices);
-
-    static AmbientOcclusion getAmbientOcclusion(const ChunkNeighborhood& neighborChunks, uint32_t x, uint32_t y, uint32_t z);
 };

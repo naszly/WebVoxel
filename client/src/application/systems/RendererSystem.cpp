@@ -7,6 +7,7 @@
 #include "common/FileSystem.h"
 #include "application/graphics/PipelineBuilder.h"
 #include "application/meshing/LightPropagator.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
@@ -443,6 +444,8 @@ void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::v
                         if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
                             const auto& voxel = centerChunk.getVoxel(vx, vy, vz);
 
+                            const auto ambientOcclusion = AmbientOcclusionComputer::compute(neighborChunks, x, y, z);
+
                             const auto& faceNxLightIntensity = lightMap.getLightInfo(x - 1, y, z);
                             const auto& facePxLightIntensity = lightMap.getLightInfo(x + 1, y, z);
                             const auto& faceNyLightIntensity = lightMap.getLightInfo(x, y - 1, z);
@@ -455,7 +458,7 @@ void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::v
 
                             VertexData voxelData = {
                                 vx, vy, vz, 1, voxel,
-                                getAmbientOcclusion(neighborChunks, x, y, z),
+                                ambientOcclusion,
                                 voxelLight
                             };
 
@@ -466,42 +469,4 @@ void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::v
             }
         }
     }
-}
-
-AmbientOcclusion RendererSystem::getAmbientOcclusion(const ChunkNeighborhood &neighborChunks,
-                                                     const uint32_t x, const uint32_t y, const uint32_t z) {
-    struct OffsetFlag {
-        int dx, dy, dz;
-        AmbientOcclusion flag;
-    };
-
-    static constexpr OffsetFlag table[] = {
-        {-1, -1, -1, AmbientOcclusion::CornerNxNyNz},
-        {-1, -1,  1, AmbientOcclusion::CornerNxNyPz},
-        {-1,  1, -1, AmbientOcclusion::CornerNxPyNz},
-        {-1,  1,  1, AmbientOcclusion::CornerNxPyPz},
-        { 1, -1, -1, AmbientOcclusion::CornerPxNyNz},
-        { 1, -1,  1, AmbientOcclusion::CornerPxNyPz},
-        { 1,  1, -1, AmbientOcclusion::CornerPxPyNz},
-        { 1,  1,  1, AmbientOcclusion::CornerPxPyPz},
-        {-1, -1,  0, AmbientOcclusion::EdgeNxNy},
-        {-1,  1,  0, AmbientOcclusion::EdgeNxPy},
-        { 1, -1,  0, AmbientOcclusion::EdgePxNy},
-        { 1,  1,  0, AmbientOcclusion::EdgePxPy},
-        {-1,  0, -1, AmbientOcclusion::EdgeNxNz},
-        {-1,  0,  1, AmbientOcclusion::EdgeNxPz},
-        { 1,  0, -1, AmbientOcclusion::EdgePxNz},
-        { 1,  0,  1, AmbientOcclusion::EdgePxPz},
-        { 0, -1, -1, AmbientOcclusion::EdgeNyNz},
-        { 0, -1,  1, AmbientOcclusion::EdgeNyPz},
-        { 0,  1, -1, AmbientOcclusion::EdgePyNz},
-        { 0,  1,  1, AmbientOcclusion::EdgePyPz},
-    };
-
-    auto ao = AmbientOcclusion::None;
-    for (const auto& [dx, dy, dz, flag] : table) {
-        const uint32_t mask = testBitmaps(neighborChunks, dx + x, dy + y, dz + z);
-        ao |= static_cast<AmbientOcclusion>(mask * static_cast<uint32_t>(flag));
-    }
-    return ao;
 }
