@@ -106,16 +106,4 @@ private:
     static void getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices);
 
     static AmbientOcclusion getAmbientOcclusion(const ChunkNeighborhood& neighborChunks, uint32_t x, uint32_t y, uint32_t z);
-
-    static constexpr int LIGHT_MAP_DIM = Chunk::WIDTH * 3;
-    using LightMap = std::array<uint8_t, LIGHT_MAP_DIM*LIGHT_MAP_DIM*LIGHT_MAP_DIM>;
-    // using unique_ptr to allocate on the heap to avoid stack overflow
-    using LightMapPtr = std::unique_ptr<LightMap>;
-
-    static BlockLightInfo getBlockLightInfo(const LightMap& lightMap, const uint32_t x, const uint32_t y, const uint32_t z) {
-        return BlockLightInfo(lightMap[x * LIGHT_MAP_DIM * LIGHT_MAP_DIM + y * LIGHT_MAP_DIM + z]);
-    }
-
-    static LightMap& propagateLight(const ChunkNeighborhood& neighborChunks,
-                                    const std::vector<Chunk::LightSource>& lights);
 };
