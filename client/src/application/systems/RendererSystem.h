@@ -88,7 +88,6 @@ private:
     GpuTimestampProfiler m_profiler{};
 
     void createRenderPipeline();
-    static std::string loadShader(const char* filename);
     void initializeBuffers();
 
     auto getChunksToRender(const Camera& camera);

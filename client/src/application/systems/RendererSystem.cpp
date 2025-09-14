@@ -5,6 +5,7 @@
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
+#include "application/graphics/PipelineBuilder.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
@@ -284,250 +285,23 @@ void RendererSystem::exportTimestamps() const {
 
 void RendererSystem::createRenderPipeline() {
     const auto device = getWebGpuContext().getDevice();
-    const auto surfaceFormat = getWebGpuSurface().getSurfaceFormat();
 
-    // Load the shader module
-    WGPUShaderModuleDescriptor shaderDesc{};
-    std::string shaderCode = loadShader("shaders/shader.wgsl");
-
-    WGPUShaderSourceWGSL shaderCodeDesc{};
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-    shaderCodeDesc.code = WGPUStringView{shaderCode.c_str(), shaderCode.size()};
-    WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
-
-    // Create the bind group layout for uniforms
-    WGPUBindGroupLayoutEntry bglEntry{};
-    bglEntry.binding = 0;
-    bglEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    bglEntry.buffer.type = WGPUBufferBindingType_Uniform;
-    bglEntry.buffer.hasDynamicOffset = false;
-    bglEntry.buffer.minBindingSize = sizeof(Uniforms);
-
-    // Create the bind group layout for colors (storage buffer)
-    WGPUBindGroupLayoutEntry colorBglEntry{};
-    colorBglEntry.binding = 1;
-    colorBglEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    colorBglEntry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    colorBglEntry.buffer.hasDynamicOffset = false;
-    colorBglEntry.buffer.minBindingSize = 0;
-
-    // Create the bind group layout for texture array
-    WGPUBindGroupLayoutEntry textureArrayBglEntry{};
-    textureArrayBglEntry.binding = 2;
-    textureArrayBglEntry.visibility = WGPUShaderStage_Fragment;
-    textureArrayBglEntry.texture.sampleType = WGPUTextureSampleType_Float;
-    textureArrayBglEntry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-    textureArrayBglEntry.texture.multisampled = false;
-
-    std::array bglEntries{
-        bglEntry,
-        colorBglEntry,
-        textureArrayBglEntry
-    };
-    WGPUBindGroupLayoutDescriptor bglDesc{};
-    bglDesc.entryCount = bglEntries.size();
-    bglDesc.entries = bglEntries.data();
-    WGPUBindGroupLayout bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
-
-    // Create the bind group for uniforms
-    WGPUBindGroupEntry bgEntry{};
-    bgEntry.binding = 0;
-    bgEntry.buffer = m_uniformsBuffer->get();
-    bgEntry.offset = 0;
-    bgEntry.size = sizeof(Uniforms);
-
-    auto& blockTextureManager = getBlockTextureManager();
-
-    // Create the bind group for texture ids
-    WGPUBindGroupEntry textureIdsBgEntry{};
-    textureIdsBgEntry.binding = 1;
-    textureIdsBgEntry.buffer = blockTextureManager.getTextureIdsBuffer();
-    textureIdsBgEntry.offset = 0;
-    textureIdsBgEntry.size = blockTextureManager.getTextureIdsBufferSize();
-
-    // Create the bind group for texture array
-    WGPUBindGroupEntry textureArrayBgEntry{};
-    textureArrayBgEntry.binding = 2;
-    textureArrayBgEntry.sampler = nullptr;
-    textureArrayBgEntry.textureView = blockTextureManager.getTextureArrayView();
-
-    std::array bgEntries{
-        bgEntry,
-        textureIdsBgEntry,
-        textureArrayBgEntry
-    };
-    WGPUBindGroupDescriptor bgDesc{};
-    bgDesc.layout = bindGroupLayout;
-    bgDesc.entryCount = bgEntries.size();
-    bgDesc.entries = bgEntries.data();
-    m_uniformBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
-
-    // Create the pipeline layout
-    WGPUPipelineLayoutDescriptor pipelineLayoutDesc{};
-    pipelineLayoutDesc.bindGroupLayoutCount = 1;
-    pipelineLayoutDesc.bindGroupLayouts = &bindGroupLayout;
-    WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &pipelineLayoutDesc);
-
-    // Create the render pipeline
-    WGPURenderPipelineDescriptor pipelineDesc{};
-    pipelineDesc.nextInChain = nullptr;
-    pipelineDesc.layout = pipelineLayout;
-
-    // Configure the vertex pipeline
-    WGPUVertexBufferLayout billboardVertexBufferLayout{};
-    WGPUVertexAttribute billboardAttributes{};
-    billboardAttributes.shaderLocation = 0;
-    billboardAttributes.format = WGPUVertexFormat_Float32x2;
-    billboardAttributes.offset = 0;
-
-    billboardVertexBufferLayout.attributeCount = 1;
-    billboardVertexBufferLayout.attributes = &billboardAttributes;
-    billboardVertexBufferLayout.arrayStride = 2 * sizeof(float);
-    billboardVertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
-
-    // Configure the instance buffer layout
-    WGPUVertexBufferLayout voxelVertexBufferLayout{};
-    constexpr std::array voxelAttributes{
-        // Position
-        WGPUVertexAttribute{
-            .format = WGPUVertexFormat_Uint32,
-            .offset = 0,
-            .shaderLocation = 1,
-        },
-        // Id
-        WGPUVertexAttribute{
-            .format = WGPUVertexFormat_Uint32,
-            .offset = offsetof(VertexData, voxel),
-            .shaderLocation = 2,
-        },
-        // Ambient Occlusion
-        WGPUVertexAttribute{
-            .format = WGPUVertexFormat_Uint32,
-            .offset = offsetof(VertexData, ambientOcclusion),
-            .shaderLocation = 4,
-        },
-        // Light
-        WGPUVertexAttribute{
-            .format = WGPUVertexFormat_Uint32,
-            .offset = offsetof(VertexData, light),
-            .shaderLocation = 5,
-        }
-    };
-    uint32_t voxelAttributeCount = voxelAttributes.size();
-
-    voxelVertexBufferLayout.attributeCount = voxelAttributeCount;
-    voxelVertexBufferLayout.attributes = voxelAttributes.data();
-    voxelVertexBufferLayout.arrayStride = sizeof(VertexData);
-    voxelVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
-
-    WGPUVertexBufferLayout chunkVertexBufferLayout{};
-    constexpr std::array chunkAttributes{
-        WGPUVertexAttribute{
-            .format = WGPUVertexFormat_Float32x4,
-            .offset = 0,
-            .shaderLocation = 3,
-        }
+    const PipelineBuilder builder(device);
+    const PipelineOptions opts{
+        m_lighting,
+        m_fog,
+        m_pointLight,
+        m_sampleCount,
+        Chunk::WIDTH,
+        getWebGpuSurface().getSurfaceFormat()
     };
 
-    chunkVertexBufferLayout.attributeCount = chunkAttributes.size();
-    chunkVertexBufferLayout.attributes = chunkAttributes.data();
-    chunkVertexBufferLayout.arrayStride = 0;
-    chunkVertexBufferLayout.stepMode = WGPUVertexStepMode_Instance;
+    const auto& uniformBuffer = m_uniformsBuffer->get();
+    const auto& blockTextureManager = getBlockTextureManager();
+    const auto [pipeline, uniformBindGroup] = builder.build(opts, uniformBuffer, blockTextureManager);
 
-    const std::array bufferLayouts{
-        billboardVertexBufferLayout,
-        voxelVertexBufferLayout,
-        chunkVertexBufferLayout
-    };
-
-    constexpr std::array vertexConstants{
-        WGPUConstantEntry{
-            .key = WGPUStringView{"CHUNK_SIZE", WGPU_STRLEN},
-            .value = Chunk::WIDTH,
-        }
-    };
-
-    pipelineDesc.vertex.bufferCount = bufferLayouts.size();
-    pipelineDesc.vertex.buffers = bufferLayouts.data();
-    pipelineDesc.vertex.module = shaderModule;
-    pipelineDesc.vertex.entryPoint = WGPUStringView{"vsMain", WGPU_STRLEN};
-    pipelineDesc.vertex.constantCount = vertexConstants.size();
-    pipelineDesc.vertex.constants = vertexConstants.data();
-
-    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
-    pipelineDesc.primitive.cullMode = WGPUCullMode_None;
-
-    WGPUBlendState blendState{};
-    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blendState.color.operation = WGPUBlendOperation_Add;
-    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blendState.alpha.dstFactor = WGPUBlendFactor_One;
-    blendState.alpha.operation = WGPUBlendOperation_Add;
-
-    WGPUColorTargetState colorTarget{};
-    colorTarget.format = surfaceFormat;
-    colorTarget.blend = &blendState;
-    colorTarget.writeMask = WGPUColorWriteMask_All;
-
-    const std::array fragmentConstants{
-        WGPUConstantEntry{
-            .key = WGPUStringView{"LIGHTING", WGPU_STRLEN},
-            .value = static_cast<double>(m_lighting),
-        },
-        WGPUConstantEntry{
-            .key = WGPUStringView{"FOG", WGPU_STRLEN},
-            .value = static_cast<double>(m_fog),
-        },
-        WGPUConstantEntry{
-            .key = WGPUStringView{"POINT_LIGHT", WGPU_STRLEN},
-            .value = static_cast<double>(m_pointLight),
-        }
-    };
-
-    WGPUFragmentState fragmentState{};
-    fragmentState.module = shaderModule;
-    fragmentState.entryPoint = WGPUStringView{"fsMain", WGPU_STRLEN};
-    fragmentState.constantCount = fragmentConstants.size();
-    fragmentState.constants = fragmentConstants.data();
-
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTarget;
-
-    // Configure the depth-stencil state
-    WGPUDepthStencilState depthStencilState{};
-    depthStencilState.format = WGPUTextureFormat_Depth24PlusStencil8;
-    depthStencilState.depthWriteEnabled = WGPUOptionalBool_True;
-    depthStencilState.depthCompare = WGPUCompareFunction_Less;
-    depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
-    depthStencilState.stencilFront.failOp = WGPUStencilOperation_Keep;
-    depthStencilState.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
-    depthStencilState.stencilFront.passOp = WGPUStencilOperation_Keep;
-    depthStencilState.stencilBack = depthStencilState.stencilFront;
-
-    pipelineDesc.fragment = &fragmentState;
-    pipelineDesc.depthStencil = &depthStencilState;
-    pipelineDesc.multisample.count = m_sampleCount;
-    pipelineDesc.multisample.mask = ~0u;
-    pipelineDesc.multisample.alphaToCoverageEnabled = false;
-
-    m_renderPipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
-
-    wgpuShaderModuleRelease(shaderModule);
-    wgpuBindGroupLayoutRelease(bindGroupLayout);
-    wgpuPipelineLayoutRelease(pipelineLayout);
-}
-
-std::string RendererSystem::loadShader(const char *filename) {
-    auto shaderBuffer = FileSystem::readFileNative(filename);
-
-    std::string shaderCode(shaderBuffer.begin(), shaderBuffer.end());
-
-    return shaderCode;
+    m_renderPipeline = pipeline;
+    m_uniformBindGroup = uniformBindGroup;
 }
 
 void RendererSystem::initializeBuffers() {
