@@ -15,7 +15,7 @@ enum CursorMode {
 
 class Input {
 public:
-    explicit Input(GLFWwindow *window) : m_glfwWindow(window) {};
+    explicit Input(GLFWwindow *window) : m_glfwWindow(window) {}
 
     ~Input() = default;
 

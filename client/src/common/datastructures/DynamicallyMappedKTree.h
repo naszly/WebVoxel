@@ -81,7 +81,7 @@ public:
         return *this;
     }
 
-    const DataType& getData(uint32_t x, uint32_t y, uint32_t z) const {
+    [[nodiscard]] const DataType& getData(uint32_t x, uint32_t y, uint32_t z) const {
         switch (m_idSize) {
             case IdSize::U8Bit: return m_tree.u8Tree->getData(x, y, z);
             case IdSize::U16Bit: return m_tree.u16Tree->getData(x, y, z);

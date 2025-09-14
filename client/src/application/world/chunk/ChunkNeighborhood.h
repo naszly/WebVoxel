@@ -14,6 +14,6 @@ public:
     [[nodiscard]] bool hasAllNeighbours() const;
     [[nodiscard]] bool anyNeighbourDirty() const;
 
-    const Chunk* getChunk(int x, int y, int z) const;
-    const Chunk* getCenterChunk() const { return neighborhood[1][1][1]; }
+    [[nodiscard]] const Chunk* getChunk(int x, int y, int z) const;
+    [[nodiscard]] const Chunk* getCenterChunk() const { return neighborhood[1][1][1]; }
 };

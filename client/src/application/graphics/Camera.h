@@ -52,15 +52,15 @@ public:
         return m_position;
     }
 
-    float getFov() const {
+    [[nodiscard]] float getFov() const {
         return m_fov;
     }
 
-    float getAspect() const {
+    [[nodiscard]] float getAspect() const {
         return m_aspect;
     }
 
-    [[nodiscard]] bool isSphereInFrustum(const glm::vec3& center, float radius) const {
+    [[nodiscard]] bool isSphereInFrustum(const glm::vec3& center, const float radius) const {
         glm::mat4 projView = getProjectionViewMatrix();
 
         // Extract frustum planes from the projection-view matrix

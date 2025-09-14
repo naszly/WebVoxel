@@ -26,15 +26,15 @@ public:
     void setAppReference(Application& app) { m_app = &app; }
 
 protected:
-    Application& getApplication() const { return *m_app; }
-    ApplicationData& getApplicationData() const;
-    Camera& getCamera() const;
-    const Input& getInput() const;
-    World& getWorld() const;
-    const WebGpuContext& getWebGpuContext() const;
-    const WebGpuSurface& getWebGpuSurface() const;
-    GLFWwindow* getGlfwWindow() const;
-    BlockTextureManager& getBlockTextureManager() const;
+    [[nodiscard]] Application& getApplication() const { return *m_app; }
+    [[nodiscard]] ApplicationData& getApplicationData() const;
+    [[nodiscard]] Camera& getCamera() const;
+    [[nodiscard]] const Input& getInput() const;
+    [[nodiscard]] World& getWorld() const;
+    [[nodiscard]] const WebGpuContext& getWebGpuContext() const;
+    [[nodiscard]] const WebGpuSurface& getWebGpuSurface() const;
+    [[nodiscard]] GLFWwindow* getGlfwWindow() const;
+    [[nodiscard]] BlockTextureManager& getBlockTextureManager() const;
 private:
     Application* m_app = nullptr;
 };

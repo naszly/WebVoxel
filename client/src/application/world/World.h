@@ -16,9 +16,9 @@ public:
 
     [[nodiscard]] auto getChunks() { return m_chunks.getChunks(); }
 
-    Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
+    [[nodiscard]] Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
 
-    ChunkNeighborhood getChunkNeighborhood(const glm::ivec3 &chunkPos) const;
+    [[nodiscard]] ChunkNeighborhood getChunkNeighborhood(const glm::ivec3 &chunkPos) const;
 
     [[nodiscard]] auto countChunks() const { return m_chunks.countChunks(); }
 
@@ -28,7 +28,7 @@ public:
 
     void insertChunkByMove(Chunk &chunk);
 
-    Chunk extractChunkByMove(const glm::ivec3& chunkPos);
+    [[nodiscard]] Chunk extractChunkByMove(const glm::ivec3& chunkPos);
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 

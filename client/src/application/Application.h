@@ -52,7 +52,7 @@ public:
         return m_camera;
     }
 
-    BlockTextureManager& getBlockTextureManager() const {
+    [[nodiscard]] BlockTextureManager& getBlockTextureManager() const {
         return *m_blockTextureManager;
     }
 
@@ -85,7 +85,7 @@ private:
 
     void update(float deltaTime);
 
-    WGPUTextureView getNextSurfaceTextureView() const;
+    [[nodiscard]] WGPUTextureView getNextSurfaceTextureView() const;
 
     void render();
 

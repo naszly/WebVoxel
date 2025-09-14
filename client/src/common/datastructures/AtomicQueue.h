@@ -92,10 +92,10 @@ public:
         }
     }
 
-    bool empty() const {
+    [[nodiscard]] bool empty() const {
         Node* head = m_head.load(std::memory_order_acquire);
         Node* tail = m_tail.load(std::memory_order_acquire);
         Node* next = head->next.load(std::memory_order_acquire);
-        return (head == tail) && (next == nullptr);
+        return head == tail && next == nullptr;
     }
 };

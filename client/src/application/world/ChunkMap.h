@@ -29,7 +29,7 @@ public:
 
     void insertChunkByMove(Chunk &chunk);
 
-    Chunk extractChunkByMove(const glm::ivec3& key);
+    [[nodiscard]] Chunk extractChunkByMove(const glm::ivec3& key);
 
     [[nodiscard]] auto getChunks() { return m_chunks | std::ranges::views::values; }
 
