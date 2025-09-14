@@ -125,6 +125,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     if (ImGui::Button("Clean saved chunks")) {
         Chunk::cleanFs();
+        getWorld().clear();
     }
 
     if (const auto renderer = getApplication().getSystem<RendererSystem>()) {

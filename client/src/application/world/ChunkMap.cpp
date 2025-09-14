@@ -101,6 +101,10 @@ void ChunkMap::executeQueuedVoxelsToSet(Chunk* chunk) {
     chunk->executeQueuedVoxelsToSet();
 }
 
+void ChunkMap::clear() {
+    m_chunks.clear();
+}
+
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {
     if (const auto neighbor = tryGetChunk(key)) {
         neighbor->setGpuBufferDirty();

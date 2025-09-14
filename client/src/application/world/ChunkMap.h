@@ -45,6 +45,8 @@ public:
 
     void executeQueuedVoxelsToSet(Chunk* chunk);
 
+    void clear();
+
 private:
     HashMap<glm::ivec3, Chunk> m_chunks;
 

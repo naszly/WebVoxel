@@ -42,6 +42,8 @@ public:
 
     void removeVoxel(const WorldCoordinate &coord, int64_t radius, bool isSphere = true);
 
+    void clear() { m_chunks.clear(); }
+
 private:
     ChunkMap m_chunks;
 };
