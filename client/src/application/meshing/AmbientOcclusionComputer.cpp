@@ -1,22 +1,5 @@
 #include "AmbientOcclusionComputer.h"
 
-#include <cassert>
-#include "application/world/chunk/Chunk.h"
-
-namespace {
-    uint32_t testBitmaps(const ChunkNeighborhood& neighborChunks, const uint32_t x, const uint32_t y, const uint32_t z) {
-        assert(x < 3 * Chunk::WIDTH && y < 3 * Chunk::WIDTH && z < 3 * Chunk::WIDTH);
-        const uint32_t cnx = x / Chunk::WIDTH;
-        const uint32_t cny = y / Chunk::WIDTH;
-        const uint32_t cnz = z / Chunk::WIDTH;
-        const uint32_t bx = x % Chunk::WIDTH;
-        const uint32_t by = y % Chunk::WIDTH;
-        const uint32_t bz = z % Chunk::WIDTH;
-        const uint32_t index = bx * Chunk::WIDTH * Chunk::WIDTH + by * Chunk::WIDTH + bz;
-        return neighborChunks.getChunk(cnx,cny,cnz)->getBitmap().test(index);
-    }
-}
-
 AmbientOcclusion AmbientOcclusionComputer::compute(const ChunkNeighborhood& neighborChunks,
                                                    const uint32_t x, const uint32_t y, const uint32_t z) {
     struct OffsetFlag { int dx, dy, dz; AmbientOcclusion flag; };
@@ -46,7 +29,7 @@ AmbientOcclusion AmbientOcclusionComputer::compute(const ChunkNeighborhood& neig
 
     auto ao = AmbientOcclusion::None;
     for (const auto& [dx, dy, dz, flag] : table) {
-        const uint32_t mask = testBitmaps(neighborChunks, x + dx, y + dy, z + dz);
+        const uint32_t mask = neighborChunks.hasVoxelAt(x + dx, y + dy, z + dz);
         ao |= static_cast<AmbientOcclusion>(mask * static_cast<uint32_t>(flag));
     }
     return ao;

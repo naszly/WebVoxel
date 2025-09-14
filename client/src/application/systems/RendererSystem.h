@@ -99,9 +99,5 @@ private:
 
     [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
-    [[nodiscard]] static bool testBitmaps(const ChunkNeighborhood& neighborChunks, uint32_t x, uint32_t y, uint32_t z);
-
     [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const;
-
-    static void getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices);
 };

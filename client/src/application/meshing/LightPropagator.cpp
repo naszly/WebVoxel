@@ -4,20 +4,6 @@
 #include <algorithm>
 #include <ranges>
 
-namespace {
-    bool testBitmaps(const ChunkNeighborhood& neighborChunks, const uint32_t x, const uint32_t y, const uint32_t z) {
-        assert(x < 3 * Chunk::WIDTH && y < 3 * Chunk::WIDTH && z < 3 * Chunk::WIDTH);
-        const uint32_t cnx = x / Chunk::WIDTH;
-        const uint32_t cny = y / Chunk::WIDTH;
-        const uint32_t cnz = z / Chunk::WIDTH;
-        const uint32_t bx = x % Chunk::WIDTH;
-        const uint32_t by = y % Chunk::WIDTH;
-        const uint32_t bz = z % Chunk::WIDTH;
-        const uint32_t index = bx * Chunk::WIDTH * Chunk::WIDTH + by * Chunk::WIDTH + bz;
-        return neighborChunks.getChunk(cnx, cny, cnz)->getBitmap().test(index);
-    }
-}
-
 const LightPropagator::LightMap& LightPropagator::compute(const ChunkNeighborhood& neighborChunks,
                                                           const std::vector<Chunk::LightSource>& lights) {
     static std::array<std::vector<int>, 32> buckets; // up to 31
@@ -94,7 +80,7 @@ const LightPropagator::LightMap& LightPropagator::compute(const ChunkNeighborhoo
                     static_cast<unsigned>(nz) >= DIM)
                     continue;
 
-                if (testBitmaps(neighborChunks, nx, ny, nz))
+                if (neighborChunks.hasVoxelAt(nx, ny, nz))
                     continue;
 
                 int nextIdx = idx + OFFSETS[d];

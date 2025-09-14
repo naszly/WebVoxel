@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 
 class Chunk;
 
@@ -16,4 +17,5 @@ public:
 
     [[nodiscard]] const Chunk* getChunk(int x, int y, int z) const;
     [[nodiscard]] const Chunk* getCenterChunk() const { return neighborhood[1][1][1]; }
+    [[nodiscard]] bool hasVoxelAt(uint32_t x, uint32_t y, uint32_t z) const;
 };

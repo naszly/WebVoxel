@@ -1,13 +1,10 @@
 #include "RendererSystem.h"
 
 #include "application/Application.h"
-#include "application/domain/BlockLightInfo.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
-#include "common/FileSystem.h"
 #include "application/graphics/PipelineBuilder.h"
-#include "application/meshing/LightPropagator.h"
-#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/VoxelVertexGenerator.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
@@ -352,25 +349,13 @@ bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
     return neighbours.hasAllNeighbours();
 }
 
-bool RendererSystem::testBitmaps(const ChunkNeighborhood& neighborChunks, const uint32_t x, const uint32_t y, const uint32_t z) {
-    assert(x < 3 * Chunk::WIDTH && y < 3 * Chunk::WIDTH && z < 3 * Chunk::WIDTH);
-    const uint32_t cnx = x / Chunk::WIDTH;
-    const uint32_t cny = y / Chunk::WIDTH;
-    const uint32_t cnz = z / Chunk::WIDTH;
-    const uint32_t bx = x % Chunk::WIDTH;
-    const uint32_t by = y % Chunk::WIDTH;
-    const uint32_t bz = z % Chunk::WIDTH;
-    const uint32_t index = bx * Chunk::WIDTH * Chunk::WIDTH + by * Chunk::WIDTH + bz;
-    return neighborChunks.getChunk(cnx,cny,cnz)->getBitmap().test(index);
-}
-
 RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const {
     ChunkVertexBuffer vertexBuffer;
 
     static std::vector<VertexData> points;
     points.clear();
 
-    getVertices(neighborChunks, points);
+    VoxelVertexGenerator::generate(neighborChunks, points);
 
     if (points.empty()) {
         return vertexBuffer;
@@ -404,69 +389,4 @@ RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const 
     wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
     return vertexBuffer;
-}
-
-void RendererSystem::getVertices(const ChunkNeighborhood& neighborChunks, std::vector<VertexData> &vertices) {
-    const auto& centerChunk = *neighborChunks.getCenterChunk();
-
-    // Find all light sources in the chunk
-    std::vector<Chunk::LightSource> lights;
-    for (int x = 0; x < 3; ++x) {
-        for (int y = 0; y < 3; ++y) {
-            for (int z = 0; z < 3; ++z) {
-                const auto& chunk = *neighborChunks.getChunk(x, y, z);
-                auto chunkLight = chunk.getLightSources(x-1, y-1, z-1);
-                lights.insert(lights.end(), chunkLight.begin(), chunkLight.end());
-            }
-        }
-    }
-
-    const auto& lightMap = LightPropagator::compute(neighborChunks, lights);
-
-    // The chunk is now in the center of a 3*WIDTH bitmap, so valid voxel region is:
-    // x, y, z in [WIDTH, 2*WIDTH)
-    for (uint32_t x = Chunk::WIDTH; x < 2 * Chunk::WIDTH; ++x) {
-        for (uint32_t y = Chunk::WIDTH; y < 2 * Chunk::WIDTH; ++y) {
-            for (uint32_t z = Chunk::WIDTH; z < 2 * Chunk::WIDTH; ++z) {
-                if (testBitmaps(neighborChunks, x, y, z)) {
-                    // Check if not fully surrounded
-                    const bool nx = testBitmaps(neighborChunks, x-1, y, z);
-                    const bool px = testBitmaps(neighborChunks, x+1, y, z);
-                    const bool ny = testBitmaps(neighborChunks, x, y-1, z);
-                    const bool py = testBitmaps(neighborChunks, x, y+1, z);
-                    const bool nz = testBitmaps(neighborChunks, x, y, z-1);
-                    const bool pz = testBitmaps(neighborChunks, x, y, z+1);
-                    const bool surrounded = nx & px & ny & py & nz & pz;
-                    if (!surrounded) {
-                        const uint8_t vx = x - Chunk::WIDTH;
-                        const uint8_t vy = y - Chunk::WIDTH;
-                        const uint8_t vz = z - Chunk::WIDTH;
-                        if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
-                            const auto& voxel = centerChunk.getVoxel(vx, vy, vz);
-
-                            const auto ambientOcclusion = AmbientOcclusionComputer::compute(neighborChunks, x, y, z);
-
-                            const auto& faceNxLightIntensity = lightMap.getLightInfo(x - 1, y, z);
-                            const auto& facePxLightIntensity = lightMap.getLightInfo(x + 1, y, z);
-                            const auto& faceNyLightIntensity = lightMap.getLightInfo(x, y - 1, z);
-                            const auto& facePyLightIntensity = lightMap.getLightInfo(x, y + 1, z);
-                            const auto& faceNzLightIntensity = lightMap.getLightInfo(x, y, z - 1);
-                            const auto& facePzLightIntensity = lightMap.getLightInfo(x, y, z + 1);
-                            const auto voxelLight = PackedLight(faceNxLightIntensity, facePxLightIntensity,
-                                                                faceNyLightIntensity, facePyLightIntensity,
-                                                                faceNzLightIntensity, facePzLightIntensity);
-
-                            VertexData voxelData = {
-                                vx, vy, vz, 1, voxel,
-                                ambientOcclusion,
-                                voxelLight
-                            };
-
-                            vertices.emplace_back(voxelData);
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
