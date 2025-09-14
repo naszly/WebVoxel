@@ -213,10 +213,11 @@
   let height = urlParams.get('height') || 720;
   let modelIndex = urlParams.get('modelIndex');
 
-  if (width && height) {
-    Module.arguments.push(width.toString());
-    Module.arguments.push(height.toString());
-    if (modelIndex) { Module.arguments.push(modelIndex.toString()); }
+  Module.arguments.push('--width', width.toString());
+  Module.arguments.push('--height', height.toString());
+
+  if (modelIndex !== null) {
+    Module.arguments.push('--modelIndex', modelIndex.toString());
   }
 
   function setModelIndex(index) {
