@@ -217,8 +217,8 @@ glm::vec3 ControllerSystem::computeMovementDirection(const Input& input, const C
     return moveDir;
 }
 
-float ControllerSystem::computeCameraSpeed(const Input& input) {
-    float speed = CAMERA_BASE_SPEED;
+float ControllerSystem::computeCameraSpeed(const Input& input) const {
+    float speed = m_gravityEnabled ? CAMERA_BASE_SPEED : CAMERA_GOD_MODE_SPEED;
     if (input.isKeyPressed(KEY_SPRINT)) {
         speed *= CAMERA_SPRINT_MULTIPLIER;
     }

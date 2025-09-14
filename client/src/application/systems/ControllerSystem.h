@@ -35,6 +35,7 @@ private:
     static constexpr float CAMERA_GRAVITY = -60.0f;
     static constexpr float CAMERA_JUMP_SPEED = 12.0f;
     static constexpr float CAMERA_BASE_SPEED = 9.0f;
+    static constexpr float CAMERA_GOD_MODE_SPEED = 20.0f;
     static constexpr float CAMERA_SPRINT_MULTIPLIER = 1.5f;
     static constexpr float CAMERA_FOV_SPRINT_MULTIPLIER = 1.13f;
     static constexpr float CAMERA_FOV_LERP_SPEED = 8.0f;
@@ -50,7 +51,7 @@ private:
 
     void updateCameraMovement(float dt, const Input &input, Camera &camera);
     glm::vec3 computeMovementDirection(const Input& input, const Camera& camera) const;
-    static float computeCameraSpeed(const Input& input);
+    float computeCameraSpeed(const Input& input) const;
     void moveAndCollideCamera(Camera& camera, glm::vec3 velocity);
     static SweptAABBResult sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,
                                      const glm::vec3& vel,
