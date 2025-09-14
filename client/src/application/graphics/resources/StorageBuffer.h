@@ -3,10 +3,10 @@
 #include <webgpu/webgpu.h>
 #include <cstdint>
 
-class StorageBufferManager {
+class StorageBuffer {
 public:
-    StorageBufferManager(const WGPUDevice& device, const WGPUQueue& queue, const void* initialData, uint64_t dataSize, WGPUBufferUsage usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
-    ~StorageBufferManager();
+    StorageBuffer(const WGPUDevice& device, const WGPUQueue& queue, const void* initialData, uint64_t dataSize, WGPUBufferUsage usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage);
+    ~StorageBuffer();
 
     [[nodiscard]] WGPUBuffer getBuffer() const { return m_buffer; }
     [[nodiscard]] uint64_t getBufferSize() const { return m_bufferSize; }

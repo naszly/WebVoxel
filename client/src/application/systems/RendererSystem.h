@@ -7,7 +7,7 @@
 
 #include "application/graphics/GpuTimestampProfiler.h"
 #include "application/graphics/RenderTargets.h"
-#include "application/graphics/UniformsBuffer.h"
+#include "application/graphics/resources/UniformsBuffer.h"
 #include "application/graphics/ChunkRenderManager.h"
 
 class RendererSystem final : public System {

@@ -1,6 +1,6 @@
-#include "StorageBufferManager.h"
+#include "StorageBuffer.h"
 
-StorageBufferManager::StorageBufferManager(const WGPUDevice& device, const WGPUQueue& queue, const void* initialData, const uint64_t dataSize, const WGPUBufferUsage usage) {
+StorageBuffer::StorageBuffer(const WGPUDevice& device, const WGPUQueue& queue, const void* initialData, const uint64_t dataSize, const WGPUBufferUsage usage) {
     m_bufferSize = dataSize;
     WGPUBufferDescriptor bufferDesc{};
     bufferDesc.nextInChain = nullptr;
@@ -13,7 +13,7 @@ StorageBufferManager::StorageBufferManager(const WGPUDevice& device, const WGPUQ
     }
 }
 
-StorageBufferManager::~StorageBufferManager() {
+StorageBuffer::~StorageBuffer() {
     if (m_buffer) {
         wgpuBufferRelease(m_buffer);
     }

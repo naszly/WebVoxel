@@ -54,7 +54,7 @@ void BlockTextureManager::setTextureForSouthFace(const BlockId& block, const Tex
 }
 
 void BlockTextureManager::initializeStorageBuffer(const WebGpuContext& webGpuContext) {
-    m_storageBufferManager = std::make_unique<StorageBufferManager>(
+    m_storageBuffer = std::make_unique<StorageBuffer>(
            webGpuContext.getDevice(),
            wgpuDeviceGetQueue(webGpuContext.getDevice()),
            m_blockTextures.data(),
@@ -63,11 +63,11 @@ void BlockTextureManager::initializeStorageBuffer(const WebGpuContext& webGpuCon
 }
 
 WGPUBuffer BlockTextureManager::getTextureIdsBuffer() const {
-    return m_storageBufferManager->getBuffer();
+    return m_storageBuffer->getBuffer();
 }
 
 uint64_t BlockTextureManager::getTextureIdsBufferSize() const {
-    return m_storageBufferManager->getBufferSize();
+    return m_storageBuffer->getBufferSize();
 }
 
 WGPUTextureView BlockTextureManager::getTextureArrayView() const {

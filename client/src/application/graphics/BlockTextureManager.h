@@ -5,8 +5,8 @@
 #include <memory>
 #include <vector>
 
-#include "StorageBufferManager.h"
-#include "TextureArray.h"
+#include "resources/StorageBuffer.h"
+#include "resources/TextureArray.h"
 #include "application/domain/BlockId.h"
 #include "common/datastructures/HashMap.h"
 
@@ -55,7 +55,7 @@ private:
     std::vector<BlockTextures> m_blockTextures;
     HashMap<const char*, TextureId> m_textureNameMap;
     std::unique_ptr<TextureArray> m_textureArray;
-    std::unique_ptr<StorageBufferManager> m_storageBufferManager;
+    std::unique_ptr<StorageBuffer> m_storageBuffer;
 };
 
 class BlockTextureManagerBuilder {
