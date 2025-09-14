@@ -21,8 +21,8 @@
 
     canvas.emscripten:focus,
     canvas.emscripten:focus-visible {
-      outline: 2px solid #3399FF;
-      box-shadow: 0 0 8px #3399FF;
+      outline: 1px solid #3399FF;
+      box-shadow: 0 0 4px #3399FF;
     }
 
     .spinner {
@@ -67,9 +67,25 @@
 
     #progress { height: 20px; width: 300px; }
 
-    #controls { display: flex; justify-content: center; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin: 8px; }
+    #header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 6px 10px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.4), rgba(0,0,0,0));
+      pointer-events: none;
+    }
+    #header button,
+    #header input[type="button"] { pointer-events: auto; }
 
-    /* Buttons */
     button, input[type="button"] {
       background-color: #222;
       color: #e0e0e0;
@@ -82,7 +98,6 @@
     }
     button:hover, input[type="button"]:hover { background-color: #333; }
 
-    /* Controls documentation card */
     #controls-doc {
       margin: 10px auto 16px;
       max-width: 640px;
@@ -101,10 +116,9 @@
 <body>
 
 <div>
-  <div class="spinner" id="spinner"></div>
-  <div class="emscripten" id="status">Downloading...</div>
-
-  <div id="controls">
+  <div id="header">
+    <div class="spinner" id="spinner"></div>
+    <div class="emscripten" id="status">Downloading...</div>
     <span>
       <input type="button" value="Fullscreen" onclick="Module.requestFullscreen()">
     </span>
@@ -131,8 +145,8 @@
 <div id="controls-doc" class="emscripten">
   <h3>Controls</h3>
   <ul>
-    <li>Click once to lock cursor; press Esc or E to unlock</li>
     <li>Mouse: look around</li>
+    <li>Click once to lock cursor; press Esc or E to unlock</li>
     <li>Left click: remove voxel</li>
     <li>Right click: place voxel</li>
     <li>W/A/S/D: move</li>
@@ -193,7 +207,7 @@
     Module.setStatus = (text) => { if (text) console.error('[post-exception status] ' + text); };
   };
 
-  let width = urlParams.get('width') || 1280;
+  let width = urlParams.get('width') || 1440;
   let height = urlParams.get('height') || 720;
   let modelIndex = urlParams.get('modelIndex');
 
