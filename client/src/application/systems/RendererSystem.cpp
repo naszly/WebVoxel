@@ -20,33 +20,7 @@ void RendererSystem::initialize() {
     createDepthTexture();
     createRenderPipeline();
 
-    // Initialize GPUQuerySet for benchmarking
-    if (wgpuAdapterHasFeature(getWebGpuContext().getAdapter(), WGPUFeatureName_TimestampQuery)) {
-        const auto device = getWebGpuContext().getDevice();
-
-        WGPUQuerySetDescriptor querySetDesc = {};
-        querySetDesc.count = 2;
-        querySetDesc.type = WGPUQueryType_Timestamp;
-        m_querySet = wgpuDeviceCreateQuerySet(device, &querySetDesc);
-
-        // 1. Query resolve buffer (GPU-only)
-        WGPUBufferDescriptor resolveBufferDesc = {};
-        resolveBufferDesc.size = 2 * sizeof(uint64_t);
-        resolveBufferDesc.usage = WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc;
-        resolveBufferDesc.mappedAtCreation = false;
-        resolveBufferDesc.label = WGPUStringView{"Query Resolve Buffer", WGPU_STRLEN};
-        m_queryResolveBuffer = wgpuDeviceCreateBuffer(device, &resolveBufferDesc);
-
-        // 2. Read buffer (CPU-visible)
-        WGPUBufferDescriptor readBufferDesc = {};
-        readBufferDesc.size = m_queryReadBufferCapacity;
-        readBufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-        readBufferDesc.mappedAtCreation = false;
-        readBufferDesc.label = WGPUStringView{"Query Read Buffer", WGPU_STRLEN};
-        m_queryReadBuffer = wgpuDeviceCreateBuffer(device, &readBufferDesc);
-    } else {
-        LogApp::warning("TimestampQuery feature not supported");
-    }
+    m_profiler.init(getWebGpuContext().getAdapter(), getWebGpuContext().getDevice());
 }
 
 auto RendererSystem::getChunksToRender(const Camera& camera) {
@@ -122,15 +96,11 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.stencilClearValue = 0;
 
-    WGPUPassTimestampWrites timestampWrites = {};
-    timestampWrites.querySet = m_querySet;
-    timestampWrites.beginningOfPassWriteIndex = 0;
-    timestampWrites.endOfPassWriteIndex = 1;
-
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
     renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
-    renderPassDesc.timestampWrites = &timestampWrites;
+
+    m_profiler.attachTo(renderPassDesc);
 
     renderPassDesc.label = WGPUStringView{"RendererSystem RenderPass", WGPU_STRLEN};
 
@@ -166,26 +136,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     wgpuRenderPassEncoderEnd(renderPass);
     wgpuRenderPassEncoderRelease(renderPass);
 
-    if (wgpuBufferGetMapState(m_queryReadBuffer) == WGPUBufferMapState_Unmapped) {
-        constexpr uint64_t bufferSize = 2 * sizeof(uint64_t);
-
-        wgpuCommandEncoderResolveQuerySet(encoder, m_querySet, 0, 2, m_queryResolveBuffer, 0);
-
-        if (m_queryReadBufferSize >= m_queryReadBufferCapacity) {
-            m_queryReadBufferSize = 0;
-        }
-
-        m_queryReadBufferSize += bufferSize;
-
-        wgpuCommandEncoderCopyBufferToBuffer(encoder,
-                                             m_queryResolveBuffer,
-                                             0,
-                                             m_queryReadBuffer,
-                                             m_queryReadBufferSize - bufferSize,
-                                             bufferSize);
-    } else {
-        LogApp::warning("Query read buffer is mapped, skipping copy");
-    }
+    m_profiler.resolveAndCopy(encoder);
 }
 
 void RendererSystem::update(const float dt) {
@@ -278,7 +229,7 @@ void RendererSystem::onEvent(Event &event) {
     EventDispatcher dispatcher(event);
 
     dispatcher.dispatch<WindowResizedEvent>([&](const WindowResizedEvent &windowResizedEvent) {
-        LogApp::info("WindowResizedEvent: {0}, {1}", windowResizedEvent.getWidth(), windowResizedEvent.getHeight());
+        LogApp::info("WindowResizedEvent: {}, {}", windowResizedEvent.getWidth(), windowResizedEvent.getHeight());
 
         m_viewportWidth = windowResizedEvent.getWidth();
         m_viewportHeight = windowResizedEvent.getHeight();
@@ -322,34 +273,8 @@ void RendererSystem::setMultisampling(const bool multisampling) {
 
 void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
-
-    WGPUQueueWorkDoneCallback onWorkDoneCallback = [](WGPUQueueWorkDoneStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
-        const auto rendererSystem = static_cast<const RendererSystem*>(userdata1);
-        if (status == WGPUQueueWorkDoneStatus_Success) {
-            LogApp::info("Exporting timestamps...");
-            rendererSystem->exportTimestampsInternal();
-        } else {
-            LogApp::error("Failed to export timestamps");
-        }
-    };
-
-    WGPUQueueWorkDoneCallbackInfo workDoneInfo = {};
-    workDoneInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    workDoneInfo.callback = onWorkDoneCallback;
-    workDoneInfo.userdata1 = const_cast<RendererSystem *>(this);
-    workDoneInfo.userdata2 = nullptr;
-    workDoneInfo.nextInChain = nullptr;
-
-    WGPUFutureWaitInfo futureInfo = {};
-    futureInfo.future = wgpuQueueOnSubmittedWorkDone(queue, workDoneInfo);
-
     const WGPUInstance& instance = getWebGpuContext().getInstance();
-
-    const auto waitStatus = wgpuInstanceWaitAny(instance, 1, &futureInfo, 6e+10);
-
-    if (waitStatus != WGPUWaitStatus_Success) {
-        LogApp::error("Failed to wait for work done: {0}", magic_enum::enum_name(waitStatus));
-    }
+    m_profiler.exportTimestamps(instance, queue);
 }
 
 void RendererSystem::createRenderPipeline() {
@@ -725,68 +650,6 @@ void RendererSystem::initializeBuffers() {
     uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
     uniformBufferDesc.mappedAtCreation = false;
     m_uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
-}
-
-void RendererSystem::exportTimestampsInternal() const {
-    struct UserData {
-        WGPUBuffer buffer;
-        uint64_t size;
-        std::vector<uint64_t> durations;
-    };
-
-    auto callback = [](const WGPUMapAsyncStatus status,
-                       WGPUStringView message,
-                       WGPU_NULLABLE void* userdata1,
-                       WGPU_NULLABLE void* userdata2)
-    {
-        const auto data = static_cast<UserData*>(userdata1);
-        if (status == WGPUMapAsyncStatus_Success) {
-            if (const auto* timestamps = static_cast<const uint64_t*>(wgpuBufferGetConstMappedRange(data->buffer, 0, data->size))) {
-                for (size_t i = 0; i < data->size / sizeof(uint64_t) / 2; ++i) {
-                    uint64_t duration = timestamps[i*2+1] - timestamps[i*2];
-                    data->durations.push_back(duration);
-                }
-            } else {
-                LogApp::error("Failed to get mapped range from query read buffer");
-            }
-            wgpuBufferUnmap(data->buffer);
-        } else {
-            LogApp::error("Failed to map query read buffer: {0}", magic_enum::enum_name(status));
-        }
-    };
-
-    UserData userData{m_queryReadBuffer, m_queryReadBufferSize};
-
-    auto callbackInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
-    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-    callbackInfo.callback = callback;
-    callbackInfo.userdata1 = &userData;
-
-    WGPUFutureWaitInfo futureInfo = {};
-    futureInfo.future = wgpuBufferMapAsync(m_queryReadBuffer, WGPUMapMode_Read, 0, m_queryReadBufferCapacity, callbackInfo);
-
-    const WGPUInstance& instance = getWebGpuContext().getInstance();
-
-    const auto waitStatus = wgpuInstanceWaitAny(instance, 1, &futureInfo, 6e+10);
-
-    if (waitStatus != WGPUWaitStatus_Success) {
-        LogApp::error("Failed to wait for buffer map async: {0}", magic_enum::enum_name(waitStatus));
-        return;
-    }
-
-    if (!userData.durations.empty()) {
-        std::stringstream ss;
-        for (const auto& duration : userData.durations) {
-            ss << duration << "\n";
-        }
-        const std::string fileName = std::format("timestamps_{}.txt", std::chrono::high_resolution_clock::now().time_since_epoch().count());
-        FileSystem::writeFile(fileName, ss.str().c_str(), ss.str().size());
-        LogApp::info("Timestamps saved to file: {0}", fileName);
-
-        FileSystem::download(fileName, fileName);
-    } else {
-        LogApp::warning("No timestamps to save");
-    }
 }
 
 bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {

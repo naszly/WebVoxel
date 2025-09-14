@@ -7,6 +7,7 @@
 #include "common/datastructures/HashMap.h"
 #include "../graphics/VertexData.h"
 #include "application/domain/BlockLightInfo.h"
+#include "application/graphics/GpuTimestampProfiler.h"
 
 class RendererSystem final : public System {
 public:
@@ -84,11 +85,7 @@ private:
 
     HashMap<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
 
-    WGPUQuerySet m_querySet{};
-    WGPUBuffer m_queryResolveBuffer{};
-    WGPUBuffer m_queryReadBuffer{};
-    const uint64_t m_queryReadBufferCapacity = 524288 * sizeof(uint64_t);
-    uint64_t m_queryReadBufferSize{};
+    GpuTimestampProfiler m_profiler{};
 
     void createRenderPipeline();
     void createDepthTexture();
@@ -101,7 +98,6 @@ private:
     void processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks);
     void removeFarChunkBuffers(const glm::ivec3& playerChunk);
 
-    void exportTimestampsInternal() const;
 
     [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
 
