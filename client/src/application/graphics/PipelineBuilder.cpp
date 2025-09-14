@@ -1,8 +1,10 @@
 #include "PipelineBuilder.h"
 
-#include "common/FileSystem.h"
+#include <webgpu/webgpu.h>
+
+#include "application/graphics/types/VertexData.h"
 #include "application/graphics/BlockTextureManager.h"
-#include "application/graphics/VertexData.h"
+#include "common/FileSystem.h"
 #include "application/world/chunk/Chunk.h"
 
 PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,

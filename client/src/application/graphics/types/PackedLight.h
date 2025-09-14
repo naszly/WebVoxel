@@ -1,7 +1,7 @@
 #pragma once
+#include <cstdint>
 
-#include "../domain/VoxelData.h"
-#include "AmbientOcclusion.h"
+#include "application/domain/BlockLightInfo.h"
 
 struct PackedLight {
     uint32_t packedIntensities{0};
@@ -18,12 +18,3 @@ struct PackedLight {
             (static_cast<uint32_t>(facePzLightInfo.getIntensity() & 0x1F) << 25);
     }
 };
-
-
-struct VertexData {
-    uint8_t x{}, y{}, z{}, w{};
-    VoxelData voxel;
-    AmbientOcclusion ambientOcclusion{};
-    PackedLight light{};
-};
-static_assert(sizeof(VertexData) == 16, "VertexData size must be 16 bytes");

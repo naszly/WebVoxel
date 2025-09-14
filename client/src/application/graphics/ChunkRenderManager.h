@@ -8,7 +8,7 @@
 #include "application/graphics/Camera.h"
 #include "application/world/World.h"
 #include "application/world/chunk/ChunkNeighborhood.h"
-#include "application/graphics/ChunkVertexBuffer.h"
+#include "application/graphics/types/ChunkVertexBuffer.h"
 #include "common/datastructures/HashMap.h"
 
 class ChunkRenderManager {
