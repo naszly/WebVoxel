@@ -10,6 +10,7 @@
 #include "application/domain/BlockLightInfo.h"
 #include "application/graphics/GpuTimestampProfiler.h"
 #include "application/graphics/RenderTargets.h"
+#include "application/graphics/UniformsBuffer.h"
 
 class RendererSystem final : public System {
 public:
@@ -73,7 +74,7 @@ private:
     WGPUBuffer m_billboardVertexBuffer{};
     WGPUBuffer m_billboardIndexBuffer{};
     uint32_t m_billboardIndexCount{};
-    WGPUBuffer m_uniformBuffer{};
+    std::unique_ptr<UniformsBuffer> m_uniformsBuffer;
     Uniforms m_uniformData{};
     WGPUBindGroup m_uniformBindGroup{};
 

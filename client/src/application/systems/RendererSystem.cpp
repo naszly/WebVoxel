@@ -18,6 +18,8 @@ void RendererSystem::initialize() {
 
     initializeBuffers();
 
+    m_uniformsBuffer = UniformsBuffer::make<Uniforms>(getWebGpuContext().getDevice());
+
     m_renderTargets = std::make_unique<RenderTargets>(getWebGpuContext());
     m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
 
@@ -75,7 +77,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     m_uniformData.nearPlane = Camera::NEAR;
     m_uniformData.farPlane = Camera::FAR;
 
-    wgpuQueueWriteBuffer(m_queue, m_uniformBuffer, 0, &m_uniformData, sizeof(Uniforms));
+    m_uniformsBuffer->write(m_queue, m_uniformData);
 
     WGPURenderPassDescriptor renderPassDesc = {};
     renderPassDesc.nextInChain = nullptr;
@@ -332,7 +334,7 @@ void RendererSystem::createRenderPipeline() {
     // Create the bind group for uniforms
     WGPUBindGroupEntry bgEntry{};
     bgEntry.binding = 0;
-    bgEntry.buffer = m_uniformBuffer;
+    bgEntry.buffer = m_uniformsBuffer->get();
     bgEntry.offset = 0;
     bgEntry.size = sizeof(Uniforms);
 
@@ -567,14 +569,6 @@ void RendererSystem::initializeBuffers() {
 
     // Upload index data to the buffer
     wgpuQueueWriteBuffer(m_queue, m_billboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
-
-    // Create uniform buffer
-    WGPUBufferDescriptor uniformBufferDesc{};
-    uniformBufferDesc.nextInChain = nullptr;
-    uniformBufferDesc.size = sizeof(Uniforms);
-    uniformBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    uniformBufferDesc.mappedAtCreation = false;
-    m_uniformBuffer = wgpuDeviceCreateBuffer(device, &uniformBufferDesc);
 }
 
 bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
@@ -829,3 +823,4 @@ RendererSystem::LightMap& RendererSystem::propagateLight(const ChunkNeighborhood
 
     return lightMap;
 }
+
