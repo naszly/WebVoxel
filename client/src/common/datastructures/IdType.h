@@ -33,11 +33,9 @@ private:
     UintT m_id{0};
 };
 
-namespace std {
-    template<IdSize Size>
-    struct hash<IdType<Size>> {
-        std::size_t operator()(const IdType<Size>& id) const noexcept {
-            return std::hash<typename IdType<Size>::UintT>()(static_cast<typename IdType<Size>::UintT>(id));
-        }
-    };
-}
+template<IdSize Size>
+struct std::hash<IdType<Size>> {
+    std::size_t operator()(const IdType<Size>& id) const noexcept {
+        return std::hash<typename IdType<Size>::UintT>()(static_cast<IdType<Size>::UintT>(id));
+    }
+};
