@@ -1,9 +1,9 @@
 #include "RendererSystem.h"
 
 #include "application/Application.h"
+#include "application/graphics/pipeline/PipelineBuilder.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
-#include "application/graphics/PipelineBuilder.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");

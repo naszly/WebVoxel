@@ -5,8 +5,8 @@
 #include <glm/glm.hpp>
 #include <memory>
 
-#include "application/graphics/GpuTimestampProfiler.h"
-#include "application/graphics/RenderTargets.h"
+#include "application/graphics/profiling/GpuTimestampProfiler.h"
+#include "application/graphics/rendering/RenderTargets.h"
 #include "application/graphics/resources/UniformsBuffer.h"
 #include "application/graphics/ChunkRenderManager.h"
 
