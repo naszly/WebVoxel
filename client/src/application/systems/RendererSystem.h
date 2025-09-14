@@ -5,12 +5,10 @@
 #include <glm/glm.hpp>
 #include <memory>
 
-#include "common/datastructures/HashMap.h"
-#include "../graphics/VertexData.h"
-#include "application/domain/BlockLightInfo.h"
 #include "application/graphics/GpuTimestampProfiler.h"
 #include "application/graphics/RenderTargets.h"
 #include "application/graphics/UniformsBuffer.h"
+#include "application/graphics/ChunkRenderManager.h"
 
 class RendererSystem final : public System {
 public:
@@ -78,26 +76,10 @@ private:
     Uniforms m_uniformData{};
     WGPUBindGroup m_uniformBindGroup{};
 
-    struct ChunkVertexBuffer {
-        WGPUBuffer buffer{nullptr};
-        size_t vertexCount{0};
-    };
-
-    HashMap<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
+    std::unique_ptr<ChunkRenderManager> m_chunkRenderManager;
 
     GpuTimestampProfiler m_profiler{};
 
     void createRenderPipeline();
     void initializeBuffers();
-
-    auto getChunksToRender(const Camera& camera);
-
-    std::vector<std::reference_wrapper<Chunk>> collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const;
-    void processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks);
-    void removeFarChunkBuffers(const glm::ivec3& playerChunk);
-
-
-    [[nodiscard]] static bool hasAllNeighbours(const World &world, const Chunk& chunk);
-
-    [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const;
 };

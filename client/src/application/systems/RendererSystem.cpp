@@ -4,12 +4,14 @@
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 #include "application/graphics/PipelineBuilder.h"
-#include "application/meshing/VoxelVertexGenerator.h"
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
 
-    m_queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
+    auto& gpuContext = getWebGpuContext();
+    auto& device = gpuContext.getDevice();
+
+    m_queue = wgpuDeviceGetQueue(device);
 
     m_viewportWidth = getWebGpuSurface().getWidth();
     m_viewportHeight = getWebGpuSurface().getHeight();
@@ -18,52 +20,16 @@ void RendererSystem::initialize() {
 
     initializeBuffers();
 
-    m_uniformsBuffer = UniformsBuffer::make<Uniforms>(getWebGpuContext().getDevice());
+    m_uniformsBuffer = UniformsBuffer::make<Uniforms>(device);
 
-    m_renderTargets = std::make_unique<RenderTargets>(getWebGpuContext());
+    m_renderTargets = std::make_unique<RenderTargets>(gpuContext);
     m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
+
+    m_chunkRenderManager = std::make_unique<ChunkRenderManager>(device, getWorld());
 
     createRenderPipeline();
 
-    m_profiler.init(getWebGpuContext().getAdapter(), getWebGpuContext().getDevice());
-}
-
-auto RendererSystem::getChunksToRender(const Camera& camera) {
-    struct SortEntry {
-        float distance2; // Squared distance to camera
-        ChunkVertexBuffer chunkVertexBuffer;
-    };
-    static std::vector<SortEntry> sortedChunks;
-    sortedChunks.clear();
-
-    const glm::vec3 camPos = camera.getPosition();
-    constexpr float chunkSize = static_cast<float>(Chunk::WIDTH);
-    constexpr float sqrt3 = 1.73205080757f;
-    constexpr float chunkSphereRadius = sqrt3 * chunkSize * 0.5f;
-    constexpr glm::vec3 chunkAabbHalfExtents = glm::vec3(chunkSize) * 0.5f;
-
-    for (auto &[position, chunkVertexBuffer] : m_chunkVertexBuffers) {
-        if (chunkVertexBuffer.vertexCount == 0) {
-            continue;
-        }
-
-        const auto chunkCenter = glm::vec3(position) * chunkSize + chunkAabbHalfExtents;
-
-        if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
-            continue;
-        }
-
-        float distance2 = glm::length2(chunkCenter - camPos);
-        sortedChunks.emplace_back(distance2, chunkVertexBuffer);
-    }
-
-    std::ranges::sort(sortedChunks, [&](const auto &a, const auto &b) {
-        return a.distance2 < b.distance2; // Front-to-back!
-    });
-
-    return sortedChunks | std::views::transform([](const auto &entry) -> auto & {
-        return entry.chunkVertexBuffer;
-    });
+    m_profiler.init(gpuContext.getAdapter(), device);
 }
 
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
@@ -120,7 +86,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
 
-    auto chunkVertexBuffers = getChunksToRender(camera);
+    auto chunkVertexBuffers = m_chunkRenderManager->getChunksToRender(camera);
 
     for (auto &chunkVertexBuffer: chunkVertexBuffers) {
 
@@ -145,13 +111,8 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 }
 
 void RendererSystem::update(const float dt) {
-    World &world = getWorld();
-    const glm::vec3 playerPosition = getCamera().getPosition();
-    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
-
-    const auto dirtyChunks = collectDirtyChunks(world, playerChunk);
-    processDirtyChunks(world, dirtyChunks);
-    removeFarChunkBuffers(playerChunk);
+    const Camera& camera = getCamera();
+    m_chunkRenderManager->update(camera);
 
     static float timeAccumulator = 0.0f;
     timeAccumulator += dt;
@@ -159,75 +120,6 @@ void RendererSystem::update(const float dt) {
         timeAccumulator -= 1e+8;
     }
     m_uniformData.time = timeAccumulator;
-}
-
-std::vector<std::reference_wrapper<Chunk>> RendererSystem::collectDirtyChunks(World& world, const glm::ivec3& playerChunk) const {
-    const auto& chunks = world.getChunks();
-    std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
-
-    std::ranges::copy_if(chunks, std::back_inserter(dirtyChunks), [&](const Chunk &chunk) {
-        return chunk.isGpuBufferDirty() && hasAllNeighbours(world, chunk);
-    });
-
-    std::ranges::sort(dirtyChunks, [&](const Chunk &a, const Chunk &b) {
-        const auto aPos = a.getPosition();
-        const auto bPos = b.getPosition();
-        return Utils::distance(aPos, playerChunk) < Utils::distance(bPos, playerChunk);
-    });
-
-    return dirtyChunks;
-}
-
-void RendererSystem::processDirtyChunks(const World& world, const std::vector<std::reference_wrapper<Chunk>>& dirtyChunks) {
-    const size_t maxChunksToProcess = 6 + dirtyChunks.size() / 8;
-    size_t processedChunks = 0;
-
-    for (auto &chunkRef: dirtyChunks) {
-        if (processedChunks >= maxChunksToProcess) {
-            break;
-        }
-
-        auto& chunk = chunkRef.get();
-        auto position = chunk.getPosition();
-        auto chunkNeighborhood = world.getChunkNeighborhood(position);
-
-        if (!chunkNeighborhood.hasAllNeighbours()) {
-            continue;
-        }
-
-        ChunkVertexBuffer buffer;
-
-        buffer = createChunkVertexBuffer(chunkNeighborhood);
-
-        auto it = m_chunkVertexBuffers.find(position);
-        if (it != m_chunkVertexBuffers.end()) {
-            wgpuBufferRelease(it->second.buffer);
-            if (buffer.vertexCount > 0) {
-                it->second = buffer;
-            } else {
-                m_chunkVertexBuffers.erase(it);
-            }
-        } else if (buffer.vertexCount > 0) {
-            m_chunkVertexBuffers.insert({position, buffer});
-        }
-
-        chunk.resetGpuBufferDirty();
-        ++processedChunks;
-    }
-}
-
-void RendererSystem::removeFarChunkBuffers(const glm::ivec3& playerChunk) {
-    for (auto it = m_chunkVertexBuffers.begin(); it != m_chunkVertexBuffers.end();) {
-        const auto &[chunkPosition, vertexBuffer] = *it;
-        const int64_t distance = Utils::distance2(chunkPosition, playerChunk);
-        constexpr auto farPlane = Camera::FAR / Chunk::WIDTH;
-        if (distance > static_cast<int64_t>(farPlane * farPlane)) {
-            wgpuBufferRelease(vertexBuffer.buffer);
-            m_chunkVertexBuffers.erase(it++);
-        } else {
-            ++it;
-        }
-    }
 }
 
 void RendererSystem::onEvent(Event &event) {
@@ -342,51 +234,4 @@ void RendererSystem::initializeBuffers() {
 
     // Upload index data to the buffer
     wgpuQueueWriteBuffer(m_queue, m_billboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
-}
-
-bool RendererSystem::hasAllNeighbours(const World& world, const Chunk& chunk) {
-    const auto neighbours = world.getChunkNeighborhood(chunk.getPosition());
-    return neighbours.hasAllNeighbours();
-}
-
-RendererSystem::ChunkVertexBuffer RendererSystem::createChunkVertexBuffer(const ChunkNeighborhood& neighborChunks) const {
-    ChunkVertexBuffer vertexBuffer;
-
-    static std::vector<VertexData> points;
-    points.clear();
-
-    VoxelVertexGenerator::generate(neighborChunks, points);
-
-    if (points.empty()) {
-        return vertexBuffer;
-    }
-
-    const auto device = getWebGpuContext().getDevice();
-    const auto queue = wgpuDeviceGetQueue(device);
-
-    const auto& centerChunk = *neighborChunks.getCenterChunk();
-    const auto chunkPosition = glm::vec4(centerChunk.getPosition(), 0.0f);
-
-    const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
-
-    WGPUBufferDescriptor descriptor{};
-    descriptor.size = bufferSize;
-    descriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
-    descriptor.mappedAtCreation = false;
-    descriptor.label = WGPUStringView{"Chunk Vertex Buffer", WGPU_STRLEN};
-
-    vertexBuffer.buffer = wgpuDeviceCreateBuffer(device, &descriptor);
-    vertexBuffer.vertexCount = points.size();
-
-    static std::vector<uint8_t> data;
-    if (data.size() < bufferSize) {
-        data.resize(bufferSize);
-    }
-
-    memcpy(data.data(), points.data(), points.size() * sizeof(VertexData));
-    memcpy(data.data() + points.size() * sizeof(VertexData), &chunkPosition, sizeof(chunkPosition));
-
-    wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
-
-    return vertexBuffer;
 }
