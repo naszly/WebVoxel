@@ -14,6 +14,7 @@ private:
     bool m_isMouseCaptured = false;
     float m_verticalVelocity = 0.0f;
     bool m_onGround = false;
+    bool m_gravityEnabled = true;
 
     // Key constants
     static constexpr auto KEY_FORWARD = KeyCode::W;
@@ -22,8 +23,10 @@ private:
     static constexpr auto KEY_RIGHT = KeyCode::D;
     static constexpr auto KEY_SPRINT = KeyCode::LeftShift;
     static constexpr auto KEY_JUMP = KeyCode::Space;
+    static constexpr auto KEY_DOWN = KeyCode::C;
     static constexpr auto KEY_ESCAPE = KeyCode::Escape;
     static constexpr auto KEY_MENU = KeyCode::E;
+    static constexpr auto KEY_TOGGLE_GRAVITY = KeyCode::G;
 
     // Camera physics constants
     static constexpr auto CAMERA_COLLISION_EXTENTS = glm::vec3(0.75f, 1.8f, 0.75f);
@@ -46,7 +49,7 @@ private:
     using RayHitCallbackFn = std::function<bool(glm::i64vec3, glm::i64vec3)>;
 
     void updateCameraMovement(float dt, const Input &input, Camera &camera);
-    static glm::vec3 computeMovementDirection(const Input& input, const Camera& camera);
+    glm::vec3 computeMovementDirection(const Input& input, const Camera& camera) const;
     static float computeCameraSpeed(const Input& input);
     void moveAndCollideCamera(Camera& camera, glm::vec3 velocity);
     static SweptAABBResult sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,

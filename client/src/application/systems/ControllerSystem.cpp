@@ -158,14 +158,24 @@ void ControllerSystem::onEvent(Event &event) {
             return true;
         }
 
+        if (keyCode == KEY_TOGGLE_GRAVITY) {
+            m_gravityEnabled = !m_gravityEnabled;
+            return true;
+        }
+
         return false;
     });
 }
 
 void ControllerSystem::updateCameraMovement(const float dt, const Input &input, Camera &camera) {
 
-    if (input.isKeyPressed(KEY_JUMP) && m_onGround) {
-        m_verticalVelocity = CAMERA_JUMP_SPEED;
+    if (m_gravityEnabled) {
+        if (input.isKeyPressed(KEY_JUMP) && m_onGround) {
+            m_verticalVelocity = CAMERA_JUMP_SPEED;
+            m_onGround = false;
+        }
+    } else {
+        m_verticalVelocity = 0.0f;
         m_onGround = false;
     }
 
@@ -181,16 +191,26 @@ void ControllerSystem::updateCameraMovement(const float dt, const Input &input, 
     m_verticalVelocity += CAMERA_GRAVITY * dt;
 }
 
-glm::vec3 ControllerSystem::computeMovementDirection(const Input& input, const Camera& camera) {
+glm::vec3 ControllerSystem::computeMovementDirection(const Input& input, const Camera& camera) const {
     const auto cameraDirection = camera.getDirection();
     const glm::vec3 flatDirection = glm::normalize(glm::vec3(cameraDirection.x, 0.0f, cameraDirection.z));
     const glm::vec3 cameraRight = glm::normalize(glm::vec3(flatDirection.z, 0.0f, -flatDirection.x));
 
     glm::vec3 moveDir(0.0f);
-    if (input.isKeyPressed(KEY_FORWARD)) moveDir += flatDirection;
-    if (input.isKeyPressed(KEY_BACKWARD)) moveDir -= flatDirection;
-    if (input.isKeyPressed(KEY_LEFT)) moveDir -= cameraRight;
-    if (input.isKeyPressed(KEY_RIGHT)) moveDir += cameraRight;
+    if (m_gravityEnabled) {
+        if (input.isKeyPressed(KEY_FORWARD)) moveDir += flatDirection;
+        if (input.isKeyPressed(KEY_BACKWARD)) moveDir -= flatDirection;
+        if (input.isKeyPressed(KEY_LEFT)) moveDir -= cameraRight;
+        if (input.isKeyPressed(KEY_RIGHT)) moveDir += cameraRight;
+    } else {
+        if (input.isKeyPressed(KEY_FORWARD)) moveDir += cameraDirection;
+        if (input.isKeyPressed(KEY_BACKWARD)) moveDir -= cameraDirection;
+        if (input.isKeyPressed(KEY_LEFT)) moveDir -= cameraRight;
+        if (input.isKeyPressed(KEY_RIGHT)) moveDir += cameraRight;
+        if (input.isKeyPressed(KEY_JUMP)) moveDir.y += 1.0f;
+        if (input.isKeyPressed(KEY_DOWN)) moveDir.y -= 1.0f;
+    }
+
     if (glm::length(moveDir) > 0.0f) {
         moveDir = glm::normalize(moveDir);
     }
