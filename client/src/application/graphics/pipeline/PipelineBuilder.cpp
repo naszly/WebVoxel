@@ -2,10 +2,10 @@
 
 #include <webgpu/webgpu.h>
 
-#include "application/graphics/types/VertexData.h"
 #include "application/graphics/BlockTextureManager.h"
-#include "common/FileSystem.h"
+#include "application/types/VertexData.h"
 #include "application/world/chunk/Chunk.h"
+#include "common/FileSystem.h"
 
 PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
                                          const WGPUBuffer& uniformBuffer,

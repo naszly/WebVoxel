@@ -1,6 +1,6 @@
 #pragma once
 
-#include "application/graphics/types/AmbientOcclusion.h"
+#include "application/types/AmbientOcclusion.h"
 #include "application/world/chunk/ChunkNeighborhood.h"
 
 class AmbientOcclusionComputer {

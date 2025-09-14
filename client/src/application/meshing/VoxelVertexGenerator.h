@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "application/graphics/types/VertexData.h"
+#include "application/types/VertexData.h"
 #include "application/world/chunk/ChunkNeighborhood.h"
 
 class VoxelVertexGenerator {
