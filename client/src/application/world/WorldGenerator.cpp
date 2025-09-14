@@ -4,6 +4,28 @@
 
 #include <algorithm>
 
+FastNoise::SmartNode<> makeCaveGenerator(const bool cavesEnabled) {
+    if (cavesEnabled) {
+        return FastNoise::NewFromEncodedNodeTree("EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==");
+    }
+    auto constant = FastNoise::New<FastNoise::Constant>();
+    constant->SetValue(-1.0f);
+    return constant;
+}
+
+FastNoise::SmartNode<> makeOreGenerator(const bool cavesEnabled) {
+    if (cavesEnabled) {
+        return FastNoise::New<FastNoise::OpenSimplex2>();
+    }
+    auto constant = FastNoise::New<FastNoise::Constant>();
+    constant->SetValue(-1.0f);
+    return constant;
+}
+
+WorldGenerator::WorldGenerator(const bool cavesEnabled)
+    : m_caveGenerator(makeCaveGenerator(cavesEnabled)), m_oreGenerator(makeOreGenerator(cavesEnabled))
+{}
+
 std::vector<uint8_t> WorldGenerator::generateTerrainHeights(int chunkPosX, int chunkPosZ) {
     Threading::ScopedLock lock(&m_cacheLock);
     ChunkCoord coord{chunkPosX, chunkPosZ};

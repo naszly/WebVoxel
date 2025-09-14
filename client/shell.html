@@ -136,7 +136,8 @@
 </div>
 
 <div id="model-buttons" style="text-align: center; margin: 10px;">
-  <button onclick="setModelIndex(null)">Procedural</button>
+  <button onclick="goProcedural(true)">Procedural (Caves On)</button>
+  <button onclick="goProcedural(false)">Procedural (Caves Off)</button>
   <button onclick="setModelIndex(0)">Model 0</button>
   <button onclick="setModelIndex(1)">Model 1</button>
   <button onclick="setModelIndex(2)">Model 2</button>
@@ -212,18 +213,34 @@
   let width = urlParams.get('width') || 1440;
   let height = urlParams.get('height') || 720;
   let modelIndex = urlParams.get('modelIndex');
+  let caves = urlParams.get('caves');
 
-  Module.arguments.push('--width', width.toString());
-  Module.arguments.push('--height', height.toString());
+  Module.arguments.push('--width=' + width.toString());
+  Module.arguments.push('--height=' + height.toString());
 
   if (modelIndex !== null) {
-    Module.arguments.push('--modelIndex', modelIndex.toString());
+    Module.arguments.push('--modelIndex=' + modelIndex.toString());
+  }
+
+  if (caves !== null) {
+    Module.arguments.push('--caves=' + caves.toString());
   }
 
   function setModelIndex(index) {
     const urlParams = new URLSearchParams(window.location.search);
-    if (index === null) { urlParams.delete('modelIndex'); }
-    else { urlParams.set('modelIndex', index); }
+    if (index === null) {
+      urlParams.delete('modelIndex');
+    } else {
+      urlParams.set('modelIndex', index);
+      urlParams.delete('caves');
+    }
+    window.location.search = urlParams.toString();
+  }
+
+  function goProcedural(cavesEnabled) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.delete('modelIndex');
+    urlParams.set('caves', cavesEnabled ? 'true' : 'false');
     window.location.search = urlParams.toString();
   }
 
