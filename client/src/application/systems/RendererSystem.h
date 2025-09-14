@@ -3,11 +3,13 @@
 #include "System.h"
 
 #include <glm/glm.hpp>
+#include <memory>
 
 #include "common/datastructures/HashMap.h"
 #include "../graphics/VertexData.h"
 #include "application/domain/BlockLightInfo.h"
 #include "application/graphics/GpuTimestampProfiler.h"
+#include "application/graphics/RenderTargets.h"
 
 class RendererSystem final : public System {
 public:
@@ -63,10 +65,7 @@ private:
     };
     static_assert(sizeof(Uniforms) % 16 == 0);
 
-    WGPUTexture m_depthTexture{};
-    WGPUTextureView m_depthTextureView{};
-    WGPUTexture m_multisampleColorTexture{};
-    WGPUTextureView m_multisampleColorTextureView{};
+    std::unique_ptr<RenderTargets> m_renderTargets;
     unsigned int m_viewportWidth{}, m_viewportHeight{};
 
     WGPUQueue m_queue{};
@@ -88,7 +87,6 @@ private:
     GpuTimestampProfiler m_profiler{};
 
     void createRenderPipeline();
-    void createDepthTexture();
     static std::string loadShader(const char* filename);
     void initializeBuffers();
 

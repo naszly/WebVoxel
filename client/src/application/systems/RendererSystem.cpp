@@ -17,7 +17,10 @@ void RendererSystem::initialize() {
     getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
     initializeBuffers();
-    createDepthTexture();
+
+    m_renderTargets = std::make_unique<RenderTargets>(getWebGpuContext());
+    m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
+
     createRenderPipeline();
 
     m_profiler.init(getWebGpuContext().getAdapter(), getWebGpuContext().getDevice());
@@ -78,8 +81,8 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     renderPassDesc.nextInChain = nullptr;
 
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = m_sampleCount > 1 ? m_multisampleColorTextureView : targetView;
-    renderPassColorAttachment.resolveTarget = m_sampleCount > 1 ? targetView : nullptr;
+    renderPassColorAttachment.view = m_renderTargets->colorAttachmentViewFor(targetView);
+    renderPassColorAttachment.resolveTarget = m_renderTargets->resolveTargetFor(targetView);
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
     renderPassColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
@@ -88,7 +91,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 #endif // NOT WEBGPU_BACKEND_WGPU
 
     WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
-    depthStencilAttachment.view = m_depthTextureView;
+    depthStencilAttachment.view = m_renderTargets->getDepthView();
     depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
     depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.depthClearValue = 1.0f;
@@ -234,7 +237,7 @@ void RendererSystem::onEvent(Event &event) {
         m_viewportWidth = windowResizedEvent.getWidth();
         m_viewportHeight = windowResizedEvent.getHeight();
 
-        createDepthTexture();
+        m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
 
         getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
@@ -266,7 +269,7 @@ void RendererSystem::setPointLight(const bool pointLight) {
 void RendererSystem::setMultisampling(const bool multisampling) {
     if (multisampling != (m_sampleCount > 1)) {
         m_sampleCount = multisampling ? 4 : 1;
-        createDepthTexture();
+        m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
         createRenderPipeline();
     }
 }
@@ -515,84 +518,6 @@ void RendererSystem::createRenderPipeline() {
     wgpuShaderModuleRelease(shaderModule);
     wgpuBindGroupLayoutRelease(bindGroupLayout);
     wgpuPipelineLayoutRelease(pipelineLayout);
-}
-
-void RendererSystem::createDepthTexture() {
-    const auto device = getWebGpuContext().getDevice();
-
-    if (m_depthTexture) {
-        wgpuTextureRelease(m_depthTexture);
-        wgpuTextureViewRelease(m_depthTextureView);
-    }
-
-    if (m_multisampleColorTexture) {
-        wgpuTextureRelease(m_multisampleColorTexture);
-        wgpuTextureViewRelease(m_multisampleColorTextureView);
-    }
-
-    // Create the depth texture
-    WGPUTextureDescriptor depthTextureDesc = {};
-    depthTextureDesc.size.width = m_viewportWidth;
-    depthTextureDesc.size.height = m_viewportHeight;
-    depthTextureDesc.size.depthOrArrayLayers = 1;
-    depthTextureDesc.mipLevelCount = 1;
-    depthTextureDesc.sampleCount = m_sampleCount;
-    depthTextureDesc.dimension = WGPUTextureDimension_2D;
-    depthTextureDesc.format = WGPUTextureFormat_Depth24PlusStencil8;
-    depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
-
-    m_depthTexture = wgpuDeviceCreateTexture(device, &depthTextureDesc);
-    if (!m_depthTexture) {
-        LogApp::error("Failed to create depth texture");
-        return;
-    }
-
-    WGPUTextureViewDescriptor depthViewDesc = {};
-    depthViewDesc.format = WGPUTextureFormat_Depth24PlusStencil8;
-    depthViewDesc.dimension = WGPUTextureViewDimension_2D;
-    depthViewDesc.baseMipLevel = 0;
-    depthViewDesc.mipLevelCount = 1;
-    depthViewDesc.baseArrayLayer = 0;
-    depthViewDesc.arrayLayerCount = 1;
-    depthViewDesc.aspect = WGPUTextureAspect_All;
-
-    m_depthTextureView = wgpuTextureCreateView(m_depthTexture, &depthViewDesc);
-    if (!m_depthTextureView) {
-        LogApp::error("Failed to create depth texture view");
-        wgpuTextureRelease(m_depthTexture);
-    }
-
-    // Create the color texture
-    WGPUTextureDescriptor colorTextureDesc = {};
-    colorTextureDesc.size.width = m_viewportWidth;
-    colorTextureDesc.size.height = m_viewportHeight;
-    colorTextureDesc.size.depthOrArrayLayers = 1;
-    colorTextureDesc.mipLevelCount = 1;
-    colorTextureDesc.sampleCount = m_sampleCount;
-    colorTextureDesc.dimension = WGPUTextureDimension_2D;
-    colorTextureDesc.format = getWebGpuSurface().getSurfaceFormat();
-    colorTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
-
-    m_multisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
-    if (!m_multisampleColorTexture) {
-        LogApp::error("Failed to create color texture");
-        return;
-    }
-
-    WGPUTextureViewDescriptor colorViewDesc = {};
-    colorViewDesc.format = getWebGpuSurface().getSurfaceFormat();
-    colorViewDesc.dimension = WGPUTextureViewDimension_2D;
-    colorViewDesc.baseMipLevel = 0;
-    colorViewDesc.mipLevelCount = 1;
-    colorViewDesc.baseArrayLayer = 0;
-    colorViewDesc.arrayLayerCount = 1;
-    colorViewDesc.aspect = WGPUTextureAspect_All;
-
-    m_multisampleColorTextureView = wgpuTextureCreateView(m_multisampleColorTexture, &colorViewDesc);
-    if (!m_multisampleColorTextureView) {
-        LogApp::error("Failed to create color texture view");
-        wgpuTextureRelease(m_multisampleColorTexture);
-    }
 }
 
 std::string RendererSystem::loadShader(const char *filename) {
