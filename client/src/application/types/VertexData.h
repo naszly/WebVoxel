@@ -8,6 +8,6 @@ struct VertexData {
     uint8_t x{}, y{}, z{}, w{};
     VoxelData voxel;
     AmbientOcclusion ambientOcclusion{};
-    PackedLight light{};
+    PackedLight pointLight{};
 };
 static_assert(sizeof(VertexData) == 16, "VertexData size must be 16 bytes");

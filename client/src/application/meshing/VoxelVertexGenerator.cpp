@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "AmbientOcclusionComputer.h"
-#include "LightPropagator.h"
+#include "PointLightPropagator.h"
 #include "application/world/chunk/Chunk.h"
 
 void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std::vector<VertexData>& vertices) {
@@ -21,7 +21,7 @@ void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std
         }
     }
 
-    const auto& lightMap = LightPropagator::compute(neighborChunks, lights);
+    const auto& lightMap = PointLightPropagator::compute(neighborChunks, lights);
 
     for (uint32_t x = Chunk::WIDTH; x < 2 * Chunk::WIDTH; ++x) {
         for (uint32_t y = Chunk::WIDTH; y < 2 * Chunk::WIDTH; ++y) {

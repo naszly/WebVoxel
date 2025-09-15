@@ -7,7 +7,7 @@
 #include "application/world/chunk/Chunk.h"
 #include "application/world/chunk/ChunkNeighborhood.h"
 
-class LightPropagator {
+class PointLightPropagator {
 public:
     static constexpr int DIM = Chunk::WIDTH * 3;
 

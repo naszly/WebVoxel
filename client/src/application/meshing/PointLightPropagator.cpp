@@ -1,10 +1,10 @@
-#include "LightPropagator.h"
+#include "PointLightPropagator.h"
 
 #include <cassert>
 #include <algorithm>
 #include <ranges>
 
-const LightPropagator::LightMap& LightPropagator::compute(const ChunkNeighborhood& neighborChunks,
+const PointLightPropagator::LightMap& PointLightPropagator::compute(const ChunkNeighborhood& neighborChunks,
                                                           const std::vector<Chunk::LightSource>& lights) {
     static std::array<std::vector<int>, 32> buckets; // up to 31
     for (auto& b : buckets) b.clear();

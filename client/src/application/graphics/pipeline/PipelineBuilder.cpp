@@ -107,7 +107,7 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
         WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = 0, .shaderLocation = 1 },
         WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, voxel), .shaderLocation = 2 },
         WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, ambientOcclusion), .shaderLocation = 4 },
-        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, light), .shaderLocation = 5 },
+        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, pointLight), .shaderLocation = 5 },
     };
     voxelVb.attributeCount = voxelAttrs.size();
     voxelVb.attributes = voxelAttrs.data();
