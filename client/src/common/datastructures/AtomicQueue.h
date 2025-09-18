@@ -76,6 +76,46 @@ public:
         }
     }
 
+    template <size_t N>
+    void pushMultiple(const T (&values)[N]) {
+        NodeAlloc nodeAlloc(m_allocator);
+
+        Node* newHead = NodeTraits::allocate(nodeAlloc, 1);
+        NodeTraits::construct(nodeAlloc, newHead, values[0]);
+        Node* current = newHead;
+        for (size_t i = 1; i < N; ++i) {
+            Node* nextNode = NodeTraits::allocate(nodeAlloc, 1);
+            NodeTraits::construct(nodeAlloc, nextNode, values[i]);
+            current->next.store(nextNode, std::memory_order_relaxed);
+            current = nextNode;
+        }
+
+        Node* tail = nullptr;
+        while (true) {
+            tail = m_tail.load(std::memory_order_acquire);
+            Node* next = tail->next.load(std::memory_order_acquire);
+            if (tail == m_tail.load(std::memory_order_acquire)) {
+                if (next == nullptr) {
+                    if (tail->next.compare_exchange_weak(
+                            next, newHead,
+                            std::memory_order_release,
+                            std::memory_order_relaxed)) {
+                        m_tail.compare_exchange_strong(
+                            tail, current,
+                            std::memory_order_release,
+                            std::memory_order_relaxed);
+                        return;
+                    }
+                } else {
+                    m_tail.compare_exchange_weak(
+                        tail, next,
+                        std::memory_order_release,
+                        std::memory_order_relaxed);
+                }
+            }
+        }
+    }
+
     std::optional<T> tryPop() {
         NodeAlloc nodeAlloc(m_allocator);
 
