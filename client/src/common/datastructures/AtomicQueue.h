@@ -2,30 +2,41 @@
 
 #include <atomic>
 #include <optional>
+#include <memory>
 
-template<typename T>
+template<typename T, typename Allocator = std::allocator<T>>
 class AtomicQueue {
+    Allocator m_allocator;
+
     struct Node {
         T data;
         std::atomic<Node*> next;
-        explicit Node(T d = nullptr, Node* n = nullptr) : data(d), next(n) {}
+        Node() : data(), next(nullptr) {}
+        explicit Node(const T& d) : data(d), next(nullptr) {}
     };
+
+    using NodeAlloc = std::allocator_traits<Allocator>::template rebind_alloc<Node>;
+    using NodeTraits = std::allocator_traits<NodeAlloc>;
 
     std::atomic<Node*> m_head;
     std::atomic<Node*> m_tail;
 
 public:
     AtomicQueue() {
-        Node* dummy = new Node();
+        NodeAlloc nodeAlloc(m_allocator);
+        Node* dummy = NodeTraits::allocate(nodeAlloc, 1);
+        NodeTraits::construct(nodeAlloc, dummy);
         m_head.store(dummy, std::memory_order_relaxed);
         m_tail.store(dummy, std::memory_order_relaxed);
     }
 
     ~AtomicQueue() {
+        NodeAlloc nodeAlloc(m_allocator);
         Node* node = m_head.load(std::memory_order_relaxed);
         while (node) {
             Node* next = node->next.load(std::memory_order_relaxed);
-            delete node;
+            NodeTraits::destroy(nodeAlloc, node);
+            NodeTraits::deallocate(nodeAlloc, node, 1);
             node = next;
         }
     }
@@ -35,8 +46,10 @@ public:
     AtomicQueue(AtomicQueue&&) = delete;
     AtomicQueue& operator=(AtomicQueue&&) = delete;
 
-    void push(T valuePtr) {
-        Node* newNode = new Node(valuePtr);
+    void push(T value) {
+        NodeAlloc nodeAlloc(m_allocator);
+        Node* newNode = NodeTraits::allocate(nodeAlloc, 1);
+        NodeTraits::construct(nodeAlloc, newNode, value);
         Node* tail = nullptr;
         while (true) {
             tail = m_tail.load(std::memory_order_acquire);
@@ -64,6 +77,8 @@ public:
     }
 
     std::optional<T> tryPop() {
+        NodeAlloc nodeAlloc(m_allocator);
+
         Node* head = nullptr;
         while (true) {
             head = m_head.load(std::memory_order_acquire);
@@ -84,7 +99,8 @@ public:
                             head, next,
                             std::memory_order_release,
                             std::memory_order_relaxed)) {
-                        delete head;
+                        NodeTraits::destroy(nodeAlloc, head);
+                        NodeTraits::deallocate(nodeAlloc, head, 1);
                         return value;
                     }
                 }
