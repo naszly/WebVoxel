@@ -36,7 +36,7 @@ public:
     }
 
 private:
-    static constexpr size_t MAX_THREAD_LOCAL_BLOCKS = BlocksPerChunk * 16;
+    static constexpr size_t MAX_THREAD_LOCAL_BLOCKS = BlocksPerChunk * 32;
 
     AtomicQueue<std::byte*> m_chunks;
     AtomicQueue<void*> m_globalFreeList;
