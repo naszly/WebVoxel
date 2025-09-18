@@ -62,9 +62,11 @@ private:
     }
 
     void spillToGlobalFreeList() {
+        void* freeList[BlocksPerChunk];
         for (size_t i = 0; i < BlocksPerChunk; ++i) {
-            m_globalFreeList.push(m_threadLocalFreeList.pop());
+            freeList[i] = m_threadLocalFreeList.pop();
         }
+        m_globalFreeList.pushMultiple(freeList);
     }
 };
 
