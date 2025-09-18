@@ -1,8 +1,9 @@
 #pragma once
 
+#include "ChunkMap.h"
 #include "chunk/Chunk.h"
 #include "chunk/ChunkNeighborhood.h"
-#include "ChunkMap.h"
+#include "chunk/ChunkNeighborhoodPtrs.h"
 
 class World {
 public:
@@ -17,6 +18,8 @@ public:
     [[nodiscard]] auto getChunks() { return m_chunks.getChunks(); }
 
     [[nodiscard]] Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
+
+    [[nodiscard]] ChunkNeighborhoodPtrs getChunkNeighborhoodPtrs(const glm::ivec3 &chunkPos) const;
 
     [[nodiscard]] ChunkNeighborhood getChunkNeighborhood(const glm::ivec3 &chunkPos) const;
 

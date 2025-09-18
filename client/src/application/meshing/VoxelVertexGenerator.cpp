@@ -7,15 +7,15 @@
 #include "application/world/chunk/Chunk.h"
 
 void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std::vector<VertexData>& vertices) {
-    const auto& centerChunk = *neighborChunks.getCenterChunk();
+    const auto& centerChunk = neighborChunks.getCenterChunk();
 
     std::vector<Chunk::LightSource> lights;
     lights.reserve(16);
     for (int x = 0; x < 3; ++x) {
         for (int y = 0; y < 3; ++y) {
             for (int z = 0; z < 3; ++z) {
-                const auto& chunk = *neighborChunks.getChunk(x, y, z);
-                auto chunkLight = chunk.getLightSources(x - 1, y - 1, z - 1);
+                const auto& chunk = neighborChunks.getChunk(x, y, z);
+                auto chunkLight = chunk->getLightSources(x - 1, y - 1, z - 1);
                 lights.insert(lights.end(), chunkLight.begin(), chunkLight.end());
             }
         }
@@ -39,7 +39,7 @@ void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std
                         const uint8_t vy = static_cast<uint8_t>(y - Chunk::WIDTH);
                         const uint8_t vz = static_cast<uint8_t>(z - Chunk::WIDTH);
                         if (vx < Chunk::WIDTH && vy < Chunk::WIDTH && vz < Chunk::WIDTH) {
-                            const auto& voxel = centerChunk.getVoxel(vx, vy, vz);
+                            const auto& voxel = centerChunk->getVoxel(vx, vy, vz);
 
                             const auto ambientOcclusion = AmbientOcclusionComputer::compute(neighborChunks, x, y, z);
 

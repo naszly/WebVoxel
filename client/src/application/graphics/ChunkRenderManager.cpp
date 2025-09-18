@@ -50,20 +50,10 @@ std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camer
     return result;
 }
 
-void ChunkRenderManager::update(const Camera& camera) {
+void ChunkRenderManager::removeBuffersOfFarChunks(const Camera& camera) {
     const glm::vec3 playerPosition = camera.getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
-    updateDirtyChunks(playerChunk);
-    removeBuffersOfFarChunks(playerChunk);
-}
-
-void ChunkRenderManager::updateDirtyChunks(const glm::ivec3 &playerChunk) {
-    const auto dirtyChunks = collectDirtyChunks(playerChunk);
-    processDirtyChunks(dirtyChunks);
-}
-
-void ChunkRenderManager::removeBuffersOfFarChunks(const glm::ivec3 &playerChunk) {
     for (auto it = m_chunkVertexBuffers.begin(); it != m_chunkVertexBuffers.end();) {
         const auto &[chunkPosition, vertexBuffer] = *it;
         const uint64_t distance2 = Utils::distance2(chunkPosition, playerChunk);
@@ -77,69 +67,24 @@ void ChunkRenderManager::removeBuffersOfFarChunks(const glm::ivec3 &playerChunk)
     }
 }
 
-std::vector<ChunkRenderManager::ChunkRef> ChunkRenderManager::collectDirtyChunks(const glm::ivec3 &playerChunk) const {
-    const auto& chunks = m_world.getChunks();
-    std::vector<ChunkRef> dirty;
+void ChunkRenderManager::updateChunkVertexBuffer(const std::vector<VertexData>& points, const glm::vec3 &position) {
+    ChunkVertexBuffer buffer = createChunkVertexBuffer(points, position);
 
-    std::ranges::copy_if(chunks, std::back_inserter(dirty), [&](const Chunk &chunk) {
-        if (!chunk.isGpuBufferDirty()) {
-            return false;
+    auto it = m_chunkVertexBuffers.find(position);
+    if (it != m_chunkVertexBuffers.end()) {
+        wgpuBufferRelease(it->second.buffer);
+        if (buffer.vertexCount > 0) {
+            it->second = buffer;
+        } else {
+            m_chunkVertexBuffers.erase(it);
         }
-        const auto neighborhood = m_world.getChunkNeighborhood(chunk.getPosition());
-        return neighborhood.hasAllNeighbours();
-    });
-
-    std::ranges::sort(dirty, [&](const Chunk &a, const Chunk &b) {
-        const auto aPos = a.getPosition();
-        const auto bPos = b.getPosition();
-        return Utils::distance2(aPos, playerChunk) < Utils::distance2(bPos, playerChunk);
-    });
-
-    return dirty;
-}
-
-void ChunkRenderManager::processDirtyChunks(const std::vector<ChunkRef> &dirtyChunks) {
-    const size_t maxChunksToProcess = 6 + dirtyChunks.size() / 8;
-    size_t processed = 0;
-
-    for (auto &chunkRef : dirtyChunks) {
-        if (processed >= maxChunksToProcess) {
-            break;
-        }
-
-        auto &chunk = chunkRef.get();
-        auto position = chunk.getPosition();
-        auto chunkNeighborhood = m_world.getChunkNeighborhood(position);
-        if (!chunkNeighborhood.hasAllNeighbours()) {
-            continue;
-        }
-
-        ChunkVertexBuffer buffer = createChunkVertexBuffer(chunkNeighborhood);
-
-        auto it = m_chunkVertexBuffers.find(position);
-        if (it != m_chunkVertexBuffers.end()) {
-            wgpuBufferRelease(it->second.buffer);
-            if (buffer.vertexCount > 0) {
-                it->second = buffer;
-            } else {
-                m_chunkVertexBuffers.erase(it);
-            }
-        } else if (buffer.vertexCount > 0) {
-            m_chunkVertexBuffers.insert({position, buffer});
-        }
-
-        chunk.resetGpuBufferDirty();
-        ++processed;
+    } else if (buffer.vertexCount > 0) {
+        m_chunkVertexBuffers.insert({position, buffer});
     }
 }
 
-ChunkVertexBuffer ChunkRenderManager::createChunkVertexBuffer(const ChunkNeighborhood &neighborChunks) const {
+ChunkVertexBuffer ChunkRenderManager::createChunkVertexBuffer(const std::vector<VertexData>& points, const glm::vec3 &position) const {
     ChunkVertexBuffer vertexBuffer;
-
-    thread_local std::vector<VertexData> points;
-    points.clear();
-
-    VoxelVertexGenerator::generate(neighborChunks, points);
 
     if (points.empty()) {
         return vertexBuffer;
@@ -147,8 +92,7 @@ ChunkVertexBuffer ChunkRenderManager::createChunkVertexBuffer(const ChunkNeighbo
 
     const auto queue = wgpuDeviceGetQueue(m_device);
 
-    const auto &centerChunk = *neighborChunks.getCenterChunk();
-    const auto chunkPosition = glm::vec4(centerChunk.getPosition(), 0.0f);
+    const auto chunkPosition = glm::vec4(position, 0.0f);
 
     const size_t bufferSize = points.size() * sizeof(VertexData) + sizeof(chunkPosition);
 

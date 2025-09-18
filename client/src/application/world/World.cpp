@@ -1,17 +1,26 @@
 #include "World.h"
 #include <array>
 
-ChunkNeighborhood World::getChunkNeighborhood(const glm::ivec3 &chunkPos) const {
+template<typename T>
+T getChunkNeighborhoodInternal(const glm::ivec3 &chunkPos, const ChunkMap &chunkMap) {
     std::array<std::array<std::array<const Chunk*, 3>, 3>, 3> neighbours{};
     for (int x = 0; x < 3; ++x) {
         for (int y = 0; y < 3; ++y) {
             for (int z = 0; z < 3; ++z) {
                 glm::ivec3 offset(x - 1, y - 1, z - 1);
-                neighbours[x][y][z] = m_chunks.tryGetChunk(chunkPos + offset);
+                neighbours[x][y][z] = chunkMap.tryGetChunk(chunkPos + offset);
             }
         }
     }
-    return ChunkNeighborhood(neighbours);
+    return T(neighbours);
+}
+
+ChunkNeighborhoodPtrs World::getChunkNeighborhoodPtrs(const glm::ivec3 &chunkPos) const {
+    return getChunkNeighborhoodInternal<ChunkNeighborhoodPtrs>(chunkPos, m_chunks);
+}
+
+ChunkNeighborhood World::getChunkNeighborhood(const glm::ivec3& chunkPos) const {
+    return getChunkNeighborhoodInternal<ChunkNeighborhood>(chunkPos, m_chunks);
 }
 
 bool World::hasChunk(const glm::ivec3 &chunkPos) const {

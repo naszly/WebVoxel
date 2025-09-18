@@ -112,7 +112,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
 void RendererSystem::update(const float dt) {
     const Camera& camera = getCamera();
-    m_chunkRenderManager->update(camera);
+    m_chunkRenderManager->removeBuffersOfFarChunks(camera);
 
     static float timeAccumulator = 0.0f;
     timeAccumulator += dt;
@@ -172,6 +172,10 @@ void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
     const WGPUInstance& instance = getWebGpuContext().getInstance();
     m_profiler.exportTimestamps(instance, queue);
+}
+
+void RendererSystem::updateChunkVertexBuffer(const std::vector<VertexData>& vertexData, const glm::vec3& chunkPosition) const {
+    m_chunkRenderManager->updateChunkVertexBuffer(vertexData, chunkPosition);
 }
 
 void RendererSystem::createRenderPipeline() {

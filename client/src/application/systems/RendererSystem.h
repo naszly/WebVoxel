@@ -9,6 +9,7 @@
 #include "application/graphics/rendering/RenderTargets.h"
 #include "application/graphics/resources/UniformsBuffer.h"
 #include "application/graphics/ChunkRenderManager.h"
+#include "application/types/VertexData.h"
 
 class RendererSystem final : public System {
 public:
@@ -44,6 +45,8 @@ public:
     void setMultisampling(bool multisampling);
 
     void exportTimestamps() const;
+
+    void updateChunkVertexBuffer(const std::vector<VertexData>& vertexData, const glm::vec3& chunkPosition) const;
 
 private:
     bool m_lighting = true;

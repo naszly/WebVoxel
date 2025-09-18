@@ -1,5 +1,8 @@
 #include "ChunkManagementSystem.h"
 
+#include "RendererSystem.h"
+#include "application/Application.h"
+#include "application/meshing/VoxelVertexGenerator.h"
 #include "common/Log.h"
 
 void ChunkManagementSystem::initialize() {
@@ -18,7 +21,7 @@ void ChunkManagementSystem::initialize() {
     }
 }
 
-void ChunkManagementSystem::update(float dt) {
+void ChunkManagementSystem::update(const float dt) {
     const Camera& camera = getCamera();
     World& world = getWorld();
 
@@ -30,13 +33,25 @@ void ChunkManagementSystem::update(float dt) {
 void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& world) {
     Threading::ScopedLock lock(&m_lock);
 
+    integrateCreatedChunkVertexData();
     integrateLoadedChunks(world);
     integrateCompressedChunks(world);
 
+    scheduleChunksForVertexDataCreation(camera, world);
     scheduleChunksForLoading(camera, world);
     scheduleChunksForSaving(world);
     scheduleChunksForUnloading(camera, world);
     scheduleChunksForCompression(world, camera);
+}
+
+void ChunkManagementSystem::integrateCreatedChunkVertexData() {
+    const auto rendererSystem = getApplication().getSystem<RendererSystem>();
+
+    for (const auto& [chunkPos, vertexData] : m_dirtyChunkVertexDatas) {
+        rendererSystem->updateChunkVertexBuffer(vertexData, chunkPos);
+    }
+
+    m_dirtyChunkVertexDatas.clear();
 }
 
 void ChunkManagementSystem::integrateLoadedChunks(World &world) {
@@ -54,11 +69,11 @@ void ChunkManagementSystem::integrateCompressedChunks(World& world) {
                 *chunk = std::move(task.chunk);
             } else {
                 LogApp::warning("Chunk at ({}, {}, {}) was modified after compression, skipping integration",
-                             task.position.x, task.position.y, task.position.z);
+                                task.position.x, task.position.y, task.position.z);
             }
         } else {
             LogApp::warning("Chunk at ({}, {}, {}) not found for integration after compression",
-                         task.position.x, task.position.y, task.position.z);
+                            task.position.x, task.position.y, task.position.z);
         }
         m_compressingChunks.erase(task.position);
     }
@@ -83,6 +98,46 @@ std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
         return da < db;
     });
     return offsets;
+}
+
+void ChunkManagementSystem::scheduleChunksForVertexDataCreation(const Camera& camera, World& world) {
+    const glm::vec3 playerPosition = camera.getPosition();
+    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
+    const auto& chunks = world.getChunks();
+    std::vector<std::reference_wrapper<Chunk>> dirty;
+
+    std::ranges::copy_if(chunks, std::back_inserter(dirty), [&](const Chunk &chunk) {
+        if (!chunk.isGpuBufferDirty()) {
+            return false;
+        }
+        const auto neighborhood = world.getChunkNeighborhoodPtrs(chunk.getPosition());
+        return neighborhood.hasAllNeighbours();
+    });
+
+    std::ranges::sort(dirty, [&](const Chunk &a, const Chunk &b) {
+        const auto aPos = a.getPosition();
+        const auto bPos = b.getPosition();
+        return Utils::distance2(aPos, playerChunk) < Utils::distance2(bPos, playerChunk);
+    });
+
+    // free old ChunkNeighborhoods on the same thread they were allocated
+    while (!m_freeChunkNeighborhoods.empty()) {
+        m_freeChunkNeighborhoods.pop();
+    }
+
+    for (auto& chunkRef : dirty) {
+        auto& chunk = chunkRef.get();
+        auto position = chunk.getPosition();
+        auto chunkNeighborhood = world.getChunkNeighborhood(position);
+        if (!chunkNeighborhood.hasAllNeighbours()) {
+            continue;
+        }
+        const bool success = m_dirtyChunks.push(std::move(chunkNeighborhood));
+        if (!success) {
+            break;
+        }
+        chunk.resetGpuBufferDirty();
+    }
 }
 
 void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const World& world) {
@@ -167,7 +222,7 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
         if (getChunkDistance(playerPosition, chunkPos) <= FAST_ACCESS_RADIUS) continue;
         if (m_compressingChunks.contains(chunkPos)) continue;
 
-        const auto& chunkNeighborhood = world.getChunkNeighborhood(chunkPos);
+        const auto& chunkNeighborhood = world.getChunkNeighborhoodPtrs(chunkPos);
         if (!chunkNeighborhood.hasAllNeighbours()) continue;
         if (chunkNeighborhood.anyNeighbourDirty()) continue;
 
@@ -193,6 +248,23 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
     const auto transformedPlayerPosition = playerPosition * glm::vec3(1.0f, 1.0f, 1.0f);
     const auto transformedChunkPos = glm::vec3(chunkPos) * glm::vec3(1.0f, 1.0f, 1.0f);
     return glm::distance(glm::vec3(transformedChunkPos), glm::vec3(WorldCoordinate(transformedPlayerPosition).chunkPosition()));
+}
+
+void ChunkManagementSystem::handleChunkVertexDataCreation(ChunkNeighborhood& chunkNeighborhood) {
+    const std::optional<Chunk>& chunk = chunkNeighborhood.getCenterChunk();
+
+    auto position = chunk->getPosition();
+    if (!chunkNeighborhood.hasAllNeighbours()) {
+        return;
+    }
+
+    thread_local std::vector<VertexData> points;
+    points.clear();
+    VoxelVertexGenerator::generate(chunkNeighborhood, points);
+
+    Threading::ScopedLock lock(&m_lock);
+    m_dirtyChunkVertexDatas.emplace(position, std::move(points));
+    m_freeChunkNeighborhoods.push(std::move(chunkNeighborhood));
 }
 
 void ChunkManagementSystem::handleChunkSave(std::optional<Chunk>& chunkToSave) {
@@ -233,11 +305,54 @@ void ChunkManagementSystem::handleChunkCompression(std::optional<CompressionTask
     task.reset();
 }
 
+void* ChunkManagementSystem::worker(void *arg) {
+    auto& system = *static_cast<ChunkManagementSystem*>(arg);
+
+    Work work;
+
+    while (system.fetchWork(work)) {
+
+        if (!work.hasPendingWork()) {
+            Threading::sleep(200);
+            continue;
+        }
+
+        if (work.chunkVertexDataToCreate.has_value()) {
+            system.handleChunkVertexDataCreation(*work.chunkVertexDataToCreate);
+            work.chunkVertexDataToCreate.reset();
+        }
+
+        while (!work.chunksToUnload.empty()) {
+            work.chunksToUnload.pop();
+        }
+
+        if (work.chunkToSave.has_value()) {
+            system.handleChunkSave(work.chunkToSave);
+        }
+
+        if (work.chunkToLoad.has_value()) {
+            system.handleChunkLoad(work.chunkToLoad);
+        }
+
+        if (work.compressionTask.has_value()) {
+            system.handleChunkCompression(work.compressionTask);
+        }
+    }
+
+    return nullptr;
+}
+
 bool ChunkManagementSystem::fetchWork(Work& work) {
     Threading::ScopedLock lock(&m_lock);
 
     if (m_shouldExit && m_chunksToSave.empty()) {
         return false;
+    }
+
+    if (!m_dirtyChunks.empty()) {
+        work.chunkVertexDataToCreate = std::move(m_dirtyChunks.first());
+        m_dirtyChunks.removeFirst();
+        return true;
     }
 
     if (!m_chunksToSave.empty()) {
@@ -265,36 +380,4 @@ bool ChunkManagementSystem::fetchWork(Work& work) {
     }
 
     return true;
-}
-
-void* ChunkManagementSystem::worker(void *arg) {
-    auto& system = *static_cast<ChunkManagementSystem*>(arg);
-
-    Work work;
-
-    while (system.fetchWork(work)) {
-
-        while (!work.chunksToUnload.empty()) {
-            work.chunksToUnload.pop();
-        }
-
-        if (!work.hasPendingWork()) {
-            Threading::sleep(200);
-            continue;
-        }
-
-        if (work.chunkToSave.has_value()) {
-            system.handleChunkSave(work.chunkToSave);
-        }
-
-        if (work.chunkToLoad.has_value()) {
-            system.handleChunkLoad(work.chunkToLoad);
-        }
-
-        if (work.compressionTask.has_value()) {
-            system.handleChunkCompression(work.compressionTask);
-        }
-    }
-
-    return nullptr;
 }
