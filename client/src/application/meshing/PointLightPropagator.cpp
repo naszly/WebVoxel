@@ -5,8 +5,8 @@
 #include <ranges>
 
 const PointLightPropagator::LightMap& PointLightPropagator::compute(const ChunkNeighborhood& neighborChunks,
-                                                          const std::vector<Chunk::LightSource>& lights) {
-    static std::array<std::vector<int>, 32> buckets; // up to 31
+                                                                    const std::vector<Chunk::LightSource>& lights) {
+    thread_local std::array<std::vector<int>, 32> buckets; // up to 31
     for (auto& b : buckets) b.clear();
 
     struct Storage {  std::unique_ptr<LightMap> map; };
