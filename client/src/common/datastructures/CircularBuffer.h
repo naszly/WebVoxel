@@ -17,6 +17,27 @@ public:
         return true;
     }
 
+    bool push(T&& value) {
+        if (m_size == Capacity) {
+            return false;
+        }
+        m_buffer[(m_head + m_size) % Capacity] = std::move(value);
+        ++m_size;
+        return true;
+    }
+
+    T& first() {
+        return m_buffer[m_head];
+    }
+
+    void removeFirst() {
+        if (m_size == 0) {
+            return;
+        }
+        m_head = (m_head + 1) % Capacity;
+        --m_size;
+    }
+
     T pop() {
         T value = m_buffer[m_head];
         m_head = (m_head + 1) % Capacity;
