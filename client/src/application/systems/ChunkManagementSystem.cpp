@@ -150,7 +150,7 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
     static std::vector<glm::ivec3> offsets = generateChunkOffsets();
 
     std::vector<glm::ivec3> chunksToLoad;
-    const size_t maxChunksToLoad = m_chunkWorkersCount * 3;
+    const size_t maxChunksToLoad = m_chunkWorkersCount * 8;
 
     for (const auto& offset : offsets) {
         const auto chunkPos = playerChunk + offset;
@@ -317,7 +317,7 @@ void* ChunkManagementSystem::worker(void *arg) {
     while (system.fetchWork(work)) {
 
         if (!work.hasPendingWork()) {
-            Threading::sleep(200);
+            Threading::sleep(20);
             continue;
         }
 
