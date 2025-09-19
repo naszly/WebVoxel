@@ -99,9 +99,9 @@ private:
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
     void handleChunkVertexDataCreation(ChunkNeighborhood& chunkNeighborhood);
-    void handleChunkSave(std::optional<Chunk>& chunkToSave);
-    void handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad);
-    void handleChunkCompression(std::optional<CompressionTask>& task);
+    void handleChunkSave(Chunk& chunkToSave);
+    void handleChunkLoad(const glm::ivec3& chunkToLoad);
+    void handleChunkCompression(CompressionTask& task);
 
     static void* worker(void *arg);
 

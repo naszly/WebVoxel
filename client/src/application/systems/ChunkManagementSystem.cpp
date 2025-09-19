@@ -267,42 +267,30 @@ void ChunkManagementSystem::handleChunkVertexDataCreation(ChunkNeighborhood& chu
     m_freeChunkNeighborhoods.push(std::move(chunkNeighborhood));
 }
 
-void ChunkManagementSystem::handleChunkSave(std::optional<Chunk>& chunkToSave) {
-    if (!chunkToSave.has_value()) return;
-
-    auto& chunk = chunkToSave.value();
-    const auto chunkPos = chunk.getPosition();
-    chunk.save();
-    chunkToSave = std::nullopt;
+void ChunkManagementSystem::handleChunkSave(Chunk& chunkToSave) {
+    const auto chunkPos = chunkToSave.getPosition();
+    chunkToSave.save();
 
     Threading::ScopedLock lock(&m_lock);
     m_savingChunks.erase(chunkPos);
 }
 
-void ChunkManagementSystem::handleChunkLoad(std::optional<glm::ivec3>& chunkToLoad) {
-    if (!chunkToLoad.has_value()) return;
-
-    const auto chunkPos = chunkToLoad.value();
-    Chunk chunk(chunkPos);
+void ChunkManagementSystem::handleChunkLoad(const glm::ivec3& chunkToLoad) {
+    Chunk chunk(chunkToLoad);
     if (chunk.fileExists()) {
         chunk.load();
     } else {
         chunk.generate(m_generator);
     }
-    chunkToLoad = std::nullopt;
 
     Threading::ScopedLock lock(&m_lock);
     m_loadedChunks.emplace_back(std::move(chunk));
 }
 
-void ChunkManagementSystem::handleChunkCompression(std::optional<CompressionTask>& task) {
-    if (!task.has_value()) return;
-
-    auto& t = task.value();
-    t.chunk.compress();
+void ChunkManagementSystem::handleChunkCompression(CompressionTask& task) {
+    task.chunk.compress();
     Threading::ScopedLock lock(&m_lock);
-    m_compressedChunks.push_back(std::move(t));
-    task.reset();
+    m_compressedChunks.push_back(std::move(task));
 }
 
 void* ChunkManagementSystem::worker(void *arg) {
@@ -327,16 +315,21 @@ void* ChunkManagementSystem::worker(void *arg) {
         }
 
         if (work.chunkToSave.has_value()) {
-            system.handleChunkSave(work.chunkToSave);
+            system.handleChunkSave(*work.chunkToSave);
+            work.chunkToSave.reset();
         }
 
         if (work.chunkToLoad.has_value()) {
-            system.handleChunkLoad(work.chunkToLoad);
+            system.handleChunkLoad(*work.chunkToLoad);
+            work.chunkToLoad.reset();
         }
 
         if (work.compressionTask.has_value()) {
-            system.handleChunkCompression(work.compressionTask);
+            system.handleChunkCompression(*work.compressionTask);
+            work.compressionTask.reset();
         }
+
+        Threading::sleep(1);
     }
 
     return nullptr;
