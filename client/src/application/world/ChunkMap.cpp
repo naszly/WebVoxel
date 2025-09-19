@@ -2,57 +2,55 @@
 
 #include "common/Log.h"
 
-Chunk & ChunkMap::getChunk(const glm::ivec3 key) {
-    if (const auto chunk = tryGetChunk(key)) {
+Chunk& ChunkMap::getChunk(const glm::ivec3 key) {
+    if (auto* chunk = tryGetChunk(key)) {
         return *chunk;
     }
 
     return createChunk(key);
 }
 
-Chunk * ChunkMap::tryGetChunk(const glm::ivec3 key) {
-    const auto it = m_chunks.find(key);
-    return it != m_chunks.end() ? &it->second : nullptr;
+Chunk* ChunkMap::tryGetChunk(const glm::ivec3 key) {
+    auto& slot = m_chunks[packIndex(key)];
+    return slot ? &*slot : nullptr;
 }
 
-const Chunk * ChunkMap::tryGetChunk(const glm::ivec3 key) const {
-    const auto it = m_chunks.find(key);
-    return it != m_chunks.end() ? &it->second : nullptr;
+const Chunk* ChunkMap::tryGetChunk(const glm::ivec3 key) const {
+    const auto& slot = m_chunks[packIndex(key)];
+    return slot ? &*slot : nullptr;
 }
 
 bool ChunkMap::hasChunk(const glm::ivec3 key) const {
-    return m_chunks.contains(key);
+    return m_chunks[packIndex(key)].has_value();
 }
 
-Chunk & ChunkMap::createChunk(const glm::ivec3 &key) {
-    auto [it, success] = m_chunks.try_emplace(key, key);
-
-    if (success) {
+Chunk& ChunkMap::createChunk(const glm::ivec3 &key) {
+    auto& slot = m_chunks[packIndex(key)];
+    if (!slot) {
+        slot.emplace(key);
         LogApp::info("Created chunk at ({}, {}, {})", key.x, key.y, key.z);
-
         setNeighboursDirty(key);
     } else {
         LogApp::error("Failed to create chunk at ({}, {}, {})", key.x, key.y, key.z);
     }
-
-    return it->second;
+    return *slot;
 }
 
 void ChunkMap::insertChunkByMove(Chunk &chunk) {
     const auto key = chunk.getPosition();
-    m_chunks.try_emplace(key, std::move(chunk));
+    m_chunks[packIndex(key)] = std::move(chunk);
     setNeighboursDirty(key);
 }
 
 Chunk ChunkMap::extractChunkByMove(const glm::ivec3& key) {
-    const auto it = m_chunks.find(key);
-    if (it == m_chunks.end()) {
+    auto& slot = m_chunks[packIndex(key)];
+    if (!slot) {
         LogApp::error("Chunk at ({}, {}, {}) not found for moving out", key.x, key.y, key.z);
         return Chunk(key);
     }
-    Chunk movedChunk = std::move(it->second);
-    m_chunks.erase(it);
-    return movedChunk;
+    Chunk moved = std::move(*slot);
+    slot.reset();
+    return moved;
 }
 
 VoxelData ChunkMap::getVoxel(const WorldCoordinate &coord) const {
@@ -102,11 +100,13 @@ void ChunkMap::executeQueuedVoxelsToSet(Chunk* chunk) {
 }
 
 void ChunkMap::clear() {
-    m_chunks.clear();
+    for (auto& slot : m_chunks) {
+        slot.reset();
+    }
 }
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {
-    if (const auto neighbor = tryGetChunk(key)) {
+    if (auto* neighbor = tryGetChunk(key)) {
         neighbor->setGpuBufferDirty();
     }
 }

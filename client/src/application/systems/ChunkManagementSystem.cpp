@@ -106,16 +106,7 @@ std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
 void ChunkManagementSystem::scheduleChunksForVertexDataCreation(const Camera& camera, World& world) {
     const glm::vec3 playerPosition = camera.getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
-    const auto& chunks = world.getChunks();
-    std::vector<std::reference_wrapper<Chunk>> dirty;
-
-    std::ranges::copy_if(chunks, std::back_inserter(dirty), [&](const Chunk &chunk) {
-        if (!chunk.isGpuBufferDirty()) {
-            return false;
-        }
-        const auto neighborhood = world.getChunkNeighborhoodPtrs(chunk.getPosition());
-        return neighborhood.hasAllNeighbours();
-    });
+    std::vector<std::reference_wrapper<Chunk>> dirty = world.getChunksWithDirtyGpuBuffer();
 
     std::ranges::sort(dirty, [&](const Chunk &a, const Chunk &b) {
         const auto aPos = a.getPosition();
@@ -170,9 +161,7 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
 }
 
 void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
-    const auto chunks = world.getChunks();
-
-    for (auto &chunk : chunks) {
+    for (auto &chunk : world.getChunks()) {
         if (chunk.isSaveFileDirty()) {
             if (!m_savingChunks.contains(chunk.getPosition())) {
                 m_chunksToSave.push(chunk);
@@ -188,10 +177,9 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
     constexpr float yCorrection = static_cast<float>(UNLOAD_ZONE_RADIUS_XZ) / UNLOAD_ZONE_RADIUS_Y;
 
-    const auto chunks = world.getChunks();
     std::vector<glm::ivec3> chunksToUnload;
 
-    for (const auto &chunk : chunks) {
+    for (const auto &chunk : world.getChunks()) {
         auto chunkPos = chunk.getPosition();
         const glm::ivec3 offset = chunkPos - playerChunk;
         const float correctedOffestY = static_cast<float>(offset.y) * yCorrection;

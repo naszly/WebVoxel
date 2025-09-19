@@ -1,15 +1,18 @@
 #pragma once
 
 #include <ranges>
-#include <glm/gtx/hash.hpp>
-
-#include "common/datastructures/HashMap.h"
+#include <vector>
+#include <optional>
+#include <glm/glm.hpp>
 #include "chunk/Chunk.h"
 #include "WorldCoordinate.h"
 
 class ChunkMap {
 public:
-    ChunkMap() = default;
+    static constexpr int SIZE = 64;
+    static constexpr int TOTAL_SIZE = SIZE * SIZE * SIZE;
+
+    ChunkMap() : m_chunks(TOTAL_SIZE) {}
     ~ChunkMap() = default;
 
     ChunkMap(const ChunkMap&) = delete;
@@ -31,9 +34,19 @@ public:
 
     [[nodiscard]] Chunk extractChunkByMove(const glm::ivec3& key);
 
-    [[nodiscard]] auto getChunks() { return m_chunks | std::ranges::views::values; }
+    [[nodiscard]] auto getChunks() {
+        return m_chunks | std::views::filter([](const auto& slot){ return slot.has_value(); })
+                        | std::views::transform([](auto& slot) -> Chunk& { return *slot; });
+    }
 
-    [[nodiscard]] size_t countChunks() const { return m_chunks.size(); }
+    [[nodiscard]] auto getChunks() const {
+        return m_chunks | std::views::filter([](const auto& slot){ return slot.has_value(); })
+                        | std::views::transform([](auto& slot) -> const Chunk& { return *slot; });
+    }
+
+    [[nodiscard]] size_t countChunks() const {
+        return std::ranges::count_if(m_chunks, [](auto& slot){ return slot.has_value(); });
+    }
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 
@@ -48,7 +61,11 @@ public:
     void clear();
 
 private:
-    HashMap<glm::ivec3, Chunk> m_chunks;
+    static uint32_t packIndex(const glm::ivec3& key) noexcept {
+        return (key.x & 0x3F) | ((key.y & 0x3F) << 6) | ((key.z & 0x3F) << 12);
+    }
+
+    std::vector<std::optional<Chunk>> m_chunks;
 
     void setChunkDirty(const glm::ivec3& key);
 

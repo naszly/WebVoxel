@@ -15,7 +15,27 @@ public:
     World& operator=(const World&) = delete;
     World& operator=(World&&) = delete;
 
-    [[nodiscard]] auto getChunks() { return m_chunks.getChunks(); }
+    [[nodiscard]] auto getChunks() {
+        return m_chunks.getChunks();
+    }
+
+    [[nodiscard]] auto getChunks() const {
+        return m_chunks.getChunks();
+    }
+
+    [[nodiscard]] auto getChunksWithDirtyGpuBuffer() {
+        auto chunks = m_chunks.getChunks();
+        std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
+        for (auto& chunk : chunks) {
+            if (chunk.isGpuBufferDirty()) {
+                const auto neighborhood = getChunkNeighborhoodPtrs(chunk.getPosition());
+                if (neighborhood.hasAllNeighbours()) {
+                    dirtyChunks.push_back(chunk);
+                }
+            }
+        }
+        return dirtyChunks;
+    }
 
     [[nodiscard]] Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
 
