@@ -38,10 +38,18 @@ void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& 
     integrateCompressedChunks(world);
 
     scheduleChunksForVertexDataCreation(camera, world);
-    scheduleChunksForLoading(camera, world);
-    scheduleChunksForSaving(world);
-    scheduleChunksForUnloading(camera, world);
-    scheduleChunksForCompression(world, camera);
+
+    static int turn = 0;
+    turn = (turn + 1) % 4;
+    if (turn == 0) {
+        scheduleChunksForLoading(camera, world);
+    } else if (turn == 1) {
+        scheduleChunksForSaving(world);
+    } else if (turn == 2) {
+        scheduleChunksForUnloading(camera, world);
+    } else if (turn == 3) {
+        scheduleChunksForCompression(world, camera);
+    }
 }
 
 void ChunkManagementSystem::integrateCreatedChunkVertexData() {
@@ -141,7 +149,7 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
     static std::vector<glm::ivec3> offsets = generateChunkOffsets();
 
     std::vector<glm::ivec3> chunksToLoad;
-    const size_t maxChunksToLoad = m_chunkWorkersCount * 8;
+    const size_t maxChunksToLoad = m_chunkWorkersCount * 32;
 
     for (const auto& offset : offsets) {
         const auto chunkPos = playerChunk + offset;
