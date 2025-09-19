@@ -5,7 +5,7 @@
 #include "DataIdMapper.h"
 #include "KTree.h"
 
-template<typename DataType, uint32_t Depth, uint32_t BaseSize, IdSize IdSize>
+template<typename DataType = int, uint32_t Depth = 6, uint32_t BaseSize = 2, IdSize IdSize = IdSize::U8Bit>
 class IdMappedKTree {
     using DataIdMapper = ::DataIdMapper<DataType, IdSize>;
     using IdHashSet = HashSet<IdType<IdSize>>;

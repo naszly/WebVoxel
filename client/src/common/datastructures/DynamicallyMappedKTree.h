@@ -1,9 +1,11 @@
 #pragma once
 
-#include "IdMappedKTree.h"
 #include <cassert>
 #include <ostream>
 #include <istream>
+
+#include "IdMappedKTree.h"
+#include "GlobalBlockAllocator.h"
 
 template<typename DataType, uint32_t Depth, uint32_t BaseSize>
 class DynamicallyMappedKTree {
@@ -20,42 +22,42 @@ class DynamicallyMappedKTree {
 public:
     DynamicallyMappedKTree() {
         switch (m_idSize) {
-            case IdSize::U8Bit: m_tree.u8Tree = new Tree8(); break;
-            case IdSize::U16Bit: m_tree.u16Tree = new Tree16(); break;
-            case IdSize::U20Bit: m_tree.u20Tree = new Tree20(); break;
+            case IdSize::U8Bit: m_tree.u8Tree = allocateTree<Tree8>(); break;
+            case IdSize::U16Bit: m_tree.u16Tree = allocateTree<Tree16>(); break;
+            case IdSize::U20Bit: m_tree.u20Tree = allocateTree<Tree20>(); break;
         }
     }
 
     ~DynamicallyMappedKTree() {
         switch (m_idSize) {
-            case IdSize::U8Bit: delete m_tree.u8Tree; break;
-            case IdSize::U16Bit: delete m_tree.u16Tree; break;
-            case IdSize::U20Bit: delete m_tree.u20Tree; break;
+            case IdSize::U8Bit: deallocateTree(m_tree.u8Tree); break;
+            case IdSize::U16Bit: deallocateTree(m_tree.u16Tree); break;
+            case IdSize::U20Bit: deallocateTree(m_tree.u20Tree); break;
         }
     }
 
     DynamicallyMappedKTree(const DynamicallyMappedKTree& other) {
         m_idSize = other.m_idSize;
         switch (m_idSize) {
-            case IdSize::U8Bit: m_tree.u8Tree = new Tree8(*other.m_tree.u8Tree); break;
-            case IdSize::U16Bit: m_tree.u16Tree = new Tree16(*other.m_tree.u16Tree); break;
-            case IdSize::U20Bit: m_tree.u20Tree = new Tree20(*other.m_tree.u20Tree); break;
+            case IdSize::U8Bit: m_tree.u8Tree = allocateTreeCopy<Tree8>(*other.m_tree.u8Tree); break;
+            case IdSize::U16Bit: m_tree.u16Tree = allocateTreeCopy<Tree16>(*other.m_tree.u16Tree); break;
+            case IdSize::U20Bit: m_tree.u20Tree = allocateTreeCopy<Tree20>(*other.m_tree.u20Tree); break;
         }
     }
 
     DynamicallyMappedKTree& operator=(const DynamicallyMappedKTree& other) {
         if (this != &other) {
             switch (m_idSize) {
-                case IdSize::U8Bit: delete m_tree.u8Tree; break;
-                case IdSize::U16Bit: delete m_tree.u16Tree; break;
-                case IdSize::U20Bit: delete m_tree.u20Tree; break;
+                case IdSize::U8Bit: deallocateTree(m_tree.u8Tree); break;
+                case IdSize::U16Bit: deallocateTree(m_tree.u16Tree); break;
+                case IdSize::U20Bit: deallocateTree(m_tree.u20Tree); break;
             }
             clearPointers();
             m_idSize = other.m_idSize;
             switch (m_idSize) {
-                case IdSize::U8Bit: m_tree.u8Tree = new Tree8(*other.m_tree.u8Tree); break;
-                case IdSize::U16Bit: m_tree.u16Tree = new Tree16(*other.m_tree.u16Tree); break;
-                case IdSize::U20Bit: m_tree.u20Tree = new Tree20(*other.m_tree.u20Tree); break;
+                case IdSize::U8Bit: m_tree.u8Tree = allocateTreeCopy<Tree8>(*other.m_tree.u8Tree); break;
+                case IdSize::U16Bit: m_tree.u16Tree = allocateTreeCopy<Tree16>(*other.m_tree.u16Tree); break;
+                case IdSize::U20Bit: m_tree.u20Tree = allocateTreeCopy<Tree20>(*other.m_tree.u20Tree); break;
             }
         }
         return *this;
@@ -70,9 +72,9 @@ public:
     DynamicallyMappedKTree& operator=(DynamicallyMappedKTree&& other) noexcept {
         if (this != &other) {
             switch (m_idSize) {
-                case IdSize::U8Bit: delete m_tree.u8Tree; break;
-                case IdSize::U16Bit: delete m_tree.u16Tree; break;
-                case IdSize::U20Bit: delete m_tree.u20Tree; break;
+                case IdSize::U8Bit: deallocateTree(m_tree.u8Tree); break;
+                case IdSize::U16Bit: deallocateTree(m_tree.u16Tree); break;
+                case IdSize::U20Bit: deallocateTree(m_tree.u20Tree); break;
             }
             m_idSize = other.m_idSize;
             m_tree = other.m_tree;
@@ -169,39 +171,58 @@ private:
     IdSize m_idSize{IdSize::U8Bit};
     TreeVariants m_tree;
 
+    template<typename T>
+    static T* allocateTree() {
+        void* mem = GlobalBlockAllocator::getAllocator<sizeof(T)>().allocate();
+        return new (mem) T();
+    }
+
+    template<typename T, typename TOther>
+    static T* allocateTreeCopy(const TOther& other) {
+        void* mem = GlobalBlockAllocator::getAllocator<sizeof(T)>().allocate();
+        return new (mem) T(other);
+    }
+
+    template<typename T>
+    static void deallocateTree(T* ptr) {
+        if (!ptr) return;
+        ptr->~T();
+        GlobalBlockAllocator::getAllocator<sizeof(T)>().deallocate(ptr);
+    }
+
     void updateIdSize(const IdSize newIdSize) {
         if (m_idSize == newIdSize) return;
         switch (m_idSize) {
             case IdSize::U8Bit:
                 if (newIdSize == IdSize::U16Bit) {
-                    auto* newTree = new Tree16(*m_tree.u8Tree);
-                    delete m_tree.u8Tree;
+                    auto* newTree = allocateTreeCopy<Tree16>(*m_tree.u8Tree);
+                    deallocateTree(m_tree.u8Tree);
                     m_tree.u16Tree = newTree;
                 } else if (newIdSize == IdSize::U20Bit) {
-                    auto* newTree = new Tree20(*m_tree.u8Tree);
-                    delete m_tree.u8Tree;
+                    auto* newTree = allocateTreeCopy<Tree20>(*m_tree.u8Tree);
+                    deallocateTree(m_tree.u8Tree);
                     m_tree.u20Tree = newTree;
                 }
                 break;
             case IdSize::U16Bit:
                 if (newIdSize == IdSize::U8Bit) {
-                    auto* newTree = new Tree8(*m_tree.u16Tree);
-                    delete m_tree.u16Tree;
+                    auto* newTree = allocateTreeCopy<Tree8>(*m_tree.u16Tree);
+                    deallocateTree(m_tree.u16Tree);
                     m_tree.u8Tree = newTree;
                 } else if (newIdSize == IdSize::U20Bit) {
-                    auto* newTree = new Tree20(*m_tree.u16Tree);
-                    delete m_tree.u16Tree;
+                    auto* newTree = allocateTreeCopy<Tree20>(*m_tree.u16Tree);
+                    deallocateTree(m_tree.u16Tree);
                     m_tree.u20Tree = newTree;
                 }
                 break;
             case IdSize::U20Bit:
                 if (newIdSize == IdSize::U8Bit) {
-                    auto* newTree = new Tree8(*m_tree.u20Tree);
-                    delete m_tree.u20Tree;
+                    auto* newTree = allocateTreeCopy<Tree8>(*m_tree.u20Tree);
+                    deallocateTree(m_tree.u20Tree);
                     m_tree.u8Tree = newTree;
                 } else if (newIdSize == IdSize::U16Bit) {
-                    auto* newTree = new Tree16(*m_tree.u20Tree);
-                    delete m_tree.u20Tree;
+                    auto* newTree = allocateTreeCopy<Tree16>(*m_tree.u20Tree);
+                    deallocateTree(m_tree.u20Tree);
                     m_tree.u16Tree = newTree;
                 }
                 break;
