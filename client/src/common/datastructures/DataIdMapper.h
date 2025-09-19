@@ -22,10 +22,7 @@ public:
         return std::vector<DataT>{EMPTY_DATA};
     }
 
-    DataIdMapper() {
-        m_dataVector = createEmptyDataVector();
-        m_dataIdMap[EMPTY_DATA] = IdType(0);
-    }
+    DataIdMapper() : m_dataVector{EMPTY_DATA} {}
 
     explicit DataIdMapper(std::vector<DataT>&& dataVector) : m_dataVector(std::move(dataVector)) {
         assert(m_dataVector.size() <= MAX_DATA && "DataIdMapper size exceeds maximum allowed size");
@@ -38,7 +35,7 @@ public:
         rebuildDataIdMap();
     }
 
-    [[nodiscard]] const DataT& getData(const IdType id) const {
+    [[nodiscard]] const DataT& getData(const IdType id) const noexcept {
         if (id < m_dataVector.size()) {
             return m_dataVector[id];
         }
@@ -46,23 +43,26 @@ public:
     }
 
     std::pair<bool, IdType> tryGetId(const DataT &data) {
+        if (data == EMPTY_DATA) {
+            return {true, IdType(0)};
+        }
         if (auto it = m_dataIdMap.find(data); it != m_dataIdMap.end()) {
             return {true, it->second};
         }
         if (m_dataVector.size() < MAX_DATA) {
             m_dataVector.push_back(data);
-            m_dataIdMap[data] = static_cast<IdType>(m_dataVector.size() - 1);
-            return {true, static_cast<IdType>(m_dataVector.size() - 1)};
+            const IdType newId = static_cast<IdType>(m_dataVector.size() - 1);
+            m_dataIdMap.emplace(data, newId);
+            return {true, newId};
         }
         return {false, IdType()};
     }
 
     IdType getId(const DataT& data) const {
+        if (data == EMPTY_DATA) {
+            return IdType(0);
+        }
         return m_dataIdMap.at(data);
-    }
-
-    [[nodiscard]] bool isEmpty() const {
-        return m_dataVector.empty();
     }
 
     void serialize(std::ostream& os) const {
@@ -101,8 +101,11 @@ private:
     void rebuildDataIdMap() {
         assert(m_dataVector.front() == EMPTY_DATA);
         m_dataIdMap.clear();
-        for (size_t i = 0; i < m_dataVector.size(); ++i) {
-            m_dataIdMap[m_dataVector[i]] = static_cast<IdType>(i);
+        if (m_dataVector.size() > 1) {
+            m_dataIdMap.reserve(m_dataVector.size() - 1);
+        }
+        for (size_t i = 1; i < m_dataVector.size(); ++i) {
+            m_dataIdMap.emplace(m_dataVector[i], static_cast<IdType>(i));
         }
     }
 };
