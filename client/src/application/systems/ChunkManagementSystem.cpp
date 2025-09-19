@@ -82,19 +82,22 @@ void ChunkManagementSystem::integrateCompressedChunks(World& world) {
 
 std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
     std::vector<glm::ivec3> offsets;
+    constexpr float yCorrection = static_cast<float>(LOAD_ZONE_RADIUS_XZ) / LOAD_ZONE_RADIUS_Y;
     for (int x = -LOAD_ZONE_RADIUS_XZ; x <= LOAD_ZONE_RADIUS_XZ; ++x) {
         for (int y = -LOAD_ZONE_RADIUS_Y; y <= LOAD_ZONE_RADIUS_Y; ++y) {
+            const auto cy = static_cast<float>(y) * yCorrection;
             for (int z = -LOAD_ZONE_RADIUS_XZ; z <= LOAD_ZONE_RADIUS_XZ; ++z) {
-                if ((x*x + z*z <= LOAD_ZONE_RADIUS_XZ*LOAD_ZONE_RADIUS_XZ) && (abs(y) <= LOAD_ZONE_RADIUS_Y)) {
+                if (x * x + z * z + cy * cy <= LOAD_ZONE_RADIUS_XZ * LOAD_ZONE_RADIUS_XZ) {
                     offsets.emplace_back(x, y, z);
                 }
             }
         }
     }
-    constexpr float yCorrection = static_cast<float>(LOAD_ZONE_RADIUS_XZ) / LOAD_ZONE_RADIUS_Y;
     std::ranges::sort(offsets, [](const glm::ivec3& a, const glm::ivec3& b) {
-        const float da = static_cast<float>(a.x * a.x + a.z * a.z) + (a.y * a.y) * yCorrection * yCorrection;
-        const float db = static_cast<float>(b.x * b.x + b.z * b.z) + (b.y * b.y) * yCorrection * yCorrection;
+        const float cay = static_cast<float>(a.y) * yCorrection;
+        const float cby = static_cast<float>(b.y) * yCorrection;
+        const float da = a.x * a.x + a.z * a.z + cay * cay;
+        const float db = b.x * b.x + b.z * b.z + cby * cby;
         return da < db;
     });
     return offsets;
@@ -191,7 +194,8 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
     for (const auto &chunk : chunks) {
         auto chunkPos = chunk.getPosition();
         const glm::ivec3 offset = chunkPos - playerChunk;
-        const float distanceSq = static_cast<float>(offset.x * offset.x + offset.z * offset.z) + (offset.y * offset.y) * yCorrection * yCorrection;
+        const float correctedOffestY = static_cast<float>(offset.y) * yCorrection;
+        const float distanceSq = offset.x * offset.x + offset.z * offset.z + correctedOffestY * correctedOffestY;
         constexpr float unloadRadiusSq = static_cast<float>(UNLOAD_ZONE_RADIUS_XZ * UNLOAD_ZONE_RADIUS_XZ);
         if (distanceSq > unloadRadiusSq) {
             chunksToUnload.push_back(chunkPos);
