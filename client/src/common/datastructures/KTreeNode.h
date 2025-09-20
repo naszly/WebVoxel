@@ -32,7 +32,7 @@ class KTreeNode {
     static_assert(std::is_trivially_copyable_v<TData>, "KTree requires TData to be trivially copyable for safe serialization/deserialization.");
     static_assert(std::is_trivially_copyable_v<NodeType>, "KTree requires NodeType to be trivially copyable for fast moves.");
 public:
-    KTreeNode() {
+    KTreeNode() noexcept {
         initialize();
     }
 
@@ -65,11 +65,11 @@ public:
         return *this;
     }
 
-    ~KTreeNode() {
+    ~KTreeNode() noexcept {
         clear();
     }
 
-    [[nodiscard]] const TData& get(uint32_t x, uint32_t y, uint32_t z) const {
+    [[nodiscard]] const TData& get(const uint32_t x, const uint32_t y, const uint32_t z) const noexcept {
         if constexpr (IS_LEAF) {
             assert(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis);
             [[assume(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis)]];
@@ -87,7 +87,7 @@ public:
         }
     }
 
-    void set(uint32_t x, uint32_t y, uint32_t z, const TData& tData) {
+    void set(const uint32_t x, const uint32_t y, const uint32_t z, const TData& tData) noexcept {
         if constexpr (IS_LEAF) {
             assert(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis);
             [[assume(x < NodeCountPerAxis && y < NodeCountPerAxis && z < NodeCountPerAxis)]];
@@ -178,7 +178,7 @@ public:
         }
     }
 
-    void removeEmptyNodes() {
+    void removeEmptyNodes() noexcept {
         if constexpr (!IS_LEAF) {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                 if (auto* child = m_nodes[idx]) {
@@ -193,7 +193,7 @@ public:
         }
     }
 
-    [[nodiscard]] bool isEmpty() const {
+    [[nodiscard]] bool isEmpty() const noexcept {
         if constexpr (IS_LEAF) {
             return std::all_of(m_nodes, m_nodes + NODE_COUNT, [](const TData& node) {
                 return node.isEmpty();
@@ -205,7 +205,7 @@ public:
         }
     }
 
-    [[nodiscard]] const NodeType* getNodes() const {
+    [[nodiscard]] const NodeType* getNodes() const noexcept {
         return m_nodes;
     }
 
@@ -216,7 +216,7 @@ private:
         return (x * NodeCountPerAxis + y) * NodeCountPerAxis + z;
     }
 
-    static KTreeChildNode* allocateChildNode() {
+    static KTreeChildNode* allocateChildNode() noexcept {
 #if defined(USE_GLOBAL_BLOCK_ALLOCATOR)
         return new (GlobalBlockAllocator::getAllocator<sizeof(KTreeChildNode)>().allocate()) KTreeChildNode();
 #else
@@ -225,7 +225,7 @@ private:
     }
 
     template<typename TSourceData>
-    static KTreeChildNode* allocateChildNode(const KTreeNode<Layer-1, NodeCountPerAxis, TSourceData>& otherChild) {
+    static KTreeChildNode* allocateChildNode(const KTreeNode<Layer-1, NodeCountPerAxis, TSourceData>& otherChild) noexcept {
 #if defined(USE_GLOBAL_BLOCK_ALLOCATOR)
         return new (GlobalBlockAllocator::getAllocator<sizeof(KTreeChildNode)>().allocate()) KTreeChildNode(otherChild);
 #else
@@ -233,7 +233,7 @@ private:
 #endif
     }
 
-    static void deallocateChildNode(KTreeChildNode* child) {
+    static void deallocateChildNode(KTreeChildNode* child) noexcept {
 #if defined(USE_GLOBAL_BLOCK_ALLOCATOR)
         child->~KTreeChildNode();
         GlobalBlockAllocator::getAllocator<sizeof(KTreeChildNode)>().deallocate(child);
@@ -242,7 +242,7 @@ private:
 #endif
     }
 
-    void initialize() {
+    void initialize() noexcept {
         if constexpr (IS_LEAF) {
             std::fill_n(m_nodes, NODE_COUNT, EMPTY);
         } else {
@@ -250,7 +250,7 @@ private:
         }
     }
 
-    void clear() {
+    void clear() noexcept {
         if constexpr (!IS_LEAF) {
             for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                 if (m_nodes[idx]) {
@@ -262,7 +262,7 @@ private:
     }
 
     template<typename TSourceData>
-    void copyFrom(const KTreeNode<Layer, NodeCountPerAxis, TSourceData>& source) {
+    void copyFrom(const KTreeNode<Layer, NodeCountPerAxis, TSourceData>& source) noexcept {
         if constexpr (IS_LEAF) {
             if constexpr (std::is_same_v<TData, TSourceData>) {
                 std::memcpy(m_nodes, source.getNodes(), NODE_COUNT * sizeof(TData));
@@ -282,7 +282,7 @@ private:
         }
     }
 
-    void moveFrom(KTreeNode&& other) {
+    void moveFrom(KTreeNode&& other) noexcept {
         std::memcpy(m_nodes, other.m_nodes, NODE_COUNT * sizeof(NodeType));
         if constexpr (IS_LEAF) {
             std::fill_n(other.m_nodes, NODE_COUNT, EMPTY);
