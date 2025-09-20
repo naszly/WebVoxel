@@ -6,6 +6,7 @@
 #include <istream>
 #include <ostream>
 #include <utility>
+#include <cstring>
 
 #include "Bitmap.h"
 #include "common/Concetps.h"
@@ -29,6 +30,7 @@ class KTreeNode {
     using NodeType = std::conditional_t<IS_LEAF, TData, KTreeChildNode*>;
     using NodeBitmap = Bitmap<NODE_COUNT, uint8_t>;
     static_assert(std::is_trivially_copyable_v<TData>, "KTree requires TData to be trivially copyable for safe serialization/deserialization.");
+    static_assert(std::is_trivially_copyable_v<NodeType>, "KTree requires NodeType to be trivially copyable for fast moves.");
 public:
     KTreeNode() {
         initialize();
@@ -263,7 +265,7 @@ private:
     void copyFrom(const KTreeNode<Layer, NodeCountPerAxis, TSourceData>& source) {
         if constexpr (IS_LEAF) {
             if constexpr (std::is_same_v<TData, TSourceData>) {
-                std::copy_n(&source.getNodes()[0], NODE_COUNT, &m_nodes[0][0][0]);
+                std::memcpy(m_nodes, source.getNodes(), NODE_COUNT * sizeof(TData));
             } else {
                 for (uint32_t idx = 0; idx < NODE_COUNT; ++idx) {
                     m_nodes[idx] = static_cast<TData>(source.getNodes()[idx]);
@@ -281,7 +283,7 @@ private:
     }
 
     void moveFrom(KTreeNode&& other) {
-        std::copy_n(&other.m_nodes[0][0][0], NODE_COUNT, &m_nodes[0][0][0]);
+        std::memcpy(m_nodes, other.m_nodes, NODE_COUNT * sizeof(NodeType));
         if constexpr (IS_LEAF) {
             std::fill_n(other.m_nodes, NODE_COUNT, EMPTY);
         } else {
