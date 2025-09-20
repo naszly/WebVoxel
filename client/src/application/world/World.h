@@ -30,14 +30,14 @@ public:
             if (chunk.isGpuBufferDirty()) {
                 const auto neighborhood = getChunkNeighborhoodPtrs(chunk.getPosition());
                 if (neighborhood.hasAllNeighbours()) {
-                    dirtyChunks.push_back(chunk);
+                    dirtyChunks.emplace_back(chunk);
                 }
             }
         }
         return dirtyChunks;
     }
 
-    [[nodiscard]] Chunk* tryGetChunk(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunk(chunkPos); }
+    [[nodiscard]] Chunk* tryGetChunkPtr(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunkPtr(chunkPos); }
 
     [[nodiscard]] ChunkNeighborhoodPtrs getChunkNeighborhoodPtrs(const glm::ivec3 &chunkPos) const;
 

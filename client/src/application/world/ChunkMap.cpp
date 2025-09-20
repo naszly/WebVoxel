@@ -3,19 +3,27 @@
 #include "common/Log.h"
 
 Chunk& ChunkMap::getChunk(const glm::ivec3 key) {
-    if (auto* chunk = tryGetChunk(key)) {
+    if (auto& chunk = tryGetChunk(key)) {
         return *chunk;
     }
 
     return createChunk(key);
 }
 
-Chunk* ChunkMap::tryGetChunk(const glm::ivec3 key) {
+std::optional<Chunk>& ChunkMap::tryGetChunk(const glm::ivec3 key) {
+    return m_chunks[packIndex(key)];
+}
+
+const std::optional<Chunk>& ChunkMap::tryGetChunk(const glm::ivec3 key) const {
+    return m_chunks[packIndex(key)];
+}
+
+Chunk* ChunkMap::tryGetChunkPtr(const glm::ivec3 key) {
     auto& slot = m_chunks[packIndex(key)];
     return slot ? &*slot : nullptr;
 }
 
-const Chunk* ChunkMap::tryGetChunk(const glm::ivec3 key) const {
+const Chunk* ChunkMap::tryGetChunkPtr(const glm::ivec3 key) const {
     const auto& slot = m_chunks[packIndex(key)];
     return slot ? &*slot : nullptr;
 }
@@ -57,7 +65,7 @@ VoxelData ChunkMap::getVoxel(const WorldCoordinate &coord) const {
     const auto cPos = coord.chunkPosition();
     const auto lPos = coord.localPosition();
 
-    if (const auto chunk = tryGetChunk(cPos)) {
+    if (const auto chunk = tryGetChunkPtr(cPos)) {
         return chunk->getVoxel(lPos.x, lPos.y, lPos.z);
     }
 
@@ -68,7 +76,7 @@ bool ChunkMap::hasVoxel(const WorldCoordinate &coord) const {
     const auto cPos = coord.chunkPosition();
     const auto lPos = coord.localPosition();
 
-    if (const auto chunk = tryGetChunk(cPos)) {
+    if (const auto chunk = tryGetChunkPtr(cPos)) {
         return chunk->hasVoxel(lPos.x, lPos.y, lPos.z);
     }
 
@@ -106,7 +114,7 @@ void ChunkMap::clear() {
 }
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {
-    if (auto* neighbor = tryGetChunk(key)) {
+    if (auto* neighbor = tryGetChunkPtr(key)) {
         neighbor->setGpuBufferDirty();
     }
 }

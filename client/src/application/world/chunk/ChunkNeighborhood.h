@@ -9,7 +9,8 @@ public:
     std::array<std::array<std::array<std::optional<Chunk>, 3>, 3>, 3> neighborhood;
 
     ChunkNeighborhood() = default;
-    explicit ChunkNeighborhood(const std::array<std::array<std::array<const Chunk*, 3>, 3>, 3>& neighborhood);
+    explicit ChunkNeighborhood(std::array<std::array<std::array<std::optional<Chunk>, 3>, 3>, 3>&& neighborhood)
+        : neighborhood(neighborhood) {}
 
     [[nodiscard]] bool hasAllNeighbours() const;
     [[nodiscard]] bool anyNeighbourDirty() const;

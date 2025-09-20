@@ -72,7 +72,7 @@ void ChunkManagementSystem::integrateLoadedChunks(World &world) {
 
 void ChunkManagementSystem::integrateCompressedChunks(World& world) {
     for (auto& task : m_compressedChunks) {
-        if (auto* chunk = world.tryGetChunk(task.position)) {
+        if (auto* chunk = world.tryGetChunkPtr(task.position)) {
             if (chunk->getLastEdit() == task.lastAccess) {
                 *chunk = std::move(task.chunk);
             } else {

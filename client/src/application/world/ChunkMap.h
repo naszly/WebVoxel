@@ -22,9 +22,13 @@ public:
 
     [[nodiscard]] Chunk& getChunk(glm::ivec3 key);
 
-    [[nodiscard]] Chunk* tryGetChunk(glm::ivec3 key);
+    [[nodiscard]] std::optional<Chunk>& tryGetChunk(glm::ivec3 key);
 
-    [[nodiscard]] const Chunk* tryGetChunk(glm::ivec3 key) const;
+    [[nodiscard]] const std::optional<Chunk>& tryGetChunk(glm::ivec3 key) const;
+
+    [[nodiscard]] Chunk* tryGetChunkPtr(glm::ivec3 key);
+
+    [[nodiscard]] const Chunk* tryGetChunkPtr(glm::ivec3 key) const;
 
     [[nodiscard]] bool hasChunk(glm::ivec3 key) const;
 
