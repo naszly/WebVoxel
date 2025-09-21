@@ -69,6 +69,10 @@ public:
         return m_size == Capacity;
     }
 
+    [[nodiscard]] size_t capacity() const {
+        return Capacity;
+    }
+
 private:
     T m_buffer[Capacity]{};
     size_t m_size{0};
