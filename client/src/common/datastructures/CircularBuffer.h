@@ -39,7 +39,7 @@ public:
     }
 
     T pop() {
-        T value = m_buffer[m_head];
+        auto value = std::move(m_buffer[m_head]);
         m_head = (m_head + 1) % Capacity;
         --m_size;
         return value;
