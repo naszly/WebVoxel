@@ -8,6 +8,7 @@
 #include "application/Application.h"
 #include "common/FileSystem.h"
 #include "application/systems/ChunkManagementSystem.h"
+#include "application/systems/ChunkVertexDataUpdaterSystem.h"
 #include "application/systems/ControllerSystem.h"
 #include "application/systems/GuiSystem.h"
 #include "application/systems/RendererSystem.h"
@@ -56,6 +57,7 @@ int main(const int argc, char** argv) {
 
     const size_t mainLayerIdx = builder.addLayer();
     builder.addSystemToLayer<RendererSystem>(mainLayerIdx)
+           .addSystemToLayer<ChunkVertexDataUpdaterSystem>(mainLayerIdx)
            .addSystemToLayer<ControllerSystem>(mainLayerIdx);
     if (voxWorldModelIndex) {
         builder.addSystemToLayer<VoxWorldLoaderSystem>(mainLayerIdx, *voxWorldModelIndex);

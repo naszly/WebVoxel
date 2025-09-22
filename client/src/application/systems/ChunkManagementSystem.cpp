@@ -2,18 +2,11 @@
 
 #include "RendererSystem.h"
 #include "application/Application.h"
-#include "application/meshing/VoxelVertexGenerator.h"
 #include "common/Log.h"
 
 void ChunkManagementSystem::initialize() {
 
-    const auto hardwareConcurrency = Threading::hardwareConcurrency();
-
     m_chunkWorkersCount = 1;
-
-    if (hardwareConcurrency > 2) {
-        m_chunkWorkersCount = m_chunkWorkersCount = std::min(hardwareConcurrency / 2, 6u);
-    }
 
     for (size_t i = 0; i < m_chunkWorkersCount; ++i) {
         m_chunkWorkers.push_back(std::make_unique<Threading::Worker>());
@@ -33,11 +26,8 @@ void ChunkManagementSystem::update(const float dt) {
 void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& world) {
     Threading::ScopedLock lock(&m_lock);
 
-    integrateCreatedChunkVertexData();
     integrateLoadedChunks(world);
     integrateCompressedChunks(world);
-
-    scheduleChunksForVertexDataCreation(camera, world);
 
     static int turn = 0;
     turn = (turn + 1) % 4;
@@ -50,16 +40,6 @@ void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& 
     } else if (turn == 3) {
         scheduleChunksForCompression(world, camera);
     }
-}
-
-void ChunkManagementSystem::integrateCreatedChunkVertexData() {
-    const auto rendererSystem = getApplication().getSystem<RendererSystem>();
-
-    for (const auto& [chunkPos, vertexData] : m_dirtyChunkVertexDatas) {
-        rendererSystem->updateChunkVertexBuffer(vertexData, chunkPos);
-    }
-
-    m_dirtyChunkVertexDatas.clear();
 }
 
 void ChunkManagementSystem::integrateLoadedChunks(World &world) {
@@ -109,37 +89,6 @@ std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
         return da < db;
     });
     return offsets;
-}
-
-void ChunkManagementSystem::scheduleChunksForVertexDataCreation(const Camera& camera, World& world) {
-    const glm::vec3 playerPosition = camera.getPosition();
-    const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
-    std::vector<std::reference_wrapper<Chunk>> dirty = world.getChunksWithDirtyGpuBuffer();
-
-    std::ranges::sort(dirty, [&](const Chunk &a, const Chunk &b) {
-        const auto aPos = a.getPosition();
-        const auto bPos = b.getPosition();
-        return Utils::distance2(aPos, playerChunk) < Utils::distance2(bPos, playerChunk);
-    });
-
-    // free old ChunkNeighborhoods on the same thread they were allocated
-    while (!m_freeChunkNeighborhoods.empty()) {
-        m_freeChunkNeighborhoods.pop();
-    }
-
-    for (auto& chunkRef : dirty) {
-        auto& chunk = chunkRef.get();
-        auto position = chunk.getPosition();
-        auto chunkNeighborhood = world.getChunkNeighborhood(position);
-        if (!chunkNeighborhood.hasAllNeighbours()) {
-            continue;
-        }
-        const bool success = m_dirtyChunks.push(std::move(chunkNeighborhood));
-        if (!success) {
-            break;
-        }
-        chunk.resetGpuBufferDirty();
-    }
 }
 
 void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const World& world) {
@@ -250,23 +199,6 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
     return glm::distance(glm::vec3(transformedChunkPos), glm::vec3(WorldCoordinate(transformedPlayerPosition).chunkPosition()));
 }
 
-void ChunkManagementSystem::handleChunkVertexDataCreation(ChunkNeighborhood& chunkNeighborhood) {
-    const std::optional<Chunk>& chunk = chunkNeighborhood.getCenterChunk();
-
-    auto position = chunk->getPosition();
-    if (!chunkNeighborhood.hasAllNeighbours()) {
-        return;
-    }
-
-    thread_local std::vector<VertexData> points;
-    points.clear();
-    VoxelVertexGenerator::generate(chunkNeighborhood, points);
-
-    Threading::ScopedLock lock(&m_lock);
-    m_dirtyChunkVertexDatas.emplace(position, std::move(points));
-    m_freeChunkNeighborhoods.push(std::move(chunkNeighborhood));
-}
-
 void ChunkManagementSystem::handleChunkSave(Chunk& chunkToSave) {
     const auto chunkPos = chunkToSave.getPosition();
     chunkToSave.save();
@@ -305,11 +237,6 @@ void* ChunkManagementSystem::worker(void *arg) {
             continue;
         }
 
-        if (work.chunkVertexDataToCreate.has_value()) {
-            system.handleChunkVertexDataCreation(*work.chunkVertexDataToCreate);
-            work.chunkVertexDataToCreate.reset();
-        }
-
         while (!work.chunksToUnload.empty()) {
             work.chunksToUnload.pop();
         }
@@ -340,12 +267,6 @@ bool ChunkManagementSystem::fetchWork(Work& work) {
 
     if (m_shouldExit && m_chunksToSave.empty()) {
         return false;
-    }
-
-    if (!m_dirtyChunks.empty()) {
-        work.chunkVertexDataToCreate = std::move(m_dirtyChunks.first());
-        m_dirtyChunks.removeFirst();
-        return true;
     }
 
     if (!m_chunksToSave.empty()) {

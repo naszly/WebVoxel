@@ -5,7 +5,6 @@
 
 #include "System.h"
 #include "application/graphics/types/ChunkVertexBuffer.h"
-#include "application/types/VertexData.h"
 #include "application/world/WorldGenerator.h"
 #include "common/datastructures/HashSet.h"
 #include "common/Thread.h"
@@ -36,7 +35,6 @@ private:
     };
 
     struct Work {
-        std::optional<ChunkNeighborhood> chunkVertexDataToCreate;
         std::optional<Chunk> chunkToSave = std::nullopt;
         std::optional<glm::ivec3> chunkToLoad = std::nullopt;
         std::queue<Chunk> chunksToUnload;
@@ -44,7 +42,6 @@ private:
 
         [[nodiscard]] bool hasPendingWork() const {
             return !chunksToUnload.empty()
-                || chunkVertexDataToCreate.has_value()
                 || chunkToSave.has_value()
                 || chunkToLoad.has_value()
                 || compressionTask.has_value();
@@ -56,10 +53,6 @@ private:
     static constexpr int LOAD_ZONE_RADIUS_Y = 12;
     static constexpr int UNLOAD_ZONE_RADIUS_XZ = LOAD_ZONE_RADIUS_XZ + 1;
     static constexpr int UNLOAD_ZONE_RADIUS_Y = LOAD_ZONE_RADIUS_Y + 1;
-
-    CircularBuffer<ChunkNeighborhood, 32> m_dirtyChunks;
-    HashMap<glm::ivec3, std::vector<VertexData>> m_dirtyChunkVertexDatas;
-    std::queue<ChunkNeighborhood> m_freeChunkNeighborhoods;
 
     std::queue<glm::ivec3> m_chunksToLoad;
     HashSet<glm::ivec3> m_loadingChunks;
@@ -84,13 +77,11 @@ private:
 
     void processChunkManagement(const Camera& camera, World& world);
 
-    void integrateCreatedChunkVertexData();
     void integrateLoadedChunks(World &world);
     void integrateCompressedChunks(World& world);
 
     static std::vector<glm::ivec3> generateChunkOffsets();
 
-    void scheduleChunksForVertexDataCreation(const Camera &camera, World& world);
     void scheduleChunksForLoading(const Camera& camera, const World& world);
     void scheduleChunksForSaving(World &world);
     void scheduleChunksForUnloading(const Camera &camera, World &world);
@@ -98,7 +89,6 @@ private:
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
-    void handleChunkVertexDataCreation(ChunkNeighborhood& chunkNeighborhood);
     void handleChunkSave(Chunk& chunkToSave);
     void handleChunkLoad(const glm::ivec3& chunkToLoad);
     void handleChunkCompression(CompressionTask& task);
