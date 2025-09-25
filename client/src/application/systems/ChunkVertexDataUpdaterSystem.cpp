@@ -26,14 +26,12 @@ void ChunkVertexDataUpdaterSystem::integrateCreatedChunkVertexData() {
     {
         Threading::ScopedLock lock(&m_lock);
 
-        size_t toUpdate = 2 + m_dirtyChunkVertexDatas.size() / 32;
-        while (toUpdate-- > 0 && !m_dirtyChunkVertexDatas.empty()) {
+        while (!m_dirtyChunkVertexDatas.empty()) {
             updates.push(std::move(m_dirtyChunkVertexDatas.front()));
             m_dirtyChunkVertexDatas.pop();
         }
 
-        size_t toFree = 2 + m_freeChunkNeighborhoods.size() / 32;
-        while (toFree-- > 0 && !m_freeChunkNeighborhoods.empty()) {
+        while (!m_freeChunkNeighborhoods.empty()) {
             freeNeighborhoods.push(std::move(m_freeChunkNeighborhoods.front()));
             m_freeChunkNeighborhoods.pop();
         }
