@@ -20,22 +20,30 @@ public:
 
     void set(const uint32_t i) {
         assert(i < SizeInBits); [[assume(i < SizeInBits)]];
-        m_data[i / BITS_PER_WORD] |= 1u << (i % BITS_PER_WORD);
+        m_data[i / BITS_PER_WORD] |= DataT(1) << (i % BITS_PER_WORD);
     }
 
     void clear(const uint32_t i) {
         assert(i < SizeInBits); [[assume(i < SizeInBits)]];
-        m_data[i / BITS_PER_WORD] &= ~(1u << (i % BITS_PER_WORD));
+        m_data[i / BITS_PER_WORD] &= ~(DataT(1) << (i % BITS_PER_WORD));
     }
 
     [[nodiscard]] bool test(const uint32_t i) const {
         assert(i < SizeInBits); [[assume(i < SizeInBits)]];
-        return (m_data[i / BITS_PER_WORD] >> (i % BITS_PER_WORD)) & 1u;
+        return (m_data[i / BITS_PER_WORD] >> (i % BITS_PER_WORD)) & DataT(1);
     }
 
     [[nodiscard]] bool testWord(const uint32_t i) const {
         assert(i < DATA_SIZE); [[assume(i < DATA_SIZE)]];
         return m_data[i];
+    }
+
+    [[nodiscard]] bool isEmpty() const noexcept {
+        for (uint32_t i = 0; i < DATA_SIZE; ++i) {
+            if (m_data[i] != static_cast<DataT>(0))
+                return false;
+        }
+        return true;
     }
 
     [[nodiscard]] char* data() {
