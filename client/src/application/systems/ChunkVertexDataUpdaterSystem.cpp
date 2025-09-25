@@ -57,36 +57,36 @@ void ChunkVertexDataUpdaterSystem::integrateCreatedChunkVertexData() {
 void ChunkVertexDataUpdaterSystem::scheduleChunksForVertexDataCreation(const Camera& camera, World& world) {
     const glm::vec3 playerPosition = camera.getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
-    std::vector<std::reference_wrapper<Chunk>> dirty = world.getChunksWithDirtyGpuBuffer();
+    auto dirty = world.getChunksWithDirtyGpuBuffer();
 
-    std::ranges::sort(dirty, [&](const Chunk &a, const Chunk &b) {
+    std::vector<std::reference_wrapper<Chunk>> emptyChunks;
+    std::vector<std::reference_wrapper<Chunk>> nonEmptyChunks;
+    for (auto& chunk : dirty) {
+        if (chunk.isEmpty()) {
+            emptyChunks.emplace_back(chunk);
+        } else {
+            nonEmptyChunks.emplace_back(chunk);
+        }
+    }
+
+    const auto rendererSystem = getApplication().getSystem<RendererSystem>();
+    for (auto& chunkRef : emptyChunks) {
+        auto& chunk = chunkRef.get();
+        constexpr std::vector<VertexData> emptyVertexData;
+        const auto& chunkPosition = chunk.getPosition();
+        rendererSystem->updateChunkVertexBuffer(emptyVertexData, chunkPosition);
+        chunk.resetGpuBufferDirty();
+    }
+
+    std::ranges::sort(nonEmptyChunks, [&](const Chunk &a, const Chunk &b) {
         const auto aPos = a.getPosition();
         const auto bPos = b.getPosition();
         return Utils::distance2(aPos, playerChunk) < Utils::distance2(bPos, playerChunk);
     });
 
-    const auto rendererSystem = getApplication().getSystem<RendererSystem>();
-    for (auto& chunkRef : dirty) {
-        auto& chunk = chunkRef.get();
-        if (chunk.isEmpty()) {
-            constexpr std::vector<VertexData> emptyVertexData;
-            const auto& chunkPosition = chunk.getPosition();
-            rendererSystem->updateChunkVertexBuffer(emptyVertexData, chunkPosition);
-            chunk.resetGpuBufferDirty();
-        }
-    }
-
     Threading::ScopedLock lock(&m_lock);
-
-    size_t maxNewTasks = m_dirtyChunks.capacity() / 2;
-    for (auto& chunkRef : dirty) {
-        if (maxNewTasks-- == 0) {
-            break;
-        }
+    for (auto& chunkRef : nonEmptyChunks) {
         auto& chunk = chunkRef.get();
-        if (chunk.isEmpty()) {
-            continue;
-        }
         auto position = chunk.getPosition();
         auto chunkNeighborhood = world.getChunkNeighborhood(position);
         if (!chunkNeighborhood.hasAllNeighbours()) {

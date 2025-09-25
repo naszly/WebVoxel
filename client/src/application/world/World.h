@@ -25,16 +25,13 @@ public:
 
     [[nodiscard]] auto getChunksWithDirtyGpuBuffer() {
         auto chunks = m_chunks.getChunks();
-        std::vector<std::reference_wrapper<Chunk>> dirtyChunks;
-        for (auto& chunk : chunks) {
-            if (chunk.isGpuBufferDirty()) {
-                const auto neighborhood = getChunkNeighborhoodPtrs(chunk.getPosition());
-                if (neighborhood.hasAllNeighbours()) {
-                    dirtyChunks.emplace_back(chunk);
-                }
+        return chunks | std::views::filter([this](const Chunk& chunk) {
+            if (!chunk.isGpuBufferDirty()) {
+                return false;
             }
-        }
-        return dirtyChunks;
+            const auto neighborhood = getChunkNeighborhoodPtrs(chunk.getPosition());
+            return neighborhood.hasAllNeighbours();
+        });
     }
 
     [[nodiscard]] Chunk* tryGetChunkPtr(const glm::ivec3 &chunkPos) { return m_chunks.tryGetChunkPtr(chunkPos); }
