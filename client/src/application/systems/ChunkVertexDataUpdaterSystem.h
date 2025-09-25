@@ -24,20 +24,20 @@ public:
 
 private:
     struct Work {
-        CircularBuffer<ChunkNeighborhood, 16> vertexDataToCreate;
+        CircularBuffer<ChunkNeighborhood, 24> vertexDataToCreate;
         struct Result {
             glm::ivec3 chunkNeighborPosition;
             std::vector<VertexData> vertexData;
             ChunkNeighborhood chunkNeighborhoodToFree;
         };
-        CircularBuffer<Result, 16> createdVertexData;
+        CircularBuffer<Result, 24> createdVertexData;
 
         [[nodiscard]] bool hasPendingWork() const {
             return !vertexDataToCreate.empty();
         }
     };
 
-    CircularBuffer<ChunkNeighborhood, 96> m_dirtyChunks;
+    CircularBuffer<ChunkNeighborhood, 128> m_dirtyChunks;
     std::queue<std::pair<glm::ivec3, std::vector<VertexData>>> m_dirtyChunkVertexDatas;
     std::queue<ChunkNeighborhood> m_freeChunkNeighborhoods;
 
