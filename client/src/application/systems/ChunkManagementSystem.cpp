@@ -6,7 +6,13 @@
 
 void ChunkManagementSystem::initialize() {
 
+    const auto hardwareConcurrency = Threading::hardwareConcurrency();
+
     m_chunkWorkersCount = 1;
+
+    if (hardwareConcurrency > 2) {
+        m_chunkWorkersCount = m_chunkWorkersCount = std::min(hardwareConcurrency / 2, 5u);
+    }
 
     for (size_t i = 0; i < m_chunkWorkersCount; ++i) {
         m_chunkWorkers.push_back(std::make_unique<Threading::Worker>());
