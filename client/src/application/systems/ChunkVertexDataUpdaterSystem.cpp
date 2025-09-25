@@ -65,6 +65,17 @@ void ChunkVertexDataUpdaterSystem::scheduleChunksForVertexDataCreation(const Cam
         return Utils::distance2(aPos, playerChunk) < Utils::distance2(bPos, playerChunk);
     });
 
+    const auto rendererSystem = getApplication().getSystem<RendererSystem>();
+    for (auto& chunkRef : dirty) {
+        auto& chunk = chunkRef.get();
+        if (chunk.isEmpty()) {
+            constexpr std::vector<VertexData> emptyVertexData;
+            const auto& chunkPosition = chunk.getPosition();
+            rendererSystem->updateChunkVertexBuffer(emptyVertexData, chunkPosition);
+            chunk.resetGpuBufferDirty();
+        }
+    }
+
     Threading::ScopedLock lock(&m_lock);
 
     size_t maxNewTasks = m_dirtyChunks.capacity() / 2;
@@ -73,6 +84,9 @@ void ChunkVertexDataUpdaterSystem::scheduleChunksForVertexDataCreation(const Cam
             break;
         }
         auto& chunk = chunkRef.get();
+        if (chunk.isEmpty()) {
+            continue;
+        }
         auto position = chunk.getPosition();
         auto chunkNeighborhood = world.getChunkNeighborhood(position);
         if (!chunkNeighborhood.hasAllNeighbours()) {

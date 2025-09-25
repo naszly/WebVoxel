@@ -63,7 +63,7 @@ public:
     }
 
     [[nodiscard]] bool isEmpty() const {
-        return getTree().isEmpty();
+        return getBitmap().isEmpty();
     }
 
     void serialize(std::ostream& os) {

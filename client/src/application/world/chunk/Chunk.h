@@ -106,6 +106,10 @@ public:
         m_lastEdit = std::chrono::steady_clock::now();
     }
 
+    bool isEmpty() const {
+        return m_data.isEmpty();
+    }
+
     [[nodiscard]] bool isGpuBufferDirty() const {
         return m_gpuBufferDirty;
     }
