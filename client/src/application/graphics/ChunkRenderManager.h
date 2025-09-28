@@ -17,7 +17,10 @@ public:
     ChunkRenderManager(const WGPUDevice &device, World& world) : m_device(device), m_world(world) {}
     ~ChunkRenderManager();
 
-    std::vector<ChunkVertexBuffer> getChunksToRender(const Camera& camera) const;
+    [[nodiscard]] std::vector<ChunkVertexBuffer> getChunksToRender(const Camera& camera) const;
+
+    [[nodiscard]] std::vector<ChunkVertexBuffer> getChunksToRender(const glm::vec3& cameraPosition,
+                                                                   const glm::mat4& projView) const;
 
     void removeBuffersOfFarChunks(const Camera& camera);
 
@@ -28,5 +31,11 @@ private:
     World& m_world;
     HashMap<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
 
-    ChunkVertexBuffer createChunkVertexBuffer(const std::vector<VertexData>& points, const glm::vec3 &position) const;
+    [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const std::vector<VertexData>& points,
+                                                            const glm::vec3 &position) const;
+
+    [[nodiscard]] static bool isSphereInFrustum(const glm::vec3& center,
+                                                float radius,
+                                                glm::vec3 cameraPosition,
+                                                glm::mat4 projView);
 };

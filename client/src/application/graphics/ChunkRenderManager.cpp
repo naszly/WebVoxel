@@ -18,11 +18,15 @@ ChunkRenderManager::~ChunkRenderManager() {
 }
 
 std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camera &camera) const {
+    return getChunksToRender(camera.getPosition(), camera.getProjectionViewMatrix());
+}
+
+std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const glm::vec3& cameraPosition,
+                                                                     const glm::mat4& projView) const {
     struct SortEntry { float distance2; ChunkVertexBuffer vb; };
     std::vector<SortEntry> sorted;
     sorted.reserve(m_chunkVertexBuffers.size());
 
-    const glm::vec3 camPos = camera.getPosition();
     constexpr float chunkSize = static_cast<float>(Chunk::WIDTH);
     constexpr float sqrt3 = 1.73205080757f;
     constexpr float chunkSphereRadius = sqrt3 * chunkSize * 0.5f;
@@ -34,11 +38,11 @@ std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camer
         }
 
         const auto chunkCenter = glm::vec3(chunkPos) * chunkSize + chunkAabbHalfExtents;
-        if (!camera.isSphereInFrustum(chunkCenter, chunkSphereRadius)) {
+        if (!isSphereInFrustum(chunkCenter, chunkSphereRadius, cameraPosition, projView)) {
             continue;
         }
 
-        float distance2 = glm::length2(chunkCenter - camPos);
+        float distance2 = glm::length2(chunkCenter - cameraPosition);
         sorted.emplace_back(distance2, vb);
     }
 
@@ -49,6 +53,7 @@ std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camer
     for (auto& [distance2, vb] : sorted) result.emplace_back(vb);
     return result;
 }
+
 
 void ChunkRenderManager::removeBuffersOfFarChunks(const Camera& camera) {
     const glm::vec3 playerPosition = camera.getPosition();
@@ -116,4 +121,32 @@ ChunkVertexBuffer ChunkRenderManager::createChunkVertexBuffer(const std::vector<
     wgpuQueueWriteBuffer(queue, vertexBuffer.buffer, 0, data.data(), bufferSize);
 
     return vertexBuffer;
+}
+
+bool ChunkRenderManager::isSphereInFrustum(const glm::vec3& center,
+                                           const float radius,
+                                           const glm::vec3 cameraPosition,
+                                           glm::mat4 projView) {
+
+    // Extract frustum planes from the projection-view matrix
+    std::array planes{
+        glm::vec4(projView[0][3] + projView[0][2], projView[1][3] + projView[1][2], projView[2][3] + projView[2][2], projView[3][3] + projView[3][2]), // Near
+        glm::vec4(projView[0][3] - projView[0][2], projView[1][3] - projView[1][2], projView[2][3] - projView[2][2], projView[3][3] - projView[3][2]), // Far
+        glm::vec4(projView[0][3] + projView[0][0], projView[1][3] + projView[1][0], projView[2][3] + projView[2][0], projView[3][3] + projView[3][0]), // Left
+        glm::vec4(projView[0][3] - projView[0][0], projView[1][3] - projView[1][0], projView[2][3] - projView[2][0], projView[3][3] - projView[3][0]), // Right
+        glm::vec4(projView[0][3] - projView[0][1], projView[1][3] - projView[1][1], projView[2][3] - projView[2][1], projView[3][3] - projView[3][1]), // Top
+        glm::vec4(projView[0][3] + projView[0][1], projView[1][3] + projView[1][1], projView[2][3] + projView[2][1], projView[3][3] + projView[3][1]), // Bottom
+    };
+
+    // Normalize the planes
+    for (auto& plane : planes) {
+        const float length = glm::length(glm::vec3(plane));
+        plane /= length;
+    }
+
+    // Sphere-Frustum Intersection Test
+    return std::ranges::all_of(planes, [&](const glm::vec4& plane) {
+        const float distance = glm::dot(glm::vec3(plane), center - cameraPosition) + plane.w;
+        return distance >= -radius;
+    });
 }
