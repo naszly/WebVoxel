@@ -16,5 +16,4 @@ private:
     bool m_lighting = true;
     bool m_fog = true;
     bool m_pointLight = true;
-    bool m_multisampling = true;
 };

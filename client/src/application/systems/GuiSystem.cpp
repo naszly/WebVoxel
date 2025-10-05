@@ -136,7 +136,6 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Checkbox("Lighting,", &m_lighting);
     ImGui::Checkbox("Fog", &m_fog);
     ImGui::Checkbox("Torch", &m_pointLight);
-    ImGui::Checkbox("Multisampling", &m_multisampling);
 
     ImGui::End();
 
@@ -198,8 +197,6 @@ void GuiSystem::update(float dt) {
             rendererSystem->setFog(m_fog);
         if (rendererSystem->getPointLight() != m_pointLight)
             rendererSystem->setPointLight(m_pointLight);
-        if (rendererSystem->getMultisampling() != m_multisampling)
-            rendererSystem->setMultisampling(m_multisampling);
     }
 }
 

@@ -37,13 +37,6 @@ public:
     }
 
     void setPointLight(bool pointLight);
-
-    [[nodiscard]] bool getMultisampling() const {
-        return m_sampleCount > 1;
-    }
-
-    void setMultisampling(bool multisampling);
-
     void exportTimestamps() const;
 
     void updateChunkVertexBuffer(const std::vector<VertexData>& vertexData, const glm::vec3& chunkPosition) const;
@@ -52,7 +45,7 @@ private:
     bool m_lighting = true;
     bool m_fog = true;
     bool m_pointLight = true;
-    int m_sampleCount = 4;
+    int m_sampleCount = 1;
 
     struct Uniforms {
         glm::mat4 projectionViewMatrix;

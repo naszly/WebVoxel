@@ -160,14 +160,6 @@ void RendererSystem::setPointLight(const bool pointLight) {
     }
 }
 
-void RendererSystem::setMultisampling(const bool multisampling) {
-    if (multisampling != (m_sampleCount > 1)) {
-        m_sampleCount = multisampling ? 4 : 1;
-        m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
-        createRenderPipeline();
-    }
-}
-
 void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
     const WGPUInstance& instance = getWebGpuContext().getInstance();
