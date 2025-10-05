@@ -111,7 +111,7 @@ void* ChunkVertexDataUpdaterSystem::worker(void* arg) {
 
         while (!work.vertexDataToCreate.empty()) {
             auto chunkNeighborhood = work.vertexDataToCreate.pop();
-            const std::optional<Chunk>& chunk = chunkNeighborhood.getCenterChunk();
+            const Chunk* chunk = chunkNeighborhood.getCenterChunk();
 
             const auto position = chunk->getPosition();
             if (!chunkNeighborhood.hasAllNeighbours()) {
@@ -142,7 +142,7 @@ bool ChunkVertexDataUpdaterSystem::fetchWork(Work& work) {
     Threading::ScopedLock lock(&m_lock);
 
     while (auto item = std::move(work.createdVertexData.tryPop())) {
-        m_dirtyChunkVertexDatas.push({item->chunkNeighborPosition, std::move(item->vertexData)});
+        m_dirtyChunkVertexDatas.emplace(item->chunkNeighborPosition, std::move(item->vertexData));
         m_freeChunkNeighborhoods.push(std::move(item->chunkNeighborhoodToFree));
     }
 
