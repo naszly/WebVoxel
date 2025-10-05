@@ -32,25 +32,19 @@ public:
 
     [[nodiscard]] bool hasChunk(glm::ivec3 key) const;
 
+    bool areChunkAndNeighborsPresent(const glm::ivec3& key) const;
+
     Chunk& createChunk(const glm::ivec3 &key);
 
     void insertChunkByMove(Chunk &chunk);
 
     [[nodiscard]] Chunk extractChunkByMove(const glm::ivec3& key);
 
-    [[nodiscard]] auto getChunks() {
-        return m_chunks | std::views::filter([](const auto& slot){ return slot.has_value(); })
-                        | std::views::transform([](auto& slot) -> Chunk& { return *slot; });
-    }
+    [[nodiscard]] std::vector<std::reference_wrapper<Chunk>> getChunks();
 
-    [[nodiscard]] auto getChunks() const {
-        return m_chunks | std::views::filter([](const auto& slot){ return slot.has_value(); })
-                        | std::views::transform([](auto& slot) -> const Chunk& { return *slot; });
-    }
+    [[nodiscard]] std::vector<std::reference_wrapper<const Chunk>> getChunks() const;
 
-    [[nodiscard]] size_t countChunks() const {
-        return std::ranges::count_if(m_chunks, [](auto& slot){ return slot.has_value(); });
-    }
+    [[nodiscard]] std::vector<std::reference_wrapper<Chunk>> getChunksWithDirtyGpuBuffer();
 
     [[nodiscard]] VoxelData getVoxel(const WorldCoordinate &coord) const;
 
@@ -70,8 +64,24 @@ private:
     }
 
     std::vector<std::optional<Chunk>> m_chunks;
+    Bitmap<TOTAL_SIZE> m_chunkBitmap;
 
     void setChunkDirty(const glm::ivec3& key);
 
     void setNeighboursDirty(const glm::ivec3& key);
+
+    template<typename Func>
+    void forEachChunk(Func&& func) const {
+        for (uint32_t word = 0; word < TOTAL_SIZE / decltype(m_chunkBitmap)::BITS_PER_WORD; ++word) {
+            if (!m_chunkBitmap.testWord(word)) continue;
+            for (uint32_t bit = 0; bit < decltype(m_chunkBitmap)::BITS_PER_WORD; ++bit) {
+                const uint32_t i = word * decltype(m_chunkBitmap)::BITS_PER_WORD + bit;
+                if (i >= TOTAL_SIZE) break;
+                if (m_chunkBitmap.test(i)) {
+                    func(i);
+                }
+            }
+        }
+    }
+
 };

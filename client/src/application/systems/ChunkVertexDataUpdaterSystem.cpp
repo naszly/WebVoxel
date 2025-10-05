@@ -59,11 +59,11 @@ void ChunkVertexDataUpdaterSystem::scheduleChunksForVertexDataCreation(const Cam
 
     std::vector<std::reference_wrapper<Chunk>> emptyChunks;
     std::vector<std::reference_wrapper<Chunk>> nonEmptyChunks;
-    for (auto& chunk : dirty) {
-        if (chunk.isEmpty()) {
-            emptyChunks.emplace_back(chunk);
+    for (auto& chunkRef : dirty) {
+        if (chunkRef.get().isEmpty()) {
+            emptyChunks.emplace_back(chunkRef);
         } else {
-            nonEmptyChunks.emplace_back(chunk);
+            nonEmptyChunks.emplace_back(chunkRef);
         }
     }
 

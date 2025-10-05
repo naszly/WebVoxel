@@ -29,13 +29,28 @@ const Chunk* ChunkMap::tryGetChunkPtr(const glm::ivec3 key) const {
 }
 
 bool ChunkMap::hasChunk(const glm::ivec3 key) const {
-    return m_chunks[packIndex(key)].has_value();
+    return m_chunkBitmap.test(packIndex(key));
+}
+
+bool ChunkMap::areChunkAndNeighborsPresent(const glm::ivec3& key) const {
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                const glm::ivec3 pos = key + glm::ivec3(dx, dy, dz);
+                if (!hasChunk(pos)) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 Chunk& ChunkMap::createChunk(const glm::ivec3 &key) {
     auto& slot = m_chunks[packIndex(key)];
     if (!slot) {
         slot.emplace(key);
+        m_chunkBitmap.set(packIndex(key));
         LogApp::info("Created chunk at ({}, {}, {})", key.x, key.y, key.z);
         setNeighboursDirty(key);
     } else {
@@ -47,6 +62,7 @@ Chunk& ChunkMap::createChunk(const glm::ivec3 &key) {
 void ChunkMap::insertChunkByMove(Chunk &chunk) {
     const auto key = chunk.getPosition();
     m_chunks[packIndex(key)] = std::move(chunk);
+    m_chunkBitmap.set(packIndex(key));
     setNeighboursDirty(key);
 }
 
@@ -58,7 +74,35 @@ Chunk ChunkMap::extractChunkByMove(const glm::ivec3& key) {
     }
     Chunk moved = std::move(*slot);
     slot.reset();
+    m_chunkBitmap.clear(packIndex(key));
     return moved;
+}
+
+std::vector<std::reference_wrapper<Chunk>> ChunkMap::getChunks() {
+    std::vector<std::reference_wrapper<Chunk>> chunks;
+    forEachChunk([&](const uint32_t i) {
+        chunks.emplace_back(*m_chunks[i]);
+    });
+    return chunks;
+}
+
+std::vector<std::reference_wrapper<const Chunk>> ChunkMap::getChunks() const {
+    std::vector<std::reference_wrapper<const Chunk>> chunks;
+    forEachChunk([&](const uint32_t i) {
+        chunks.emplace_back(*m_chunks[i]);
+    });
+    return chunks;
+}
+
+std::vector<std::reference_wrapper<Chunk>> ChunkMap::getChunksWithDirtyGpuBuffer() {
+    std::vector<std::reference_wrapper<Chunk>> chunks;
+    forEachChunk([&](const uint32_t i) {
+        const auto pos = m_chunks[i]->getPosition();
+        if (m_chunks[i]->isGpuBufferDirty() && areChunkAndNeighborsPresent(pos)) {
+            chunks.emplace_back(*m_chunks[i]);
+        }
+    });
+    return chunks;
 }
 
 VoxelData ChunkMap::getVoxel(const WorldCoordinate &coord) const {
@@ -111,6 +155,7 @@ void ChunkMap::clear() {
     for (auto& slot : m_chunks) {
         slot.reset();
     }
+    memset(m_chunkBitmap.data(), 0, m_chunkBitmap.size());
 }
 
 void ChunkMap::setChunkDirty(const glm::ivec3 &key) {

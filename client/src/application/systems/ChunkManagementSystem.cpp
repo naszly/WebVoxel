@@ -124,7 +124,8 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
 }
 
 void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
-    for (auto &chunk : world.getChunks()) {
+    for (auto &chunkRef : world.getChunks()) {
+        auto& chunk = chunkRef.get();
         if (chunk.isSaveFileDirty()) {
             if (!m_savingChunks.contains(chunk.getPosition())) {
                 m_chunksToSave.push(ChunkHandle::makeCopy(chunk));
@@ -142,7 +143,8 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
 
     std::vector<glm::ivec3> chunksToUnload;
 
-    for (const auto &chunk : world.getChunks()) {
+    for (const auto &chunkRef : world.getChunks()) {
+        auto& chunk = chunkRef.get();
         auto chunkPos = chunk.getPosition();
         const glm::ivec3 offset = chunkPos - playerChunk;
         const float correctedOffestY = static_cast<float>(offset.y) * yCorrection;
@@ -169,7 +171,8 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
 
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     std::vector<Chunk*> candidates;
-    for (auto& chunk : world.getChunks()) {
+    for (auto& chunkRef : world.getChunks()) {
+        auto& chunk = chunkRef.get();
         const glm::ivec3 chunkPos = chunk.getPosition();
         if (chunk.isCompressed()) continue;
         if (chunk.isGpuBufferDirty() || chunk.isSaveFileDirty()) continue;
