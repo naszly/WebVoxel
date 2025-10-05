@@ -115,7 +115,6 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     const double frameTime = currentTime - lastTime;
     lastTime = currentTime;
     ImGui::Text("Frame Time: %.3f ms", frameTime * 1000.0f);
-    ImGui::Text("Chunks: %zu", getWorld().countChunks());
     ImGui::Text("Rendered Chunks: %zu", appData.renderedChunks);
     ImGui::Text("Rendered Voxels: %zu", appData.renderedVoxels);
     const auto position = getCamera().getPosition();
