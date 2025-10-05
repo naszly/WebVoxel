@@ -50,8 +50,8 @@ void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& 
 
 void ChunkManagementSystem::integrateLoadedChunks(World &world) {
     for (auto& chunk : m_loadedChunks) {
-        world.insertChunkByMove(chunk);
-        m_loadingChunks.erase(chunk.getPosition());
+        world.insertChunkByMove(*chunk);
+        m_loadingChunks.erase(chunk->getPosition());
     }
     m_loadedChunks.clear();
 }
@@ -60,7 +60,7 @@ void ChunkManagementSystem::integrateCompressedChunks(World& world) {
     for (auto& task : m_compressedChunks) {
         if (auto* chunk = world.tryGetChunkPtr(task.position)) {
             if (chunk->getLastEdit() == task.lastAccess) {
-                *chunk = std::move(task.chunk);
+                *chunk = std::move(*task.chunk);
             } else {
                 LogApp::warning("Chunk at ({}, {}, {}) was modified after compression, skipping integration",
                                 task.position.x, task.position.y, task.position.z);
@@ -127,7 +127,7 @@ void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
     for (auto &chunk : world.getChunks()) {
         if (chunk.isSaveFileDirty()) {
             if (!m_savingChunks.contains(chunk.getPosition())) {
-                m_chunksToSave.push(chunk);
+                m_chunksToSave.push(ChunkHandle::makeCopy(chunk));
                 m_savingChunks.insert(chunk.getPosition());
                 chunk.resetSaveFileDirty();
             }
@@ -154,7 +154,7 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
     }
 
     for (const auto &chunkPos : chunksToUnload) {
-        m_chunksToUnload.push(world.extractChunkByMove(chunkPos));
+        m_chunksToUnload.push(ChunkHandle(world.extractChunkByMove(chunkPos)));
     }
 }
 
@@ -192,8 +192,8 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
     for (const auto* chunk : candidates) {
         if (count >= maxChunksToSchedule) break;
         const glm::ivec3 chunkPos = chunk->getPosition();
-        CompressionTask task{chunkPos, *chunk, chunk->getLastEdit()};
-        m_chunksToCompress.push(task);
+        CompressionTask task{chunkPos, ChunkHandle::makeCopy(*chunk), chunk->getLastEdit()};
+        m_chunksToCompress.push(std::move(task));
         m_compressingChunks.insert(chunkPos);
         ++count;
     }
@@ -205,9 +205,9 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
     return glm::distance(glm::vec3(transformedChunkPos), glm::vec3(WorldCoordinate(transformedPlayerPosition).chunkPosition()));
 }
 
-void ChunkManagementSystem::handleChunkSave(Chunk& chunkToSave) {
-    const auto chunkPos = chunkToSave.getPosition();
-    chunkToSave.save();
+void ChunkManagementSystem::handleChunkSave(ChunkHandle& chunkToSave) {
+    const auto chunkPos = chunkToSave->getPosition();
+    chunkToSave->save();
 
     Threading::ScopedLock lock(&m_lock);
     m_savingChunks.erase(chunkPos);
@@ -226,7 +226,7 @@ void ChunkManagementSystem::handleChunkLoad(const glm::ivec3& chunkToLoad) {
 }
 
 void ChunkManagementSystem::handleChunkCompression(CompressionTask& task) {
-    task.chunk.compress();
+    task.chunk->compress();
     Threading::ScopedLock lock(&m_lock);
     m_compressedChunks.push_back(std::move(task));
 }
@@ -278,7 +278,7 @@ bool ChunkManagementSystem::fetchWork(Work& work) {
     if (!m_chunksToSave.empty()) {
         work.chunkToSave = std::move(m_chunksToSave.front());
         m_chunksToSave.pop();
-        m_savingChunks.emplace(work.chunkToSave.value().getPosition());
+        m_savingChunks.emplace(work.chunkToSave.value()->getPosition());
     }
 
     if (!m_chunksToLoad.empty()) {

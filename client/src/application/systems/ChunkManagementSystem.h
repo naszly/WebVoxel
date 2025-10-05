@@ -28,16 +28,36 @@ public:
     }
 
 private:
+    // Enhances move performance by transferring only pointers,
+    // avoiding costly deep moves or copies of Chunk objects.
+    struct ChunkHandle {
+        std::unique_ptr<Chunk> chunk;
+        explicit ChunkHandle(Chunk&& c) : chunk(std::make_unique<Chunk>(std::move(c))) {}
+        ChunkHandle(const ChunkHandle&) = delete;
+        ChunkHandle& operator=(const ChunkHandle&) = delete;
+        ChunkHandle(ChunkHandle&&) = default;
+        ChunkHandle& operator=(ChunkHandle&&) = default;
+
+        static ChunkHandle makeCopy(const Chunk& c) {
+            return ChunkHandle(Chunk(c));
+        }
+
+        Chunk& operator*() { return *chunk; }
+        const Chunk& operator*() const { return *chunk; }
+        Chunk* operator->() { return chunk.get(); }
+        const Chunk* operator->() const { return chunk.get(); }
+    };
+
     struct CompressionTask {
         glm::ivec3 position;
-        Chunk chunk;
+        ChunkHandle chunk;
         std::chrono::steady_clock::time_point lastAccess;
     };
 
     struct Work {
-        std::optional<Chunk> chunkToSave = std::nullopt;
+        std::optional<ChunkHandle> chunkToSave = std::nullopt;
         std::optional<glm::ivec3> chunkToLoad = std::nullopt;
-        std::queue<Chunk> chunksToUnload;
+        std::queue<ChunkHandle> chunksToUnload;
         std::optional<CompressionTask> compressionTask = std::nullopt;
 
         [[nodiscard]] bool hasPendingWork() const {
@@ -56,12 +76,12 @@ private:
 
     std::queue<glm::ivec3> m_chunksToLoad;
     HashSet<glm::ivec3> m_loadingChunks;
-    std::vector<Chunk> m_loadedChunks;
+    std::vector<ChunkHandle> m_loadedChunks;
 
-    std::queue<Chunk> m_chunksToSave;
+    std::queue<ChunkHandle> m_chunksToSave;
     HashSet<glm::ivec3> m_savingChunks;
 
-    std::queue<Chunk> m_chunksToUnload;
+    std::queue<ChunkHandle> m_chunksToUnload;
 
     std::queue<CompressionTask> m_chunksToCompress;
     HashSet<glm::ivec3> m_compressingChunks;
@@ -89,7 +109,7 @@ private:
 
     static float getChunkDistance(glm::vec3 playerPosition, glm::ivec3 chunkPos);
 
-    void handleChunkSave(Chunk& chunkToSave);
+    void handleChunkSave(ChunkHandle& chunkToSave);
     void handleChunkLoad(const glm::ivec3& chunkToLoad);
     void handleChunkCompression(CompressionTask& task);
 
