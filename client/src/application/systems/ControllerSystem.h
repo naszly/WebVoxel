@@ -1,5 +1,15 @@
 #pragma once
 #include "System.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
+#include "application/meshing/AmbientOcclusionComputer.h"
 
 class ControllerSystem final : public System {
 public:
@@ -42,8 +52,8 @@ private:
     static constexpr float CAMERA_COLLISION_PUSH = 0.001f;
 
     struct SweptAABBResult {
-        float entryTime;
-        glm::vec3 normal;
+        double entryTime;
+        glm::dvec3 normal;
         bool collided;
     };
 
@@ -52,10 +62,10 @@ private:
     void updateCameraMovement(float dt, const Input &input, Camera &camera);
     glm::vec3 computeMovementDirection(const Input& input, const Camera& camera) const;
     float computeCameraSpeed(const Input& input) const;
-    void moveAndCollideCamera(Camera& camera, glm::vec3 velocity);
-    static SweptAABBResult sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,
-                                     const glm::vec3& vel,
-                                     const glm::vec3& bPos, const glm::vec3& bHalf);
+    void moveAndCollideCamera(Camera& camera, glm::dvec3 velocity);
+    static SweptAABBResult sweptAABB(const glm::dvec3& aPos, const glm::dvec3& aHalf,
+                                     const glm::dvec3& vel,
+                                     const glm::dvec3& bPos, const glm::dvec3& bHalf);
 
     static void animateCameraFov(float dt, const Input& input, Camera& camera);
 

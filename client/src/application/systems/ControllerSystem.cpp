@@ -225,25 +225,25 @@ float ControllerSystem::computeCameraSpeed(const Input& input) const {
     return speed;
 }
 
-void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::vec3 velocity) {
-    constexpr glm::vec3 boxHalfExtents = CAMERA_COLLISION_HALF_EXTENTS;
+void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::dvec3 velocity) {
+    constexpr glm::dvec3 boxHalfExtents = CAMERA_COLLISION_HALF_EXTENTS;
     const World& world = getWorld();
-    float epsilon = 1e-5f; // small epsilon to avoid precision issues
-    glm::vec3 position = camera.getPosition() - glm::vec3(0, CAMERA_EYE_OFFSET_Y - epsilon, 0);
+    double epsilon = 1e-10; // small epsilon to avoid precision issues
+    glm::dvec3 position = glm::dvec3(camera.getPosition()) - glm::dvec3(0, CAMERA_EYE_OFFSET_Y - epsilon, 0);
 
     for (int sweep = 0; sweep < 3; ++sweep) {
-        float earliestHit = 1.0f;
-        glm::vec3 hitNormal(0.0f);
-        glm::vec3 sweepEnd = position + velocity;
-        glm::vec3 minSweep = glm::min(position - boxHalfExtents, sweepEnd - boxHalfExtents);
-        glm::vec3 maxSweep = glm::max(position + boxHalfExtents, sweepEnd + boxHalfExtents);
+        double earliestHit = 1.0;
+        glm::dvec3 hitNormal(0.0);
+        glm::dvec3 sweepEnd = position + velocity;
+        glm::dvec3 minSweep = glm::min(position - boxHalfExtents, sweepEnd - boxHalfExtents);
+        glm::dvec3 maxSweep = glm::max(position + boxHalfExtents, sweepEnd + boxHalfExtents);
         for (int x = static_cast<int>(std::floor(minSweep.x)); x <= static_cast<int>(std::floor(maxSweep.x)); ++x) {
             for (int y = static_cast<int>(std::floor(minSweep.y)); y <= static_cast<int>(std::floor(maxSweep.y)); ++y) {
                 for (int z = static_cast<int>(std::floor(minSweep.z)); z <= static_cast<int>(std::floor(maxSweep.z)); ++z) {
                     WorldCoordinate coord(glm::i64vec3(x, y, z));
                     if (!world.hasVoxel(coord)) continue;
-                    glm::vec3 voxelPos(x + 0.5f, y + 0.5f, z + 0.5f);
-                    glm::vec3 voxelHalf(0.5f);
+                    glm::dvec3 voxelPos(x + 0.5, y + 0.5, z + 0.5);
+                    glm::dvec3 voxelHalf(0.5);
                     SweptAABBResult res = sweptAABB(position, boxHalfExtents, velocity, voxelPos, voxelHalf);
                     if (res.collided && res.entryTime < earliestHit) {
                         earliestHit = res.entryTime;
@@ -252,10 +252,10 @@ void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::vec3 velocity) 
                 }
             }
         }
-        if (earliestHit < 1.0f) {
+        if (earliestHit < 1.0) {
             position += velocity * earliestHit;
-            position += hitNormal * CAMERA_COLLISION_PUSH;
-            if (hitNormal.y > 0.0f) {
+            position += hitNormal * static_cast<double>(CAMERA_COLLISION_PUSH);
+            if (hitNormal.y > 0.0) {
                 m_verticalVelocity = 0.0f;
                 m_onGround = true;
             }
@@ -266,7 +266,7 @@ void ControllerSystem::moveAndCollideCamera(Camera& camera, glm::vec3 velocity) 
         }
     }
 
-    camera.setPosition(position + glm::vec3(0, CAMERA_EYE_OFFSET_Y, 0)); // set eye above center
+    camera.setPosition(position + glm::dvec3(0, CAMERA_EYE_OFFSET_Y, 0)); // set eye above center
 }
 
 void ControllerSystem::animateCameraFov(const float dt, const Input& input, Camera& camera) {
@@ -277,41 +277,41 @@ void ControllerSystem::animateCameraFov(const float dt, const Input& input, Came
     camera.setFov(animatedFov);
 }
 
-ControllerSystem::SweptAABBResult ControllerSystem::sweptAABB(const glm::vec3& aPos, const glm::vec3& aHalf,
-                                                              const glm::vec3& vel,
-                                                              const glm::vec3& bPos, const glm::vec3& bHalf) {
-    glm::vec3 invEntry, invExit;
+ControllerSystem::SweptAABBResult ControllerSystem::sweptAABB(const glm::dvec3& aPos, const glm::dvec3& aHalf,
+                                                              const glm::dvec3& vel,
+                                                              const glm::dvec3& bPos, const glm::dvec3& bHalf) {
+    glm::dvec3 invEntry, invExit;
     for (int i = 0; i < 3; ++i) {
-        if (vel[i] > 0.0f) {
+        if (vel[i] > 0.0) {
             invEntry[i] = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
             invExit[i]  = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
-        } else if (vel[i] < 0.0f) {
+        } else if (vel[i] < 0.0) {
             invEntry[i] = (bPos[i] + bHalf[i]) - (aPos[i] - aHalf[i]);
             invExit[i]  = (bPos[i] - bHalf[i]) - (aPos[i] + aHalf[i]);
         } else {
-            invEntry[i] = -std::numeric_limits<float>::infinity();
-            invExit[i]  = std::numeric_limits<float>::infinity();
+            invEntry[i] = -std::numeric_limits<double>::infinity();
+            invExit[i]  =  std::numeric_limits<double>::infinity();
         }
     }
-    glm::vec3 entry, exit;
+    glm::dvec3 entry, exit;
     for (int i = 0; i < 3; ++i) {
-        if (vel[i] == 0.0f) {
-            entry[i] = -std::numeric_limits<float>::infinity();
-            exit[i]  = std::numeric_limits<float>::infinity();
+        if (vel[i] == 0.0) {
+            entry[i] = -std::numeric_limits<double>::infinity();
+            exit[i]  =  std::numeric_limits<double>::infinity();
         } else {
             entry[i] = invEntry[i] / vel[i];
             exit[i]  = invExit[i] / vel[i];
         }
     }
-    const float entryTime = std::max({ entry.x, entry.y, entry.z });
-    const float exitTime  = std::min({ exit.x, exit.y, exit.z });
-    if (entryTime > exitTime || (entry.x < 0 && entry.y < 0 && entry.z < 0) || entryTime > 1.0f || entryTime < 0.0f) {
-        return {1.0f, glm::vec3(0.0f), false};
+    const double entryTime = std::max({ entry.x, entry.y, entry.z });
+    const double exitTime  = std::min({ exit.x, exit.y, exit.z });
+    if (entryTime > exitTime || (entry.x < 0 && entry.y < 0 && entry.z < 0) || entryTime > 1.0 || entryTime < 0.0) {
+        return {1.0, glm::dvec3(0.0), false};
     }
-    glm::vec3 normal(0.0f);
-    if (entryTime == entry.x) normal.x = vel.x > 0 ? -1.0f : 1.0f;
-    else if (entryTime == entry.y) normal.y = vel.y > 0 ? -1.0f : 1.0f;
-    else if (entryTime == entry.z) normal.z = vel.z > 0 ? -1.0f : 1.0f;
+    glm::dvec3 normal(0.0);
+    if (entryTime == entry.x) normal.x = vel.x > 0 ? -1.0 : 1.0;
+    else if (entryTime == entry.y) normal.y = vel.y > 0 ? -1.0 : 1.0;
+    else if (entryTime == entry.z) normal.z = vel.z > 0 ? -1.0 : 1.0;
     return {entryTime, normal, true};
 }
 
