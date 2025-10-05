@@ -169,15 +169,30 @@ public:
     std::vector<LightSource> getLightSources(const int xOffset = 0, const int yOffset = 0, const int zOffset = 0) const {
         std::vector<LightSource> lights;
         lights.reserve(m_litVoxels.size());
+
+        auto isSurrounded = [&](const int x, const int y, const int z) -> bool {
+            static constexpr int DIRS[6][3] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+            for (const auto &d : DIRS) {
+                const uint32_t nx = x + d[0];
+                const uint32_t ny = y + d[1];
+                const uint32_t nz = z + d[2];
+                if ((nx >= WIDTH || ny >= WIDTH || nz >= WIDTH) || !hasVoxel(nx, ny, nz)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
         for (const auto& [x, y, z] : m_litVoxels) {
+            if (isSurrounded(x, y, z)) continue;
             const VoxelData& voxel = getVoxel(x, y, z);
             assert(!voxel.isEmpty() && voxel.getBlock().emitsLight());
-            lights.push_back({
+            lights.emplace_back(
                 static_cast<int>(x) + xOffset * static_cast<int>(WIDTH),
                 static_cast<int>(y) + yOffset * static_cast<int>(WIDTH),
                 static_cast<int>(z) + zOffset * static_cast<int>(WIDTH),
                 voxel.getBlock().getLightInfo()
-            });
+            );
         }
         return lights;
     }
