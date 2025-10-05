@@ -76,6 +76,14 @@ private:
 
     GpuTimestampProfiler m_profiler{};
 
+    WGPURenderPipeline m_fxaaPipeline{};
+    WGPUBindGroup m_fxaaBindGroup{};
+    WGPUSampler m_fxaaSampler{};
+    WGPUBindGroupLayout m_fxaaBindGroupLayout{};
+
     void createRenderPipeline();
     void initializeBuffers();
+    void createFxaaPipeline();
+    void createFxaaBindGroup();
+    void updateUniformBuffer();
 };

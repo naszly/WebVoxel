@@ -1,6 +1,7 @@
 #include "RendererSystem.h"
 
 #include "application/Application.h"
+#include "application/graphics/pipeline/FxaaPipelineBuilder.h"
 #include "application/graphics/pipeline/PipelineBuilder.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
@@ -23,39 +24,100 @@ void RendererSystem::initialize() {
     m_uniformsBuffer = UniformsBuffer::make<Uniforms>(device);
 
     m_renderTargets = std::make_unique<RenderTargets>(gpuContext);
-    m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
+    m_renderTargets->configure(m_viewportWidth, m_viewportHeight, getWebGpuSurface().getSurfaceFormat());
 
     m_chunkRenderManager = std::make_unique<ChunkRenderManager>(device, getWorld());
 
     createRenderPipeline();
+    createFxaaBindGroup();
+    createFxaaPipeline();
 
     m_profiler.init(gpuContext.getAdapter(), device);
 }
 
+void RendererSystem::createFxaaPipeline() {
+    auto& device = getWebGpuContext().getDevice();
+    FxaaPipelineBuilder builder(device);
+    m_fxaaPipeline = builder.build(m_fxaaBindGroupLayout, getWebGpuSurface().getSurfaceFormat());
+}
+
+void RendererSystem::createFxaaBindGroup() {
+    auto& device = getWebGpuContext().getDevice();
+    // Create sampler
+    WGPUSamplerDescriptor samplerDesc = {};
+    samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+    samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+    samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+    samplerDesc.magFilter = WGPUFilterMode_Linear;
+    samplerDesc.minFilter = WGPUFilterMode_Linear;
+    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    samplerDesc.maxAnisotropy = 1;
+    m_fxaaSampler = wgpuDeviceCreateSampler(device, &samplerDesc);
+
+    // Create resolution uniform buffer
+    float resolution[2] = {static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)};
+    WGPUBufferDescriptor resBufDesc = {};
+    resBufDesc.size = sizeof(resolution);
+    resBufDesc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+    WGPUBuffer resBuffer = wgpuDeviceCreateBuffer(device, &resBufDesc);
+    wgpuQueueWriteBuffer(m_queue, resBuffer, 0, resolution, sizeof(resolution));
+
+    // Create bind group layout and store it
+    WGPUBindGroupLayoutEntry entries[3] = {};
+    entries[0].binding = 0;
+    entries[0].visibility = WGPUShaderStage_Fragment;
+    entries[0].texture.sampleType = WGPUTextureSampleType_Float;
+    entries[0].texture.viewDimension = WGPUTextureViewDimension_2D;
+    entries[0].texture.multisampled = false;
+    entries[1].binding = 1;
+    entries[1].visibility = WGPUShaderStage_Fragment;
+    entries[1].sampler.type = WGPUSamplerBindingType_Filtering;
+    entries[2].binding = 2;
+    entries[2].visibility = WGPUShaderStage_Fragment;
+    entries[2].buffer.type = WGPUBufferBindingType_Uniform;
+    entries[2].buffer.hasDynamicOffset = false;
+    entries[2].buffer.minBindingSize = sizeof(resolution);
+    WGPUBindGroupLayoutDescriptor bglDesc = {};
+    bglDesc.entryCount = 3;
+    bglDesc.entries = entries;
+    if (m_fxaaBindGroupLayout) {
+        wgpuBindGroupLayoutRelease(m_fxaaBindGroupLayout);
+    }
+    m_fxaaBindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
+
+    // Create bind group
+    WGPUBindGroupEntry bgEntries[3] = {};
+    bgEntries[0].binding = 0;
+    bgEntries[0].textureView = m_renderTargets->getSceneColorView();
+    bgEntries[1].binding = 1;
+    bgEntries[1].sampler = m_fxaaSampler;
+    bgEntries[2].binding = 2;
+    bgEntries[2].buffer = resBuffer;
+    bgEntries[2].offset = 0;
+    bgEntries[2].size = sizeof(resolution);
+    WGPUBindGroupDescriptor bgDesc = {};
+    bgDesc.layout = m_fxaaBindGroupLayout;
+    bgDesc.entryCount = 3;
+    bgDesc.entries = bgEntries;
+    m_fxaaBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
+
+    wgpuBufferRelease(resBuffer);
+}
+
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
-    const Camera& camera = getCamera();
+    updateUniformBuffer();
 
-    m_uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
-    m_uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
-    m_uniformData.cameraPosition = camera.getPosition();
-    m_uniformData.fov = camera.getFov();
-    m_uniformData.viewportSize = {m_viewportWidth, m_viewportHeight};
-    m_uniformData.nearPlane = Camera::NEAR;
-    m_uniformData.farPlane = Camera::FAR;
+    WGPURenderPassDescriptor scenePassDesc = {};
+    scenePassDesc.nextInChain = nullptr;
 
-    m_uniformsBuffer->write(m_queue, m_uniformData);
-
-    WGPURenderPassDescriptor renderPassDesc = {};
-    renderPassDesc.nextInChain = nullptr;
-
-    WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = m_renderTargets->colorAttachmentViewFor(targetView);
-    renderPassColorAttachment.resolveTarget = m_renderTargets->resolveTargetFor(targetView);
-    renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
-    renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-    renderPassColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
+    WGPURenderPassColorAttachment sceneColorAttachment = {};
+    sceneColorAttachment.view = m_renderTargets->getSceneColorView();
+    sceneColorAttachment.resolveTarget = nullptr;
+    sceneColorAttachment.loadOp = WGPULoadOp_Clear;
+    sceneColorAttachment.storeOp = WGPUStoreOp_Store; // Store multisample texture (not strictly needed if resolved) & single-sample
+    sceneColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
-    renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    sceneColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
 
     WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
@@ -67,26 +129,22 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.stencilClearValue = 0;
 
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.colorAttachments = &renderPassColorAttachment;
-    renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+    scenePassDesc.colorAttachmentCount = 1;
+    scenePassDesc.colorAttachments = &sceneColorAttachment;
+    scenePassDesc.depthStencilAttachment = &depthStencilAttachment;
+    scenePassDesc.label = WGPUStringView{"Scene RenderPass", WGPU_STRLEN};
 
-    m_profiler.attachTo(renderPassDesc);
-
-    renderPassDesc.label = WGPUStringView{"RendererSystem RenderPass", WGPU_STRLEN};
-
-    const WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-
-    wgpuRenderPassEncoderSetPipeline(renderPass, m_renderPipeline);
-    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_uniformBindGroup, 0, nullptr);
-    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
+    WGPURenderPassEncoder scenePass = wgpuCommandEncoderBeginRenderPass(encoder, &scenePassDesc);
+    wgpuRenderPassEncoderSetPipeline(scenePass, m_renderPipeline);
+    wgpuRenderPassEncoderSetBindGroup(scenePass, 0, m_uniformBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetVertexBuffer(scenePass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(scenePass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
 
     auto& appData = getApplicationData();
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
 
-    auto chunkVertexBuffers = m_chunkRenderManager->getChunksToRender(camera);
+    auto chunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera());
 
     for (auto &chunkVertexBuffer: chunkVertexBuffers) {
 
@@ -98,14 +156,39 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         const uint64_t totalSize = wgpuBufferGetSize(buffer);
         const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
 
-        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 1, buffer, 0, chunkMetaOffset);
-        wgpuRenderPassEncoderSetVertexBuffer(renderPass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
+        wgpuRenderPassEncoderSetVertexBuffer(scenePass, 1, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(scenePass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
 
-        wgpuRenderPassEncoderDrawIndexed(renderPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
+        wgpuRenderPassEncoderDrawIndexed(scenePass, m_billboardIndexCount, vertexCount, 0, 0, 0);
     }
+    wgpuRenderPassEncoderEnd(scenePass);
+    wgpuRenderPassEncoderRelease(scenePass);
 
-    wgpuRenderPassEncoderEnd(renderPass);
-    wgpuRenderPassEncoderRelease(renderPass);
+    WGPURenderPassColorAttachment fxaaColorAttachment = {};
+    fxaaColorAttachment.view = targetView;
+    fxaaColorAttachment.resolveTarget = nullptr;
+    fxaaColorAttachment.loadOp = WGPULoadOp_Clear; // Could be Load to view MSAA difference; keep Clear for now
+    fxaaColorAttachment.storeOp = WGPUStoreOp_Store;
+    fxaaColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+    fxaaColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif // NOT WEBGPU_BACKEND_WGPU
+    WGPURenderPassDescriptor fxaaPassDesc = {};
+    fxaaPassDesc.nextInChain = nullptr;
+    fxaaPassDesc.colorAttachmentCount = 1;
+    fxaaPassDesc.colorAttachments = &fxaaColorAttachment;
+    fxaaPassDesc.depthStencilAttachment = nullptr;
+    fxaaPassDesc.label = WGPUStringView{"FXAA RenderPass", WGPU_STRLEN};
+
+    WGPURenderPassEncoder fxaaPass = wgpuCommandEncoderBeginRenderPass(encoder, &fxaaPassDesc);
+    wgpuRenderPassEncoderSetPipeline(fxaaPass, m_fxaaPipeline);
+    wgpuRenderPassEncoderSetBindGroup(fxaaPass, 0, m_fxaaBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetVertexBuffer(fxaaPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(fxaaPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
+    wgpuRenderPassEncoderDrawIndexed(fxaaPass, m_billboardIndexCount, 1, 0, 0, 0);
+
+    wgpuRenderPassEncoderEnd(fxaaPass);
+    wgpuRenderPassEncoderRelease(fxaaPass);
 
     m_profiler.resolveAndCopy(encoder);
 }
@@ -131,9 +214,12 @@ void RendererSystem::onEvent(Event &event) {
         m_viewportWidth = windowResizedEvent.getWidth();
         m_viewportHeight = windowResizedEvent.getHeight();
 
-        m_renderTargets->configure(m_viewportWidth, m_viewportHeight, m_sampleCount, getWebGpuSurface().getSurfaceFormat());
+        m_renderTargets->configure(m_viewportWidth, m_viewportHeight, getWebGpuSurface().getSurfaceFormat());
 
         getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
+
+        createFxaaBindGroup();
+        createFxaaPipeline();
 
         return true;
     });
@@ -230,4 +316,19 @@ void RendererSystem::initializeBuffers() {
 
     // Upload index data to the buffer
     wgpuQueueWriteBuffer(m_queue, m_billboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
+}
+
+void RendererSystem::updateUniformBuffer() {
+    if (!m_uniformsBuffer) return;
+
+    const Camera& camera = getCamera();
+    m_uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
+    m_uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
+    m_uniformData.cameraPosition = camera.getPosition();
+    m_uniformData.fov = camera.getFov();
+    m_uniformData.viewportSize = glm::vec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight));
+    m_uniformData.nearPlane = Camera::NEAR;
+    m_uniformData.farPlane = Camera::FAR;
+
+    m_uniformsBuffer->write(m_queue, m_uniformData);
 }

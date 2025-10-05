@@ -16,23 +16,22 @@ void RenderTargets::destroy() {
         wgpuTextureRelease(m_depthTexture);
         m_depthTexture = nullptr;
     }
-    if (m_multisampleColorTextureView) {
-        wgpuTextureViewRelease(m_multisampleColorTextureView);
-        m_multisampleColorTextureView = nullptr;
+    if (m_sceneColorTextureView) {
+        wgpuTextureViewRelease(m_sceneColorTextureView);
+        m_sceneColorTextureView = nullptr;
     }
-    if (m_multisampleColorTexture) {
-        wgpuTextureDestroy(m_multisampleColorTexture);
-        wgpuTextureRelease(m_multisampleColorTexture);
-        m_multisampleColorTexture = nullptr;
+    if (m_sceneColorTexture) {
+        wgpuTextureDestroy(m_sceneColorTexture);
+        wgpuTextureRelease(m_sceneColorTexture);
+        m_sceneColorTexture = nullptr;
     }
 }
 
-void RenderTargets::configure(unsigned int width, unsigned int height, int sampleCount, WGPUTextureFormat colorFormat) {
+void RenderTargets::configure(unsigned int width, unsigned int height, WGPUTextureFormat colorFormat) {
     const bool dimsSame = (m_width == width && m_height == height);
-    const bool msaaSame = (m_sampleCount == sampleCount);
     const bool fmtSame = (m_colorFormat == colorFormat);
 
-    if (dimsSame && msaaSame && fmtSame && m_depthTextureView) {
+    if (dimsSame && fmtSame && m_depthTextureView) {
         return;
     }
 
@@ -40,7 +39,6 @@ void RenderTargets::configure(unsigned int width, unsigned int height, int sampl
 
     m_width = width;
     m_height = height;
-    m_sampleCount = sampleCount;
     m_colorFormat = colorFormat;
 
     const auto& device = m_context.getDevice();
@@ -51,7 +49,7 @@ void RenderTargets::configure(unsigned int width, unsigned int height, int sampl
     depthTextureDesc.size.height = m_height;
     depthTextureDesc.size.depthOrArrayLayers = 1;
     depthTextureDesc.mipLevelCount = 1;
-    depthTextureDesc.sampleCount = m_sampleCount;
+    depthTextureDesc.sampleCount = 1;
     depthTextureDesc.dimension = WGPUTextureDimension_2D;
     depthTextureDesc.format = WGPUTextureFormat_Depth24PlusStencil8;
     depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
@@ -79,38 +77,37 @@ void RenderTargets::configure(unsigned int width, unsigned int height, int sampl
         return;
     }
 
-    // Create the MSAA color texture only if multisampling is enabled
-    if (m_sampleCount > 1) {
-        WGPUTextureDescriptor colorTextureDesc = {};
-        colorTextureDesc.size.width = m_width;
-        colorTextureDesc.size.height = m_height;
-        colorTextureDesc.size.depthOrArrayLayers = 1;
-        colorTextureDesc.mipLevelCount = 1;
-        colorTextureDesc.sampleCount = m_sampleCount;
-        colorTextureDesc.dimension = WGPUTextureDimension_2D;
-        colorTextureDesc.format = m_colorFormat;
-        colorTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
+    // Create the scene color texture for post-processing (FXAA)
+    WGPUTextureDescriptor sceneColorDesc = {};
+    sceneColorDesc.size.width = m_width;
+    sceneColorDesc.size.height = m_height;
+    sceneColorDesc.size.depthOrArrayLayers = 1;
+    sceneColorDesc.mipLevelCount = 1;
+    sceneColorDesc.sampleCount = 1;
+    sceneColorDesc.dimension = WGPUTextureDimension_2D;
+    sceneColorDesc.format = m_colorFormat;
+    sceneColorDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
 
-        m_multisampleColorTexture = wgpuDeviceCreateTexture(device, &colorTextureDesc);
-        if (!m_multisampleColorTexture) {
-            LogApp::error("RenderTargets: Failed to create MSAA color texture");
-            return;
-        }
+    m_sceneColorTexture = wgpuDeviceCreateTexture(device, &sceneColorDesc);
+    if (!m_sceneColorTexture) {
+        LogApp::error("RenderTargets: Failed to create scene color texture");
+        return;
+    }
 
-        WGPUTextureViewDescriptor colorViewDesc = {};
-        colorViewDesc.format = m_colorFormat;
-        colorViewDesc.dimension = WGPUTextureViewDimension_2D;
-        colorViewDesc.baseMipLevel = 0;
-        colorViewDesc.mipLevelCount = 1;
-        colorViewDesc.baseArrayLayer = 0;
-        colorViewDesc.arrayLayerCount = 1;
-        colorViewDesc.aspect = WGPUTextureAspect_All;
+    WGPUTextureViewDescriptor sceneColorViewDesc = {};
+    sceneColorViewDesc.format = m_colorFormat;
+    sceneColorViewDesc.dimension = WGPUTextureViewDimension_2D;
+    sceneColorViewDesc.baseMipLevel = 0;
+    sceneColorViewDesc.mipLevelCount = 1;
+    sceneColorViewDesc.baseArrayLayer = 0;
+    sceneColorViewDesc.arrayLayerCount = 1;
+    sceneColorViewDesc.aspect = WGPUTextureAspect_All;
 
-        m_multisampleColorTextureView = wgpuTextureCreateView(m_multisampleColorTexture, &colorViewDesc);
-        if (!m_multisampleColorTextureView) {
-            LogApp::error("RenderTargets: Failed to create MSAA color texture view");
-            wgpuTextureRelease(m_multisampleColorTexture);
-            m_multisampleColorTexture = nullptr;
-        }
+    m_sceneColorTextureView = wgpuTextureCreateView(m_sceneColorTexture, &sceneColorViewDesc);
+    if (!m_sceneColorTextureView) {
+        LogApp::error("RenderTargets: Failed to create scene color texture view");
+        wgpuTextureRelease(m_sceneColorTexture);
+        m_sceneColorTexture = nullptr;
+        return;
     }
 }
