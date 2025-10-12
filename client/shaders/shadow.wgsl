@@ -4,12 +4,11 @@ struct Uniforms {
     projectionViewMatrix: mat4x4<f32>,
     inverseProjectionViewMatrix: mat4x4<f32>,
     cameraPosition: vec3f,
-    fov: f32,
+    time: f32,
     viewportSize: vec2f,
     nearPlane: f32,
     farPlane: f32,
     cameraDir: vec3f,
-    time: f32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;

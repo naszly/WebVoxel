@@ -65,6 +65,19 @@ private:
     };
     static_assert(sizeof(Uniforms) % 16 == 0, "Uniform buffer size must be a multiple of 16 bytes");
 
+    struct ShadowUniforms {
+        glm::mat4 projectionViewMatrix;
+        glm::mat4 inverseProjectionViewMatrix;
+        glm::vec3 cameraPosition;
+        float time;
+        glm::vec2 viewportSize;
+        float nearPlane;
+        float farPlane;
+        glm::vec3 cameraDir;
+        float padding{0.0f};
+    };
+    static_assert(sizeof(ShadowUniforms) % 16 == 0, "Shadow uniform buffer size must be a multiple of 16 bytes");
+
     std::unique_ptr<RenderTargets> m_renderTargets;
     unsigned int m_viewportWidth{}, m_viewportHeight{};
 

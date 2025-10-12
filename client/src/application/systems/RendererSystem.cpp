@@ -22,7 +22,7 @@ void RendererSystem::initialize() {
     initializeBuffers();
 
     m_uniformsBuffer = UniformsBuffer::make<Uniforms>(device);
-    m_shadowUniformsBuffer = UniformsBuffer::make<Uniforms>(device);
+    m_shadowUniformsBuffer = UniformsBuffer::make<ShadowUniforms>(device);
 
     m_renderTargets = std::make_unique<RenderTargets>(gpuContext);
     m_renderTargets->configure(m_viewportWidth, m_viewportHeight, getWebGpuSurface().getSurfaceFormat());
@@ -361,18 +361,15 @@ void RendererSystem::updateUniformBuffer() {
     };
     m_uniformsBuffer->write(m_queue, uniforms);
 
-    Uniforms shadowUniforms{
+    ShadowUniforms shadowUniforms{
         .projectionViewMatrix = m_lightProjectionViewMatrix,
         .inverseProjectionViewMatrix = glm::inverse(m_lightProjectionViewMatrix),
         .cameraPosition = camera.getPosition(),
-        .fov = 1.0f,
+        .time = m_timeAccumulator,
         .viewportSize = glm::vec2(static_cast<float>(m_shadowMapSize), static_cast<float>(m_shadowMapSize)),
         .nearPlane = shadowNearPlane,
         .farPlane = shadowFarPlane,
         .cameraDir = lightDir,
-        .time = m_timeAccumulator,
-        .lightProjectionViewMatrix = m_lightProjectionViewMatrix,
-        .lightDirection = lightDir,
     };
     m_shadowUniformsBuffer->write(m_queue, shadowUniforms);
 }
