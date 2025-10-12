@@ -98,4 +98,6 @@ private:
     void createFxaaPipeline();
     void createFxaaBindGroup();
     void updateUniformBuffer();
+
+    void renderShadowPass(const WGPUCommandEncoder& encoder, const ShadowMap& shadowMap, const glm::mat4& lightProjectionViewMatrix) const;
 };

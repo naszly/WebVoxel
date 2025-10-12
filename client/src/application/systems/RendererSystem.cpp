@@ -106,39 +106,7 @@ void RendererSystem::createFxaaBindGroup() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     updateUniformBuffer();
 
-    // --- Shadow pass ---
-    WGPURenderPassDepthStencilAttachment shadowDepthAttachment = {};
-    shadowDepthAttachment.view = m_shadowMap->getDepthView();
-    shadowDepthAttachment.depthLoadOp = WGPULoadOp_Clear;
-    shadowDepthAttachment.depthStoreOp = WGPUStoreOp_Store;
-    shadowDepthAttachment.depthClearValue = 1.0f;
-    shadowDepthAttachment.stencilLoadOp = WGPULoadOp_Undefined;
-    shadowDepthAttachment.stencilStoreOp = WGPUStoreOp_Undefined;
-    shadowDepthAttachment.stencilClearValue = 0;
-    WGPURenderPassDescriptor shadowPassDesc = {};
-    shadowPassDesc.colorAttachmentCount = 0;
-    shadowPassDesc.colorAttachments = nullptr;
-    shadowPassDesc.depthStencilAttachment = &shadowDepthAttachment;
-    shadowPassDesc.label = WGPUStringView{"Shadow RenderPass", WGPU_STRLEN};
-    WGPURenderPassEncoder shadowPass = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
-    wgpuRenderPassEncoderSetPipeline(shadowPass, m_shadowMap->getPipeline());
-    wgpuRenderPassEncoderSetBindGroup(shadowPass, 0, m_shadowMap->getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(shadowPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
-    const auto shadowChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(
-        getCamera().getPosition(),
-        m_lightProjectionViewMatrix
-    );
-    for (auto &chunkVertexBuffer: shadowChunkVertexBuffers) {
-        auto &[buffer, vertexCount] = chunkVertexBuffer;
-        const uint64_t totalSize = wgpuBufferGetSize(buffer);
-        const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
-        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 1, buffer, 0, chunkMetaOffset);
-        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
-        wgpuRenderPassEncoderDrawIndexed(shadowPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
-    }
-    wgpuRenderPassEncoderEnd(shadowPass);
-    wgpuRenderPassEncoderRelease(shadowPass);
+    renderShadowPass(encoder, *m_shadowMap, m_lightProjectionViewMatrix);
 
     // --- Main scene pass ---
     WGPURenderPassDescriptor scenePassDesc = {};
@@ -407,4 +375,43 @@ void RendererSystem::updateUniformBuffer() {
         .lightDirection = lightDir,
     };
     m_shadowUniformsBuffer->write(m_queue, shadowUniforms);
+}
+
+void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const ShadowMap &shadowMap, const glm::mat4& lightProjectionViewMatrix) const {
+    WGPURenderPassDepthStencilAttachment shadowDepthAttachment = {};
+    shadowDepthAttachment.view = shadowMap.getDepthView();
+    shadowDepthAttachment.depthLoadOp = WGPULoadOp_Clear;
+    shadowDepthAttachment.depthStoreOp = WGPUStoreOp_Store;
+    shadowDepthAttachment.depthClearValue = 1.0f;
+    shadowDepthAttachment.stencilLoadOp = WGPULoadOp_Undefined;
+    shadowDepthAttachment.stencilStoreOp = WGPUStoreOp_Undefined;
+    shadowDepthAttachment.stencilClearValue = 0;
+
+    WGPURenderPassDescriptor shadowPassDesc = {};
+    shadowPassDesc.colorAttachmentCount = 0;
+    shadowPassDesc.colorAttachments = nullptr;
+    shadowPassDesc.depthStencilAttachment = &shadowDepthAttachment;
+    shadowPassDesc.label = WGPUStringView{"Shadow RenderPass", WGPU_STRLEN};
+
+    WGPURenderPassEncoder shadowPass = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
+    wgpuRenderPassEncoderSetPipeline(shadowPass, shadowMap.getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(shadowPass, 0, shadowMap.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(shadowPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
+
+    const auto shadowChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(
+        getCamera().getPosition(),
+        lightProjectionViewMatrix
+    );
+    for (auto &chunkVertexBuffer: shadowChunkVertexBuffers) {
+        auto &[buffer, vertexCount] = chunkVertexBuffer;
+        const uint64_t totalSize = wgpuBufferGetSize(buffer);
+        const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
+        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 1, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
+        wgpuRenderPassEncoderDrawIndexed(shadowPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
+    }
+
+    wgpuRenderPassEncoderEnd(shadowPass);
+    wgpuRenderPassEncoderRelease(shadowPass);
 }
