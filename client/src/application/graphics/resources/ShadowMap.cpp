@@ -28,18 +28,6 @@ void ShadowMap::createResources(const WGPUDevice &device) {
     texDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
     m_depthTexture = wgpuDeviceCreateTexture(device, &texDesc);
     m_depthView = wgpuTextureCreateView(m_depthTexture, nullptr);
-
-    // Comparison sampler for shadow lookups
-    WGPUSamplerDescriptor samplerDesc{};
-    samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
-    samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
-    samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
-    samplerDesc.magFilter = WGPUFilterMode_Linear;
-    samplerDesc.minFilter = WGPUFilterMode_Linear;
-    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
-    samplerDesc.compare = WGPUCompareFunction_Less;
-    samplerDesc.maxAnisotropy = 1;
-    m_sampler = wgpuDeviceCreateSampler(device, &samplerDesc);
 }
 
 void ShadowMap::createPipeline(const WGPUDevice &device, const WGPUBuffer &uniformBuffer, size_t chunkSize) {
@@ -51,7 +39,6 @@ void ShadowMap::createPipeline(const WGPUDevice &device, const WGPUBuffer &unifo
 void ShadowMap::releaseResources() {
     if (m_bindGroup) { wgpuBindGroupRelease(m_bindGroup); m_bindGroup = nullptr; }
     if (m_pipeline) { wgpuRenderPipelineRelease(m_pipeline); m_pipeline = nullptr; }
-    if (m_sampler) { wgpuSamplerRelease(m_sampler); m_sampler = nullptr; }
     if (m_depthView) { wgpuTextureViewRelease(m_depthView); m_depthView = nullptr; }
     if (m_depthTexture) { wgpuTextureRelease(m_depthTexture); m_depthTexture = nullptr; }
 }

@@ -15,7 +15,6 @@ public:
     ShadowMap& operator=(const ShadowMap&) = delete;
 
     [[nodiscard]] WGPUTextureView getDepthView() const { return m_depthView; }
-    [[nodiscard]] WGPUSampler getSampler() const { return m_sampler; }
     [[nodiscard]] WGPURenderPipeline getPipeline() const { return m_pipeline; }
     [[nodiscard]] WGPUBindGroup getBindGroup() const { return m_bindGroup; }
     [[nodiscard]] uint32_t getSize() const { return m_size; }
@@ -29,7 +28,6 @@ private:
 
     WGPUTexture m_depthTexture{};
     WGPUTextureView m_depthView{};
-    WGPUSampler m_sampler{};
     WGPURenderPipeline m_pipeline{};
     WGPUBindGroup m_bindGroup{};
 };

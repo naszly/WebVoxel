@@ -105,7 +105,11 @@ void RendererSystem::createFxaaBindGroup() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     updateUniformBuffer();
 
-    renderShadowPass(encoder, *m_shadowPass);
+    if (m_lighting) {
+        for (auto& sp : m_shadowCascades) {
+            if (sp) renderShadowPass(encoder, *sp);
+        }
+    }
 
     // --- Main scene pass ---
     WGPURenderPassDescriptor scenePassDesc = {};
@@ -251,7 +255,21 @@ void RendererSystem::updateChunkVertexBuffer(const std::vector<VertexData>& vert
 
 void RendererSystem::createPipelines() {
     const auto& device = getWebGpuContext().getDevice();
-    m_shadowPass = std::make_unique<ShadowPass>(device, Chunk::WIDTH, 4092);
+    m_shadowCascades[static_cast<size_t>(ShadowCascade::Near)] = std::make_unique<ShadowPass>(device, Chunk::WIDTH, 2048);
+    m_shadowCascades[static_cast<size_t>(ShadowCascade::Far)]  = std::make_unique<ShadowPass>(device, Chunk::WIDTH, 2048);
+
+    if (!m_shadowSampler) {
+        WGPUSamplerDescriptor samplerDesc{};
+        samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+        samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+        samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+        samplerDesc.magFilter = WGPUFilterMode_Linear;
+        samplerDesc.minFilter = WGPUFilterMode_Linear;
+        samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+        samplerDesc.compare = WGPUCompareFunction_Less;
+        samplerDesc.maxAnisotropy = 1;
+        m_shadowSampler = wgpuDeviceCreateSampler(device, &samplerDesc);
+    }
 
     createRenderPipeline();
     createFxaaBindGroup();
@@ -273,12 +291,15 @@ void RendererSystem::createRenderPipeline() {
 
     const auto& uniformBuffer = m_uniformsBuffer->get();
     const auto& blockTextureManager = getBlockTextureManager();
+    const auto& nearCascade = m_shadowCascades[static_cast<size_t>(ShadowCascade::Near)];
+    const auto& farCascade  = m_shadowCascades[static_cast<size_t>(ShadowCascade::Far)];
     const auto artifacts = builder.build(
         opts,
         uniformBuffer,
         blockTextureManager,
-        m_shadowPass->getDepthView(),
-        m_shadowPass->getSampler()
+        nearCascade->getDepthView(),
+        farCascade->getDepthView(),
+        m_shadowSampler
     );
 
     m_renderPipeline = artifacts.pipeline;
@@ -328,20 +349,23 @@ void RendererSystem::initializeBuffers() {
 
 void RendererSystem::updateUniformBuffer() const {
     if (!m_uniformsBuffer) return;
-    if (!m_shadowPass) return;
 
-    constexpr double orthoHalf = 96.0;
-    constexpr double shadowNearPlane = -128.0;
-    constexpr double shadowFarPlane = 128.0;
+    constexpr double orthoHalfNear = 160.0;
+    constexpr double orthoHalfFar = 800.0;
+    constexpr double shadowNearPlane = -265.0;
+    constexpr double shadowFarPlane = 265.0;
 
     const Camera& camera = getCamera();
 
     const glm::dvec3 lightDir = glm::normalize(glm::vec3(2.0, -7.0, 3.0));
 
-    const glm::mat4 lightProjectionViewMatrix =
-        ShadowPass::computeDirectionalLightProjectionView(orthoHalf, shadowNearPlane, shadowFarPlane, lightDir);
+    const glm::mat4 lightProjectionViewNear =
+        ShadowPass::computeDirectionalLightProjectionView(orthoHalfNear, shadowNearPlane, shadowFarPlane, lightDir);
 
-    Uniforms uniforms{
+    const glm::mat4 lightProjectionViewFar =
+        ShadowPass::computeDirectionalLightProjectionView(orthoHalfFar,  shadowNearPlane, shadowFarPlane, lightDir);
+
+    const Uniforms uniforms{
         .projectionViewMatrix = camera.getProjectionViewMatrix(),
         .inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix(),
         .cameraPosition = camera.getPosition(),
@@ -351,22 +375,29 @@ void RendererSystem::updateUniformBuffer() const {
         .farPlane = Camera::FAR,
         .cameraDir = camera.getDirection(),
         .time = m_timeAccumulator,
-        .lightProjectionViewMatrix = lightProjectionViewMatrix,
+        .lightProjectionViewMatrixNear = lightProjectionViewNear,
+        .lightProjectionViewMatrixFar = lightProjectionViewFar,
         .lightDirection = lightDir
     };
     m_uniformsBuffer->write(m_queue, uniforms);
 
-    const float mapSize = static_cast<float>(m_shadowPass->getSize());
-    m_shadowPass->update(
-        m_queue,
-        lightProjectionViewMatrix,
-        camera.getPosition(),
-        glm::vec2(mapSize, mapSize),
-        shadowNearPlane,
-        shadowFarPlane,
-        glm::vec3(lightDir),
-        m_timeAccumulator
-    );
+    auto updateCascade = [&](ShadowCascade idx, const glm::mat4& lightProjectionView) {
+        const auto& pass = m_shadowCascades[static_cast<size_t>(idx)];
+        if (!pass) return;
+        const float mapSize = static_cast<float>(pass->getSize());
+        pass->update(
+            m_queue,
+            lightProjectionView,
+            camera.getPosition(),
+            glm::vec2(mapSize, mapSize),
+            shadowNearPlane,
+            shadowFarPlane,
+            glm::vec3(lightDir),
+            m_timeAccumulator
+        );
+    };
+    updateCascade(ShadowCascade::Near, lightProjectionViewNear);
+    updateCascade(ShadowCascade::Far,  lightProjectionViewFar);
 }
 
 void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const ShadowPass &shadowPass) const {

@@ -21,7 +21,8 @@ struct Uniforms {
     farPlane: f32,
     cameraDir: vec3f,
     time: f32,
-    lightProjectionViewMatrix: mat4x4<f32>,
+    lightProjectionViewMatrixNear: mat4x4<f32>,
+    lightProjectionViewMatrixFar: mat4x4<f32>,
     lightDirection: vec3f,
 }
 struct BlockTextures {
@@ -35,8 +36,9 @@ struct BlockTextures {
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> blockTextures: array<BlockTextures>;
 @group(0) @binding(2) var textureArray: texture_2d_array<f32>;
-@group(0) @binding(3) var shadowMap: texture_depth_2d;
-@group(0) @binding(4) var shadowSampler: sampler_comparison;
+@group(0) @binding(3) var shadowSampler: sampler_comparison;
+@group(0) @binding(4) var shadowMapNear: texture_depth_2d;
+@group(0) @binding(5) var shadowMapFar: texture_depth_2d;
 
 struct VertexInput {
     @location(0) vertexPosition: vec2f,
@@ -475,10 +477,15 @@ fn torchFlicker(t: f32) -> TorchFlicker {
     return TorchFlicker(color, flicker, rangeScale, posOffset);
 }
 
-fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f) -> f32 {
+struct ShadowResult {
+    shadowFactor: f32,
+    inBounds: bool,
+}
+
+fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f, lightProjectionViewMatrix: mat4x4<f32>, shadowMap: texture_depth_2d) -> ShadowResult {
     // Transform the hit point to light space
     let bias = normal * 0.05;
-    let lightSpacePos = u.lightProjectionViewMatrix * vec4f(hitPointWorld + bias, 1.0);
+    let lightSpacePos = lightProjectionViewMatrix * vec4f(hitPointWorld + bias, 1.0);
     let projCoords = lightSpacePos.xyz / lightSpacePos.w;
 
     // Map to [0, 1] shadow map space
@@ -502,8 +509,10 @@ fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f) -> f32 {
         shadowMap, shadowSampler, shadowMapCoords.xy, referenceDepth
     );
 
-    // Return 1.0 if out of bounds, otherwise the shadow value
-    return select(1.0, shadow, inBounds);
+    return ShadowResult(
+        select(1.0, shadow, inBounds),
+        inBounds
+    );
 }
 
 @fragment fn fsMain(input: FragmentIn) -> FragmentOut {
@@ -522,7 +531,9 @@ fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f) -> f32 {
     var shadowFactor = 1.0;
     if (LIGHTING && DIRECTIONAL_LIGHT) {
         let hitPointWorld = (ray.direction * hit.distance);
-        shadowFactor = getShadowFactor(hitPointWorld, hit.normal);
+        let shadowResultNear = getShadowFactor(hitPointWorld, hit.normal, u.lightProjectionViewMatrixNear, shadowMapNear);
+        let shadowResultFar  = getShadowFactor(hitPointWorld, hit.normal, u.lightProjectionViewMatrixFar, shadowMapFar);
+        shadowFactor = select(shadowResultFar.shadowFactor, shadowResultNear.shadowFactor, shadowResultNear.inBounds);
     }
 
     if (hit.isHit) {

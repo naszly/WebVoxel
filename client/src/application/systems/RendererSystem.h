@@ -4,6 +4,7 @@
 
 #include <glm/glm.hpp>
 #include <memory>
+#include <array>
 
 #include "application/graphics/profiling/GpuTimestampProfiler.h"
 #include "application/graphics/rendering/RenderTargets.h"
@@ -59,7 +60,8 @@ private:
         float farPlane;
         glm::vec3 cameraDir;
         float time;
-        glm::mat4 lightProjectionViewMatrix;
+        glm::mat4 lightProjectionViewMatrixNear;
+        glm::mat4 lightProjectionViewMatrixFar;
         glm::vec3 lightDirection;
         float padding{0.0f};
     };
@@ -85,7 +87,9 @@ private:
     WGPUSampler m_fxaaSampler{};
     WGPUBindGroupLayout m_fxaaBindGroupLayout{};
 
-    std::unique_ptr<ShadowPass> m_shadowPass;
+    enum class ShadowCascade : size_t { Near = 0, Far = 1, Count = 2 };
+    std::array<std::unique_ptr<ShadowPass>, static_cast<size_t>(ShadowCascade::Count)> m_shadowCascades{};
+    WGPUSampler m_shadowSampler{};
 
     void createPipelines();
 

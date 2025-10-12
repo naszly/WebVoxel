@@ -71,7 +71,6 @@ public:
     }
 
     [[nodiscard]] WGPUTextureView getDepthView() const { return m_map->getDepthView(); }
-    [[nodiscard]] WGPUSampler getSampler() const { return m_map->getSampler(); }
     [[nodiscard]] WGPURenderPipeline getPipeline() const { return m_map->getPipeline(); }
     [[nodiscard]] WGPUBindGroup getBindGroup() const { return m_map->getBindGroup(); }
 

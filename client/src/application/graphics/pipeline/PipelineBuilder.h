@@ -49,7 +49,8 @@ public:
     [[nodiscard]] PipelineArtifacts build(const PipelineOptions& options,
                                           const WGPUBuffer& uniformBuffer,
                                           const BlockTextureManager& blockTextures,
-                                          const WGPUTextureView& shadowMapView,
+                                          const WGPUTextureView& shadowMapNearView,
+                                          const WGPUTextureView& shadowMapFarView,
                                           const WGPUSampler& shadowSampler) const;
 
 private:
