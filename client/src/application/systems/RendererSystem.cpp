@@ -22,7 +22,6 @@ void RendererSystem::initialize() {
     initializeBuffers();
 
     m_uniformsBuffer = UniformsBuffer::make<Uniforms>(device);
-    m_shadowUniformsBuffer = UniformsBuffer::make<ShadowUniforms>(device);
 
     m_renderTargets = std::make_unique<RenderTargets>(gpuContext);
     m_renderTargets->configure(m_viewportWidth, m_viewportHeight, getWebGpuSurface().getSurfaceFormat());
@@ -106,7 +105,7 @@ void RendererSystem::createFxaaBindGroup() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     updateUniformBuffer();
 
-    renderShadowPass(encoder, *m_shadowMap, m_lightProjectionViewMatrix);
+    renderShadowPass(encoder, *m_shadowPass);
 
     // --- Main scene pass ---
     WGPURenderPassDescriptor scenePassDesc = {};
@@ -252,7 +251,7 @@ void RendererSystem::updateChunkVertexBuffer(const std::vector<VertexData>& vert
 
 void RendererSystem::createPipelines() {
     const auto& device = getWebGpuContext().getDevice();
-    m_shadowMap = std::make_unique<ShadowMap>(device, m_shadowUniformsBuffer->get(), Chunk::WIDTH, m_shadowMapSize);
+    m_shadowPass = std::make_unique<ShadowPass>(device, Chunk::WIDTH, 4092);
 
     createRenderPipeline();
     createFxaaBindGroup();
@@ -278,8 +277,8 @@ void RendererSystem::createRenderPipeline() {
         opts,
         uniformBuffer,
         blockTextureManager,
-        m_shadowMap->getDepthView(),
-        m_shadowMap->getSampler()
+        m_shadowPass->getDepthView(),
+        m_shadowPass->getSampler()
     );
 
     m_renderPipeline = artifacts.pipeline;
@@ -327,9 +326,9 @@ void RendererSystem::initializeBuffers() {
     wgpuQueueWriteBuffer(m_queue, m_billboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
 }
 
-void RendererSystem::updateUniformBuffer() {
+void RendererSystem::updateUniformBuffer() const {
     if (!m_uniformsBuffer) return;
-    if (!m_shadowUniformsBuffer) return;
+    if (!m_shadowPass) return;
 
     constexpr double orthoHalf = 96.0;
     constexpr double shadowNearPlane = -128.0;
@@ -339,12 +338,8 @@ void RendererSystem::updateUniformBuffer() {
 
     const glm::dvec3 lightDir = glm::normalize(glm::vec3(2.0, -7.0, 3.0));
 
-    const glm::mat4 lightView = glm::lookAt(-lightDir, glm::dvec3(0), glm::dvec3(0, 1, 0));
-    const glm::mat4 lightProj = glm::ortho(
-                                    -orthoHalf, orthoHalf,
-                                    -orthoHalf, orthoHalf,
-                                    shadowNearPlane, shadowFarPlane);
-    m_lightProjectionViewMatrix = lightProj * lightView;
+    const glm::mat4 lightProjectionViewMatrix =
+        ShadowPass::computeDirectionalLightProjectionView(orthoHalf, shadowNearPlane, shadowFarPlane, lightDir);
 
     Uniforms uniforms{
         .projectionViewMatrix = camera.getProjectionViewMatrix(),
@@ -356,27 +351,27 @@ void RendererSystem::updateUniformBuffer() {
         .farPlane = Camera::FAR,
         .cameraDir = camera.getDirection(),
         .time = m_timeAccumulator,
-        .lightProjectionViewMatrix = m_lightProjectionViewMatrix,
+        .lightProjectionViewMatrix = lightProjectionViewMatrix,
         .lightDirection = lightDir
     };
     m_uniformsBuffer->write(m_queue, uniforms);
 
-    ShadowUniforms shadowUniforms{
-        .projectionViewMatrix = m_lightProjectionViewMatrix,
-        .inverseProjectionViewMatrix = glm::inverse(m_lightProjectionViewMatrix),
-        .cameraPosition = camera.getPosition(),
-        .time = m_timeAccumulator,
-        .viewportSize = glm::vec2(static_cast<float>(m_shadowMapSize), static_cast<float>(m_shadowMapSize)),
-        .nearPlane = shadowNearPlane,
-        .farPlane = shadowFarPlane,
-        .cameraDir = lightDir,
-    };
-    m_shadowUniformsBuffer->write(m_queue, shadowUniforms);
+    const float mapSize = static_cast<float>(m_shadowPass->getSize());
+    m_shadowPass->update(
+        m_queue,
+        lightProjectionViewMatrix,
+        camera.getPosition(),
+        glm::vec2(mapSize, mapSize),
+        shadowNearPlane,
+        shadowFarPlane,
+        glm::vec3(lightDir),
+        m_timeAccumulator
+    );
 }
 
-void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const ShadowMap &shadowMap, const glm::mat4& lightProjectionViewMatrix) const {
+void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const ShadowPass &shadowPass) const {
     WGPURenderPassDepthStencilAttachment shadowDepthAttachment = {};
-    shadowDepthAttachment.view = shadowMap.getDepthView();
+    shadowDepthAttachment.view = shadowPass.getDepthView();
     shadowDepthAttachment.depthLoadOp = WGPULoadOp_Clear;
     shadowDepthAttachment.depthStoreOp = WGPUStoreOp_Store;
     shadowDepthAttachment.depthClearValue = 1.0f;
@@ -390,25 +385,25 @@ void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const S
     shadowPassDesc.depthStencilAttachment = &shadowDepthAttachment;
     shadowPassDesc.label = WGPUStringView{"Shadow RenderPass", WGPU_STRLEN};
 
-    WGPURenderPassEncoder shadowPass = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
-    wgpuRenderPassEncoderSetPipeline(shadowPass, shadowMap.getPipeline());
-    wgpuRenderPassEncoderSetBindGroup(shadowPass, 0, shadowMap.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(shadowPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
+    WGPURenderPassEncoder shadow = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
+    wgpuRenderPassEncoderSetPipeline(shadow, shadowPass.getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(shadow, 0, shadowPass.getBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetVertexBuffer(shadow, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(shadow, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
 
     const auto shadowChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(
         getCamera().getPosition(),
-        lightProjectionViewMatrix
+        shadowPass.getLightProjectionView()
     );
     for (auto &chunkVertexBuffer: shadowChunkVertexBuffers) {
         auto &[buffer, vertexCount] = chunkVertexBuffer;
         const uint64_t totalSize = wgpuBufferGetSize(buffer);
         const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
-        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 1, buffer, 0, chunkMetaOffset);
-        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
-        wgpuRenderPassEncoderDrawIndexed(shadowPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
+        wgpuRenderPassEncoderSetVertexBuffer(shadow, 1, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(shadow, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
+        wgpuRenderPassEncoderDrawIndexed(shadow, m_billboardIndexCount, vertexCount, 0, 0, 0);
     }
 
-    wgpuRenderPassEncoderEnd(shadowPass);
-    wgpuRenderPassEncoderRelease(shadowPass);
+    wgpuRenderPassEncoderEnd(shadow);
+    wgpuRenderPassEncoderRelease(shadow);
 }

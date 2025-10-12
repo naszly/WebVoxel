@@ -7,9 +7,9 @@
 
 #include "application/graphics/profiling/GpuTimestampProfiler.h"
 #include "application/graphics/rendering/RenderTargets.h"
+#include "application/graphics/resources/ShadowPass.h"
 #include "application/graphics/resources/UniformsBuffer.h"
 #include "application/graphics/ChunkRenderManager.h"
-#include "application/graphics/resources/ShadowMap.h"
 #include "application/types/VertexData.h"
 
 class RendererSystem final : public System {
@@ -65,19 +65,6 @@ private:
     };
     static_assert(sizeof(Uniforms) % 16 == 0, "Uniform buffer size must be a multiple of 16 bytes");
 
-    struct ShadowUniforms {
-        glm::mat4 projectionViewMatrix;
-        glm::mat4 inverseProjectionViewMatrix;
-        glm::vec3 cameraPosition;
-        float time;
-        glm::vec2 viewportSize;
-        float nearPlane;
-        float farPlane;
-        glm::vec3 cameraDir;
-        float padding{0.0f};
-    };
-    static_assert(sizeof(ShadowUniforms) % 16 == 0, "Shadow uniform buffer size must be a multiple of 16 bytes");
-
     std::unique_ptr<RenderTargets> m_renderTargets;
     unsigned int m_viewportWidth{}, m_viewportHeight{};
 
@@ -98,11 +85,7 @@ private:
     WGPUSampler m_fxaaSampler{};
     WGPUBindGroupLayout m_fxaaBindGroupLayout{};
 
-    // Shadow mapping resources
-    std::unique_ptr<UniformsBuffer> m_shadowUniformsBuffer;
-    std::unique_ptr<ShadowMap> m_shadowMap;
-    uint32_t m_shadowMapSize = 4092;
-    glm::mat4 m_lightProjectionViewMatrix{1.0f};
+    std::unique_ptr<ShadowPass> m_shadowPass;
 
     void createPipelines();
 
@@ -110,7 +93,7 @@ private:
     void initializeBuffers();
     void createFxaaPipeline();
     void createFxaaBindGroup();
-    void updateUniformBuffer();
+    void updateUniformBuffer() const;
 
-    void renderShadowPass(const WGPUCommandEncoder& encoder, const ShadowMap& shadowMap, const glm::mat4& lightProjectionViewMatrix) const;
+    void renderShadowPass(const WGPUCommandEncoder& encoder, const ShadowPass& shadowPass) const;
 };
