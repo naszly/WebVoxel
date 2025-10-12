@@ -3,6 +3,7 @@
 #include "application/Application.h"
 #include "application/graphics/pipeline/FxaaPipelineBuilder.h"
 #include "application/graphics/pipeline/PipelineBuilder.h"
+#include "application/graphics/pipeline/ShadowPipelineBuilder.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 
@@ -22,17 +23,56 @@ void RendererSystem::initialize() {
     initializeBuffers();
 
     m_uniformsBuffer = UniformsBuffer::make<Uniforms>(device);
+    m_shadowUniformsBuffer = UniformsBuffer::make<Uniforms>(device);
 
     m_renderTargets = std::make_unique<RenderTargets>(gpuContext);
     m_renderTargets->configure(m_viewportWidth, m_viewportHeight, getWebGpuSurface().getSurfaceFormat());
 
     m_chunkRenderManager = std::make_unique<ChunkRenderManager>(device, getWorld());
 
-    createRenderPipeline();
-    createFxaaBindGroup();
-    createFxaaPipeline();
+    createPipelines();
 
     m_profiler.init(gpuContext.getAdapter(), device);
+}
+
+void RendererSystem::createShadowResources() {
+    auto& device = getWebGpuContext().getDevice();
+    if (m_shadowDepthTexture) wgpuTextureRelease(m_shadowDepthTexture);
+    if (m_shadowDepthView) wgpuTextureViewRelease(m_shadowDepthView);
+    if (m_shadowSampler) wgpuSamplerRelease(m_shadowSampler);
+
+    // Shadow depth texture
+    WGPUTextureDescriptor shadowDepthDesc = {};
+    shadowDepthDesc.dimension = WGPUTextureDimension_2D;
+    shadowDepthDesc.size.width = m_shadowMapSize;
+    shadowDepthDesc.size.height = m_shadowMapSize;
+    shadowDepthDesc.size.depthOrArrayLayers = 1;
+    shadowDepthDesc.mipLevelCount = 1;
+    shadowDepthDesc.sampleCount = 1;
+    shadowDepthDesc.format = WGPUTextureFormat_Depth32Float;
+    shadowDepthDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
+    m_shadowDepthTexture = wgpuDeviceCreateTexture(device, &shadowDepthDesc);
+    m_shadowDepthView = wgpuTextureCreateView(m_shadowDepthTexture, nullptr);
+
+    // Shadow sampler
+    WGPUSamplerDescriptor samplerDesc = {};
+    samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+    samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+    samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+    samplerDesc.magFilter = WGPUFilterMode_Linear;
+    samplerDesc.minFilter = WGPUFilterMode_Linear;
+    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    samplerDesc.compare = WGPUCompareFunction_Less;
+    samplerDesc.maxAnisotropy = 1;
+    m_shadowSampler = wgpuDeviceCreateSampler(device, &samplerDesc);
+
+}
+
+void RendererSystem::createShadowPipeline() {
+    auto& device = getWebGpuContext().getDevice();
+    auto artifacts = ShadowPipelineBuilder::build(device, m_shadowUniformsBuffer->get(), Chunk::WIDTH);
+    m_shadowPipeline = artifacts.pipeline;
+    m_shadowBindGroup = artifacts.bindGroup;
 }
 
 void RendererSystem::createFxaaPipeline() {
@@ -107,6 +147,41 @@ void RendererSystem::createFxaaBindGroup() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     updateUniformBuffer();
 
+    // --- Shadow pass ---
+    WGPURenderPassDepthStencilAttachment shadowDepthAttachment = {};
+    shadowDepthAttachment.view = m_shadowDepthView;
+    shadowDepthAttachment.depthLoadOp = WGPULoadOp_Clear;
+    shadowDepthAttachment.depthStoreOp = WGPUStoreOp_Store;
+    shadowDepthAttachment.depthClearValue = 1.0f;
+    shadowDepthAttachment.stencilLoadOp = WGPULoadOp_Undefined;
+    shadowDepthAttachment.stencilStoreOp = WGPUStoreOp_Undefined;
+    shadowDepthAttachment.stencilClearValue = 0;
+    WGPURenderPassDescriptor shadowPassDesc = {};
+    shadowPassDesc.colorAttachmentCount = 0;
+    shadowPassDesc.colorAttachments = nullptr;
+    shadowPassDesc.depthStencilAttachment = &shadowDepthAttachment;
+    shadowPassDesc.label = WGPUStringView{"Shadow RenderPass", WGPU_STRLEN};
+    WGPURenderPassEncoder shadowPass = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
+    wgpuRenderPassEncoderSetPipeline(shadowPass, m_shadowPipeline);
+    wgpuRenderPassEncoderSetBindGroup(shadowPass, 0, m_shadowBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
+    wgpuRenderPassEncoderSetIndexBuffer(shadowPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
+    const auto shadowChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(
+        getCamera().getPosition(),
+        m_lightProjectionViewMatrix
+    );
+    for (auto &chunkVertexBuffer: shadowChunkVertexBuffers) {
+        auto &[buffer, vertexCount] = chunkVertexBuffer;
+        const uint64_t totalSize = wgpuBufferGetSize(buffer);
+        const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
+        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 1, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
+        wgpuRenderPassEncoderDrawIndexed(shadowPass, m_billboardIndexCount, vertexCount, 0, 0, 0);
+    }
+    wgpuRenderPassEncoderEnd(shadowPass);
+    wgpuRenderPassEncoderRelease(shadowPass);
+
+    // --- Main scene pass ---
     WGPURenderPassDescriptor scenePassDesc = {};
     scenePassDesc.nextInChain = nullptr;
 
@@ -114,8 +189,8 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     sceneColorAttachment.view = m_renderTargets->getSceneColorView();
     sceneColorAttachment.resolveTarget = nullptr;
     sceneColorAttachment.loadOp = WGPULoadOp_Clear;
-    sceneColorAttachment.storeOp = WGPUStoreOp_Store; // Store multisample texture (not strictly needed if resolved) & single-sample
-    sceneColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
+    sceneColorAttachment.storeOp = WGPUStoreOp_Store;
+    sceneColorAttachment.clearValue = WGPUColor{0.53, 0.81, 0.98, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
     sceneColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
@@ -144,10 +219,8 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
 
-    auto chunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera());
-
-    for (auto &chunkVertexBuffer: chunkVertexBuffers) {
-
+    const auto sceneChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera());
+    for (auto &chunkVertexBuffer: sceneChunkVertexBuffers) {
         auto &[buffer, vertexCount] = chunkVertexBuffer;
 
         appData.renderedChunks++;
@@ -167,9 +240,9 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     WGPURenderPassColorAttachment fxaaColorAttachment = {};
     fxaaColorAttachment.view = targetView;
     fxaaColorAttachment.resolveTarget = nullptr;
-    fxaaColorAttachment.loadOp = WGPULoadOp_Clear; // Could be Load to view MSAA difference; keep Clear for now
+    fxaaColorAttachment.loadOp = WGPULoadOp_Clear;
     fxaaColorAttachment.storeOp = WGPUStoreOp_Store;
-    fxaaColorAttachment.clearValue = WGPUColor{0.02, 0.03, 0.06, 1.0};
+    fxaaColorAttachment.clearValue = WGPUColor{0.0, 0.0, 0.0, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
     fxaaColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
@@ -197,12 +270,7 @@ void RendererSystem::update(const float dt) {
     const Camera& camera = getCamera();
     m_chunkRenderManager->removeBuffersOfFarChunks(camera);
 
-    static float timeAccumulator = 0.0f;
-    timeAccumulator += dt;
-    if (timeAccumulator >= 1e+8) {
-        timeAccumulator -= 1e+8;
-    }
-    m_uniformData.time = timeAccumulator;
+    m_timeAccumulator = std::fmod(m_timeAccumulator + dt, 1e+8f);
 }
 
 void RendererSystem::onEvent(Event &event) {
@@ -218,8 +286,7 @@ void RendererSystem::onEvent(Event &event) {
 
         getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
-        createFxaaBindGroup();
-        createFxaaPipeline();
+        createPipelines();
 
         return true;
     });
@@ -228,21 +295,21 @@ void RendererSystem::onEvent(Event &event) {
 void RendererSystem::setLighting(const bool lighting) {
     if (m_lighting != lighting) {
         m_lighting = lighting;
-        createRenderPipeline();
+        createPipelines();
     }
 }
 
 void RendererSystem::setFog(const bool fog) {
     if (m_fog != fog) {
         m_fog = fog;
-        createRenderPipeline();
+        createPipelines();
     }
 }
 
 void RendererSystem::setPointLight(const bool pointLight) {
     if (m_pointLight != pointLight) {
         m_pointLight = pointLight;
-        createRenderPipeline();
+        createPipelines();
     }
 }
 
@@ -254,6 +321,15 @@ void RendererSystem::exportTimestamps() const {
 
 void RendererSystem::updateChunkVertexBuffer(const std::vector<VertexData>& vertexData, const glm::vec3& chunkPosition) const {
     m_chunkRenderManager->updateChunkVertexBuffer(vertexData, chunkPosition);
+}
+
+void RendererSystem::createPipelines() {
+    createShadowResources();
+    createShadowPipeline();
+
+    createRenderPipeline();
+    createFxaaBindGroup();
+    createFxaaPipeline();
 }
 
 void RendererSystem::createRenderPipeline() {
@@ -271,10 +347,16 @@ void RendererSystem::createRenderPipeline() {
 
     const auto& uniformBuffer = m_uniformsBuffer->get();
     const auto& blockTextureManager = getBlockTextureManager();
-    const auto [pipeline, uniformBindGroup] = builder.build(opts, uniformBuffer, blockTextureManager);
+    const auto artifacts = builder.build(
+        opts,
+        uniformBuffer,
+        blockTextureManager,
+        m_shadowDepthView,
+        m_shadowSampler
+    );
 
-    m_renderPipeline = pipeline;
-    m_uniformBindGroup = uniformBindGroup;
+    m_renderPipeline = artifacts.pipeline;
+    m_uniformBindGroup = artifacts.uniformBindGroup;
 }
 
 void RendererSystem::initializeBuffers() {
@@ -320,15 +402,50 @@ void RendererSystem::initializeBuffers() {
 
 void RendererSystem::updateUniformBuffer() {
     if (!m_uniformsBuffer) return;
+    if (!m_shadowUniformsBuffer) return;
+
+    constexpr double orthoHalf = 96.0;
+    constexpr double shadowNearPlane = -128.0;
+    constexpr double shadowFarPlane = 128.0;
 
     const Camera& camera = getCamera();
-    m_uniformData.projectionViewMatrix = camera.getProjectionViewMatrix();
-    m_uniformData.inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix();
-    m_uniformData.cameraPosition = camera.getPosition();
-    m_uniformData.fov = camera.getFov();
-    m_uniformData.viewportSize = glm::vec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight));
-    m_uniformData.nearPlane = Camera::NEAR;
-    m_uniformData.farPlane = Camera::FAR;
 
-    m_uniformsBuffer->write(m_queue, m_uniformData);
+    const glm::dvec3 lightDir = glm::normalize(glm::vec3(2.0, -7.0, 3.0));
+
+    const glm::mat4 lightView = glm::lookAt(-lightDir, glm::dvec3(0), glm::dvec3(0, 1, 0));
+    const glm::mat4 lightProj = glm::ortho(
+                                    -orthoHalf, orthoHalf,
+                                    -orthoHalf, orthoHalf,
+                                    shadowNearPlane, shadowFarPlane);
+    m_lightProjectionViewMatrix = lightProj * lightView;
+
+    Uniforms uniforms{
+        .projectionViewMatrix = camera.getProjectionViewMatrix(),
+        .inverseProjectionViewMatrix = camera.getInverseProjectionViewMatrix(),
+        .cameraPosition = camera.getPosition(),
+        .fov = camera.getFov(),
+        .viewportSize = glm::vec2(static_cast<float>(m_viewportWidth), static_cast<float>(m_viewportHeight)),
+        .nearPlane = Camera::NEAR,
+        .farPlane = Camera::FAR,
+        .cameraDir = camera.getDirection(),
+        .time = m_timeAccumulator,
+        .lightProjectionViewMatrix = m_lightProjectionViewMatrix,
+        .lightDirection = lightDir
+    };
+    m_uniformsBuffer->write(m_queue, uniforms);
+
+    Uniforms shadowUniforms{
+        .projectionViewMatrix = m_lightProjectionViewMatrix,
+        .inverseProjectionViewMatrix = glm::inverse(m_lightProjectionViewMatrix),
+        .cameraPosition = camera.getPosition(),
+        .fov = 1.0f,
+        .viewportSize = glm::vec2(static_cast<float>(m_shadowMapSize), static_cast<float>(m_shadowMapSize)),
+        .nearPlane = shadowNearPlane,
+        .farPlane = shadowFarPlane,
+        .cameraDir = lightDir,
+        .time = m_timeAccumulator,
+        .lightProjectionViewMatrix = m_lightProjectionViewMatrix,
+        .lightDirection = lightDir,
+    };
+    m_shadowUniformsBuffer->write(m_queue, shadowUniforms);
 }

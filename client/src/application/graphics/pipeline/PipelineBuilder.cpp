@@ -9,7 +9,9 @@
 
 PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
                                          const WGPUBuffer& uniformBuffer,
-                                         const BlockTextureManager& blockTextures) const {
+                                         const BlockTextureManager& blockTextures,
+                                         const WGPUTextureView& shadowMapView,
+                                         const WGPUSampler& shadowSampler) const {
     PipelineArtifacts out{};
 
     // Load shader
@@ -46,10 +48,24 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
     textureArrayBgl.texture.viewDimension = WGPUTextureViewDimension_2DArray;
     textureArrayBgl.texture.multisampled = false;
 
+    WGPUBindGroupLayoutEntry shadowMapBgl{};
+    shadowMapBgl.binding = 3;
+    shadowMapBgl.visibility = WGPUShaderStage_Fragment;
+    shadowMapBgl.texture.sampleType = WGPUTextureSampleType_Depth;
+    shadowMapBgl.texture.viewDimension = WGPUTextureViewDimension_2D;
+    shadowMapBgl.texture.multisampled = false;
+
+    WGPUBindGroupLayoutEntry shadowSamplerBgl{};
+    shadowSamplerBgl.binding = 4;
+    shadowSamplerBgl.visibility = WGPUShaderStage_Fragment;
+    shadowSamplerBgl.sampler.type = WGPUSamplerBindingType_Comparison;
+
     std::array bglEntries{
         uniformsBgl,
         textureIdsBgl,
-        textureArrayBgl
+        textureArrayBgl,
+        shadowMapBgl,
+        shadowSamplerBgl
     };
     WGPUBindGroupLayoutDescriptor bglDesc{};
     bglDesc.entryCount = bglEntries.size();
@@ -74,10 +90,20 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
     textureArrayEntry.sampler = nullptr;
     textureArrayEntry.textureView = blockTextures.getTextureArrayView();
 
+    WGPUBindGroupEntry shadowMapEntry{};
+    shadowMapEntry.binding = 3;
+    shadowMapEntry.textureView = shadowMapView;
+
+    WGPUBindGroupEntry shadowSamplerEntry{};
+    shadowSamplerEntry.binding = 4;
+    shadowSamplerEntry.sampler = shadowSampler;
+
     std::array bgEntries{
         uboEntry,
         textureIdsEntry,
-        textureArrayEntry
+        textureArrayEntry,
+        shadowMapEntry,
+        shadowSamplerEntry
     };
     WGPUBindGroupDescriptor bgDesc{};
     bgDesc.layout = bindGroupLayout;
@@ -185,7 +211,7 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
     ds.stencilBack = ds.stencilFront;
 
     pipelineDesc.depthStencil = &ds;
-    pipelineDesc.multisample.count = options.sampleCount();
+    pipelineDesc.multisample.count = static_cast<uint32_t>(options.sampleCount());
     pipelineDesc.multisample.mask = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
 

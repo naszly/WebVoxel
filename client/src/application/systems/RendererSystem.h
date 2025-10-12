@@ -46,6 +46,7 @@ private:
     bool m_fog = true;
     bool m_pointLight = true;
     int m_sampleCount = 1;
+    float m_timeAccumulator = 0.0f;
 
     struct Uniforms {
         glm::mat4 projectionViewMatrix;
@@ -55,10 +56,13 @@ private:
         glm::vec2 viewportSize;
         float nearPlane;
         float farPlane;
+        glm::vec3 cameraDir;
         float time;
-        glm::vec3 padding;
+        glm::mat4 lightProjectionViewMatrix;
+        glm::vec3 lightDirection;
+        float padding{0.0f};
     };
-    static_assert(sizeof(Uniforms) % 16 == 0);
+    static_assert(sizeof(Uniforms) % 16 == 0, "Uniform buffer size must be a multiple of 16 bytes");
 
     std::unique_ptr<RenderTargets> m_renderTargets;
     unsigned int m_viewportWidth{}, m_viewportHeight{};
@@ -69,7 +73,6 @@ private:
     WGPUBuffer m_billboardIndexBuffer{};
     uint32_t m_billboardIndexCount{};
     std::unique_ptr<UniformsBuffer> m_uniformsBuffer;
-    Uniforms m_uniformData{};
     WGPUBindGroup m_uniformBindGroup{};
 
     std::unique_ptr<ChunkRenderManager> m_chunkRenderManager;
@@ -81,9 +84,23 @@ private:
     WGPUSampler m_fxaaSampler{};
     WGPUBindGroupLayout m_fxaaBindGroupLayout{};
 
+    // Shadow mapping resources
+    WGPUTexture m_shadowDepthTexture{};
+    WGPUTextureView m_shadowDepthView{};
+    WGPUSampler m_shadowSampler{};
+    std::unique_ptr<UniformsBuffer> m_shadowUniformsBuffer;
+    WGPURenderPipeline m_shadowPipeline{};
+    WGPUBindGroup m_shadowBindGroup{};
+    uint32_t m_shadowMapSize = 4092;
+    glm::mat4 m_lightProjectionViewMatrix{1.0f};
+
+    void createPipelines();
+
     void createRenderPipeline();
     void initializeBuffers();
     void createFxaaPipeline();
     void createFxaaBindGroup();
     void updateUniformBuffer();
+    void createShadowResources();
+    void createShadowPipeline();
 };

@@ -46,9 +46,11 @@ class PipelineBuilder {
 public:
     explicit PipelineBuilder(const WGPUDevice& device) : m_device(device) {}
 
-    PipelineArtifacts build(const PipelineOptions& options,
-                            const WGPUBuffer& uniformBuffer,
-                            const BlockTextureManager& blockTextures) const;
+    [[nodiscard]] PipelineArtifacts build(const PipelineOptions& options,
+                                          const WGPUBuffer& uniformBuffer,
+                                          const BlockTextureManager& blockTextures,
+                                          const WGPUTextureView& shadowMapView,
+                                          const WGPUSampler& shadowSampler) const;
 
 private:
     WGPUDevice m_device{};

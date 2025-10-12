@@ -1,10 +1,12 @@
 override CHUNK_SIZE: f32 = 64.0;
 override LIGHTING: bool = true;
 override FOG: bool = true;
-
 override POINT_LIGHT: bool = true;
+override DIRECTIONAL_LIGHT: bool = true;
 const POINT_LIGHT_RANGE: f32 = 64.0;
 const POINT_LIGHT_INTENSITY: f32 = 2.3;
+const DIRECTIONAL_LIGHT_COLOR: vec3f = vec3f(1.0, 0.99, 0.96);
+const DIRECTIONAL_SHADOW_STRENGTH: f32 = 0.65;
 
 const PI: f32 = 3.14159265359;
 const HALF_PI: f32 = 1.57079632679;
@@ -17,7 +19,10 @@ struct Uniforms {
     viewportSize: vec2f,
     nearPlane: f32,
     farPlane: f32,
+    cameraDir: vec3f,
     time: f32,
+    lightProjectionViewMatrix: mat4x4<f32>,
+    lightDirection: vec3f,
 }
 struct BlockTextures {
     eastTextureId: u32,
@@ -30,6 +35,8 @@ struct BlockTextures {
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> blockTextures: array<BlockTextures>;
 @group(0) @binding(2) var textureArray: texture_2d_array<f32>;
+@group(0) @binding(3) var shadowMap: texture_depth_2d;
+@group(0) @binding(4) var shadowSampler: sampler_comparison;
 
 struct VertexInput {
     @location(0) vertexPosition: vec2f,
@@ -468,6 +475,37 @@ fn torchFlicker(t: f32) -> TorchFlicker {
     return TorchFlicker(color, flicker, rangeScale, posOffset);
 }
 
+fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f) -> f32 {
+    // Transform the hit point to light space
+    let bias = normal * 0.05;
+    let lightSpacePos = u.lightProjectionViewMatrix * vec4f(hitPointWorld + bias, 1.0);
+    let projCoords = lightSpacePos.xyz / lightSpacePos.w;
+
+    // Map to [0, 1] shadow map space
+    let shadowMapCoords = vec3f(
+        projCoords.x * 0.5 + 0.5,
+        projCoords.y * -0.5 + 0.5,
+        projCoords.z
+    );
+
+    // Check if the point is inside the shadow map bounds
+    let inBounds = !(shadowMapCoords.x < 0.0 || shadowMapCoords.x > 1.0 ||
+                     shadowMapCoords.y < 0.0 || shadowMapCoords.y > 1.0 ||
+                     shadowMapCoords.z < 0.0 || shadowMapCoords.z > 1.0);
+
+    // Avoid shadow acne on faces nearly perpendicular to the light
+    let nDotL = dot(normal, -u.lightDirection);
+    let referenceDepth = select(shadowMapCoords.z, 1.0, nDotL < 0.1);
+
+    // Sample the shadow map
+    let shadow = textureSampleCompare(
+        shadowMap, shadowSampler, shadowMapCoords.xy, referenceDepth
+    );
+
+    // Return 1.0 if out of bounds, otherwise the shadow value
+    return select(1.0, shadow, inBounds);
+}
+
 @fragment fn fsMain(input: FragmentIn) -> FragmentOut {
     var output: FragmentOut;
 
@@ -481,6 +519,12 @@ fn torchFlicker(t: f32) -> TorchFlicker {
 
     let hit: Hit = intersectBox(box, ray);
 
+    var shadowFactor = 1.0;
+    if (LIGHTING && DIRECTIONAL_LIGHT) {
+        let hitPointWorld = (ray.direction * hit.distance);
+        shadowFactor = getShadowFactor(hitPointWorld, hit.normal);
+    }
+
     if (hit.isHit) {
         var albedo: vec3f;
         if (input.isTexturedVoxel != 0) {
@@ -491,9 +535,6 @@ fn torchFlicker(t: f32) -> TorchFlicker {
             albedo = input.voxelColor;
         }
 
-        var color: vec3f;
-
-        // Apply ambient occlusion and lighting only to non-emissive voxels
         if (input.emitsLight == 0) {
             albedo = applyAmbientOcclusion(albedo, hit.uv, hit.plane, input.ambientOcclusion);
         }
@@ -508,8 +549,13 @@ fn torchFlicker(t: f32) -> TorchFlicker {
             )[hit.plane];
             let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
 
-            var pointLight = vec3f(0.0);
+            var dirLight = vec3f(0.0);
+            if (DIRECTIONAL_LIGHT) {
+                let shadowMix = mix(1.0, shadowFactor, DIRECTIONAL_SHADOW_STRENGTH);
+                dirLight = DIRECTIONAL_LIGHT_COLOR * shadowMix;
+            }
 
+            var pointLight = vec3f(0.0);
             if (POINT_LIGHT) {
                 let t = u.time;
                 let flick = torchFlicker(t);
@@ -529,13 +575,11 @@ fn torchFlicker(t: f32) -> TorchFlicker {
                 }
             }
 
-            let combinedLight = baseLight + pointLight * (vec3f(1.0) - baseLight);
-
-            lightingFactor = combinedLight / (combinedLight + vec3f(0.75));;
+            var combinedLight = baseLight + dirLight * 2.0 + pointLight;
+            lightingFactor = combinedLight / (combinedLight + vec3f(1.0));
         }
 
-        color = albedo * lightingFactor;
-        color = clamp(color, vec3f(0.0), vec3f(1.0));
+        var color = clamp(albedo * lightingFactor, vec3f(0.0), vec3f(1.0));
 
         if (input.emitsLight == 1) { // Emissive voxel
             let t = u.time + dot(input.vPos, vec3f(12.9898, 78.2332, 37.7193));
