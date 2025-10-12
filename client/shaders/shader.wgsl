@@ -504,13 +504,22 @@ fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f, lightProjectionViewMatri
     let nDotL = dot(normal, -u.lightDirection);
     let referenceDepth = select(shadowMapCoords.z, 1.0, nDotL < 0.1);
 
-    // Sample the shadow map
-    let shadow = textureSampleCompare(
-        shadowMap, shadowSampler, shadowMapCoords.xy, referenceDepth
-    );
+    let dims = vec2f(textureDimensions(shadowMap));
+    let texel = 1.0 / max(dims, vec2f(1.0));
+
+    var sum: f32 = 0.0;
+    for (var dy = -1; dy <= 1; dy = dy + 1) {
+        for (var dx = -1; dx <= 1; dx = dx + 1) {
+            let offset = vec2f(f32(dx), f32(dy)) * texel;
+            let uv = clamp(shadowMapCoords.xy + offset, vec2f(0.0), vec2f(1.0));
+            sum += textureSampleCompare(shadowMap, shadowSampler, uv, referenceDepth);
+        }
+    }
+
+    let pcf = sum / 9.0;
 
     return ShadowResult(
-        select(1.0, shadow, inBounds),
+        select(1.0, pcf, inBounds),
         inBounds
     );
 }
