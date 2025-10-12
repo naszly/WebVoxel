@@ -9,6 +9,7 @@
 #include "application/graphics/rendering/RenderTargets.h"
 #include "application/graphics/resources/UniformsBuffer.h"
 #include "application/graphics/ChunkRenderManager.h"
+#include "application/graphics/resources/ShadowMap.h"
 #include "application/types/VertexData.h"
 
 class RendererSystem final : public System {
@@ -85,12 +86,8 @@ private:
     WGPUBindGroupLayout m_fxaaBindGroupLayout{};
 
     // Shadow mapping resources
-    WGPUTexture m_shadowDepthTexture{};
-    WGPUTextureView m_shadowDepthView{};
-    WGPUSampler m_shadowSampler{};
     std::unique_ptr<UniformsBuffer> m_shadowUniformsBuffer;
-    WGPURenderPipeline m_shadowPipeline{};
-    WGPUBindGroup m_shadowBindGroup{};
+    std::unique_ptr<ShadowMap> m_shadowMap;
     uint32_t m_shadowMapSize = 4092;
     glm::mat4 m_lightProjectionViewMatrix{1.0f};
 
@@ -101,6 +98,4 @@ private:
     void createFxaaPipeline();
     void createFxaaBindGroup();
     void updateUniformBuffer();
-    void createShadowResources();
-    void createShadowPipeline();
 };

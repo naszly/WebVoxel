@@ -3,7 +3,6 @@
 #include "application/Application.h"
 #include "application/graphics/pipeline/FxaaPipelineBuilder.h"
 #include "application/graphics/pipeline/PipelineBuilder.h"
-#include "application/graphics/pipeline/ShadowPipelineBuilder.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 
@@ -33,46 +32,6 @@ void RendererSystem::initialize() {
     createPipelines();
 
     m_profiler.init(gpuContext.getAdapter(), device);
-}
-
-void RendererSystem::createShadowResources() {
-    auto& device = getWebGpuContext().getDevice();
-    if (m_shadowDepthTexture) wgpuTextureRelease(m_shadowDepthTexture);
-    if (m_shadowDepthView) wgpuTextureViewRelease(m_shadowDepthView);
-    if (m_shadowSampler) wgpuSamplerRelease(m_shadowSampler);
-
-    // Shadow depth texture
-    WGPUTextureDescriptor shadowDepthDesc = {};
-    shadowDepthDesc.dimension = WGPUTextureDimension_2D;
-    shadowDepthDesc.size.width = m_shadowMapSize;
-    shadowDepthDesc.size.height = m_shadowMapSize;
-    shadowDepthDesc.size.depthOrArrayLayers = 1;
-    shadowDepthDesc.mipLevelCount = 1;
-    shadowDepthDesc.sampleCount = 1;
-    shadowDepthDesc.format = WGPUTextureFormat_Depth32Float;
-    shadowDepthDesc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
-    m_shadowDepthTexture = wgpuDeviceCreateTexture(device, &shadowDepthDesc);
-    m_shadowDepthView = wgpuTextureCreateView(m_shadowDepthTexture, nullptr);
-
-    // Shadow sampler
-    WGPUSamplerDescriptor samplerDesc = {};
-    samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
-    samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
-    samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
-    samplerDesc.magFilter = WGPUFilterMode_Linear;
-    samplerDesc.minFilter = WGPUFilterMode_Linear;
-    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
-    samplerDesc.compare = WGPUCompareFunction_Less;
-    samplerDesc.maxAnisotropy = 1;
-    m_shadowSampler = wgpuDeviceCreateSampler(device, &samplerDesc);
-
-}
-
-void RendererSystem::createShadowPipeline() {
-    auto& device = getWebGpuContext().getDevice();
-    auto artifacts = ShadowPipelineBuilder::build(device, m_shadowUniformsBuffer->get(), Chunk::WIDTH);
-    m_shadowPipeline = artifacts.pipeline;
-    m_shadowBindGroup = artifacts.bindGroup;
 }
 
 void RendererSystem::createFxaaPipeline() {
@@ -149,7 +108,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
     // --- Shadow pass ---
     WGPURenderPassDepthStencilAttachment shadowDepthAttachment = {};
-    shadowDepthAttachment.view = m_shadowDepthView;
+    shadowDepthAttachment.view = m_shadowMap->getDepthView();
     shadowDepthAttachment.depthLoadOp = WGPULoadOp_Clear;
     shadowDepthAttachment.depthStoreOp = WGPUStoreOp_Store;
     shadowDepthAttachment.depthClearValue = 1.0f;
@@ -162,8 +121,8 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     shadowPassDesc.depthStencilAttachment = &shadowDepthAttachment;
     shadowPassDesc.label = WGPUStringView{"Shadow RenderPass", WGPU_STRLEN};
     WGPURenderPassEncoder shadowPass = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
-    wgpuRenderPassEncoderSetPipeline(shadowPass, m_shadowPipeline);
-    wgpuRenderPassEncoderSetBindGroup(shadowPass, 0, m_shadowBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetPipeline(shadowPass, m_shadowMap->getPipeline());
+    wgpuRenderPassEncoderSetBindGroup(shadowPass, 0, m_shadowMap->getBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetVertexBuffer(shadowPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
     wgpuRenderPassEncoderSetIndexBuffer(shadowPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
     const auto shadowChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(
@@ -324,8 +283,8 @@ void RendererSystem::updateChunkVertexBuffer(const std::vector<VertexData>& vert
 }
 
 void RendererSystem::createPipelines() {
-    createShadowResources();
-    createShadowPipeline();
+    const auto& device = getWebGpuContext().getDevice();
+    m_shadowMap = std::make_unique<ShadowMap>(device, m_shadowUniformsBuffer->get(), Chunk::WIDTH, m_shadowMapSize);
 
     createRenderPipeline();
     createFxaaBindGroup();
@@ -351,8 +310,8 @@ void RendererSystem::createRenderPipeline() {
         opts,
         uniformBuffer,
         blockTextureManager,
-        m_shadowDepthView,
-        m_shadowSampler
+        m_shadowMap->getDepthView(),
+        m_shadowMap->getSampler()
     );
 
     m_renderPipeline = artifacts.pipeline;
