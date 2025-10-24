@@ -14,10 +14,10 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
 struct VertexInput {
-    @location(0) vertexPosition: vec2f,
-    @location(1) voxelPosition: u32,
-    @location(2) voxelData: u32,
-    @location(3) chunkPosition: vec3f
+    @builtin(vertex_index) vertexIndex: u32,
+    @location(0) voxelPosition: u32,
+    @location(1) voxelData: u32,
+    @location(2) chunkPosition: vec3f
 };
 
 struct VertexOut {
@@ -87,7 +87,15 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
 }
 
 @vertex fn vsShadow(vertex: VertexInput) -> VertexOut {
-    let vertexPosition: vec2f = vertex.vertexPosition.xy;
+    let quadPos = array<vec2f, 6>(
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0, -1.0),
+        vec2f( 1.0,  1.0),
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0,  1.0),
+        vec2f(-1.0,  1.0)
+    );
+    let vertexPosition: vec2f = quadPos[vertex.vertexIndex];
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
 

@@ -19,8 +19,6 @@ void RendererSystem::initialize() {
 
     getCamera().setAspect(static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight));
 
-    initializeBuffers();
-
     m_uniformsBuffer = UniformsBuffer::make<Uniforms>(device);
 
     m_renderTargets = std::make_unique<RenderTargets>(gpuContext);
@@ -142,8 +140,6 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     WGPURenderPassEncoder scenePass = wgpuCommandEncoderBeginRenderPass(encoder, &scenePassDesc);
     wgpuRenderPassEncoderSetPipeline(scenePass, m_renderPipeline);
     wgpuRenderPassEncoderSetBindGroup(scenePass, 0, m_uniformBindGroup, 0, nullptr);
-    wgpuRenderPassEncoderSetVertexBuffer(scenePass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(scenePass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
 
     auto& appData = getApplicationData();
     appData.renderedChunks = 0;
@@ -159,10 +155,10 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         const uint64_t totalSize = wgpuBufferGetSize(buffer);
         const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
 
-        wgpuRenderPassEncoderSetVertexBuffer(scenePass, 1, buffer, 0, chunkMetaOffset);
-        wgpuRenderPassEncoderSetVertexBuffer(scenePass, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
+        wgpuRenderPassEncoderSetVertexBuffer(scenePass, 0, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(scenePass, 1, buffer, chunkMetaOffset, sizeof(glm::vec4));
 
-        wgpuRenderPassEncoderDrawIndexed(scenePass, m_billboardIndexCount, vertexCount, 0, 0, 0);
+        wgpuRenderPassEncoderDraw(scenePass, 6, vertexCount, 0, 0);
     }
     wgpuRenderPassEncoderEnd(scenePass);
     wgpuRenderPassEncoderRelease(scenePass);
@@ -186,9 +182,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     WGPURenderPassEncoder fxaaPass = wgpuCommandEncoderBeginRenderPass(encoder, &fxaaPassDesc);
     wgpuRenderPassEncoderSetPipeline(fxaaPass, m_fxaaPipeline);
     wgpuRenderPassEncoderSetBindGroup(fxaaPass, 0, m_fxaaBindGroup, 0, nullptr);
-    wgpuRenderPassEncoderSetVertexBuffer(fxaaPass, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(fxaaPass, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
-    wgpuRenderPassEncoderDrawIndexed(fxaaPass, m_billboardIndexCount, 1, 0, 0, 0);
+    wgpuRenderPassEncoderDraw(fxaaPass, 6, 1, 0, 0);
 
     wgpuRenderPassEncoderEnd(fxaaPass);
     wgpuRenderPassEncoderRelease(fxaaPass);
@@ -306,47 +300,6 @@ void RendererSystem::createRenderPipeline() {
     m_uniformBindGroup = artifacts.uniformBindGroup;
 }
 
-void RendererSystem::initializeBuffers() {
-    const auto device = getWebGpuContext().getDevice();
-
-    // Vertex buffer data
-    constexpr std::array vertexData{
-        -1.0f, -1.0f,
-        1.0f, -1.0f,
-        1.0f, 1.0f,
-        -1.0f, 1.0f,
-    };
-
-    // Create vertex buffer
-    WGPUBufferDescriptor bufferDesc{};
-    bufferDesc.nextInChain = nullptr;
-    bufferDesc.size = vertexData.size() * sizeof(float);
-    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex; // Vertex usage here!
-    bufferDesc.mappedAtCreation = false;
-    m_billboardVertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
-
-    // Upload geometry data to the buffer
-    wgpuQueueWriteBuffer(m_queue, m_billboardVertexBuffer, 0, vertexData.data(), bufferDesc.size);
-
-    // Index buffer data
-    constexpr std::array<uint16_t, 6> indexData{
-        0, 1, 2,
-        0, 2, 3,
-    };
-    m_billboardIndexCount = static_cast<uint32_t>(indexData.size());
-
-    // Create index buffer
-    WGPUBufferDescriptor indexBufferDesc{};
-    indexBufferDesc.nextInChain = nullptr;
-    indexBufferDesc.size = indexData.size() * sizeof(uint16_t);
-    indexBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-    indexBufferDesc.mappedAtCreation = false;
-    m_billboardIndexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDesc);
-
-    // Upload index data to the buffer
-    wgpuQueueWriteBuffer(m_queue, m_billboardIndexBuffer, 0, indexData.data(), indexBufferDesc.size);
-}
-
 void RendererSystem::updateUniformBuffer() const {
     if (!m_uniformsBuffer) return;
 
@@ -419,8 +372,6 @@ void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const S
     WGPURenderPassEncoder shadow = wgpuCommandEncoderBeginRenderPass(encoder, &shadowPassDesc);
     wgpuRenderPassEncoderSetPipeline(shadow, shadowPass.getPipeline());
     wgpuRenderPassEncoderSetBindGroup(shadow, 0, shadowPass.getBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetVertexBuffer(shadow, 0, m_billboardVertexBuffer, 0, wgpuBufferGetSize(m_billboardVertexBuffer));
-    wgpuRenderPassEncoderSetIndexBuffer(shadow, m_billboardIndexBuffer, WGPUIndexFormat_Uint16, 0, wgpuBufferGetSize(m_billboardIndexBuffer));
 
     const auto shadowChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(
         getCamera().getPosition(),
@@ -430,9 +381,9 @@ void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const S
         auto &[buffer, vertexCount] = chunkVertexBuffer;
         const uint64_t totalSize = wgpuBufferGetSize(buffer);
         const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
-        wgpuRenderPassEncoderSetVertexBuffer(shadow, 1, buffer, 0, chunkMetaOffset);
-        wgpuRenderPassEncoderSetVertexBuffer(shadow, 2, buffer, chunkMetaOffset, sizeof(glm::vec4));
-        wgpuRenderPassEncoderDrawIndexed(shadow, m_billboardIndexCount, vertexCount, 0, 0, 0);
+        wgpuRenderPassEncoderSetVertexBuffer(shadow, 0, buffer, 0, chunkMetaOffset);
+        wgpuRenderPassEncoderSetVertexBuffer(shadow, 1, buffer, chunkMetaOffset, sizeof(glm::vec4));
+        wgpuRenderPassEncoderDraw(shadow, 6, vertexCount, 0, 0);
     }
 
     wgpuRenderPassEncoderEnd(shadow);

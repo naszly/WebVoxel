@@ -23,23 +23,11 @@ WGPURenderPipeline FxaaPipelineBuilder::build(WGPUBindGroupLayout bindGroupLayou
     layoutDesc.bindGroupLayouts = &bindGroupLayout;
     WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(m_device, &layoutDesc);
 
-    // Vertex buffer layout
-    WGPUVertexBufferLayout vertexBufferLayout = {};
-    vertexBufferLayout.arrayStride = sizeof(float) * 2;
-    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
-    WGPUVertexAttribute vertexAttrib = {};
-    vertexAttrib.format = WGPUVertexFormat_Float32x2;
-    vertexAttrib.offset = 0;
-    vertexAttrib.shaderLocation = 0;
-    vertexBufferLayout.attributeCount = 1;
-    vertexBufferLayout.attributes = &vertexAttrib;
-
-    // Vertex state
     WGPUVertexState vertexState = {};
     vertexState.module = fxaaShaderModule;
     vertexState.entryPoint = WGPUStringView{"vs_main", WGPU_STRLEN};
-    vertexState.bufferCount = 1;
-    vertexState.buffers = &vertexBufferLayout;
+    vertexState.bufferCount = 0;
+    vertexState.buffers = nullptr;
 
     // Fragment state
     WGPUFragmentState fragmentState = {};
@@ -69,4 +57,3 @@ WGPURenderPipeline FxaaPipelineBuilder::build(WGPUBindGroupLayout bindGroupLayou
     wgpuPipelineLayoutRelease(pipelineLayout);
     return pipeline;
 }
-

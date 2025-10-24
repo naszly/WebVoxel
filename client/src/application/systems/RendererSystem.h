@@ -72,9 +72,6 @@ private:
 
     WGPUQueue m_queue{};
     WGPURenderPipeline m_renderPipeline{};
-    WGPUBuffer m_billboardVertexBuffer{};
-    WGPUBuffer m_billboardIndexBuffer{};
-    uint32_t m_billboardIndexCount{};
     std::unique_ptr<UniformsBuffer> m_uniformsBuffer;
     WGPUBindGroup m_uniformBindGroup{};
 
@@ -94,7 +91,6 @@ private:
     void createPipelines();
 
     void createRenderPipeline();
-    void initializeBuffers();
     void createFxaaPipeline();
     void createFxaaBindGroup();
     void updateUniformBuffer() const;

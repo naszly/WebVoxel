@@ -41,12 +41,12 @@ struct BlockTextures {
 @group(0) @binding(5) var shadowMapFar: texture_depth_2d;
 
 struct VertexInput {
-    @location(0) vertexPosition: vec2f,
-    @location(1) voxelPosition: u32,
-    @location(2) voxelData: u32,
-    @location(3) chunkPosition: vec3f,
-    @location(4) ambientOcclusion: u32,
-    @location(5) light: u32,
+    @builtin(vertex_index) vertexIndex: u32,
+    @location(0) voxelPosition: u32,
+    @location(1) voxelData: u32,
+    @location(2) chunkPosition: vec3f,
+    @location(3) ambientOcclusion: u32,
+    @location(4) light: u32,
 }
 
 struct VertexOut {
@@ -174,7 +174,15 @@ fn unpackPackedLight(packed: u32) -> array<vec3f, 6> {
 }
 
 fn processVertex(vertex: VertexInput) -> VertexOut {
-    let vertexPosition: vec2f = vertex.vertexPosition.xy;
+    let quadPos = array<vec2f, 6>(
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0, -1.0),
+        vec2f( 1.0,  1.0),
+        vec2f(-1.0, -1.0),
+        vec2f( 1.0,  1.0),
+        vec2f(-1.0,  1.0)
+    );
+    let vertexPosition: vec2f = quadPos[vertex.vertexIndex];
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
 

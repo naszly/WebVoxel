@@ -131,23 +131,12 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
     pipelineLayoutDesc.bindGroupLayouts = &bindGroupLayout;
     WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(m_device, &pipelineLayoutDesc);
 
-    // Vertex buffer layouts
-    WGPUVertexBufferLayout billboardVb{};
-    WGPUVertexAttribute billboardAttr{};
-    billboardAttr.shaderLocation = 0;
-    billboardAttr.format = WGPUVertexFormat_Float32x2;
-    billboardAttr.offset = 0;
-    billboardVb.attributeCount = 1;
-    billboardVb.attributes = &billboardAttr;
-    billboardVb.arrayStride = 2 * sizeof(float);
-    billboardVb.stepMode = WGPUVertexStepMode_Vertex;
-
     WGPUVertexBufferLayout voxelVb{};
     constexpr std::array voxelAttrs{
-        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = 0, .shaderLocation = 1 },
-        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, voxel), .shaderLocation = 2 },
-        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, ambientOcclusion), .shaderLocation = 4 },
-        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, pointLight), .shaderLocation = 5 },
+        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = 0, .shaderLocation = 0 },
+        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, voxel), .shaderLocation = 1 },
+        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, ambientOcclusion), .shaderLocation = 3 },
+        WGPUVertexAttribute{ .format = WGPUVertexFormat_Uint32, .offset = offsetof(VertexData, pointLight), .shaderLocation = 4 },
     };
     voxelVb.attributeCount = voxelAttrs.size();
     voxelVb.attributes = voxelAttrs.data();
@@ -156,14 +145,14 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
 
     WGPUVertexBufferLayout chunkVb{};
     constexpr std::array chunkAttrs{
-        WGPUVertexAttribute{ .format = WGPUVertexFormat_Float32x4, .offset = 0, .shaderLocation = 3 }
+        WGPUVertexAttribute{ .format = WGPUVertexFormat_Float32x4, .offset = 0, .shaderLocation = 2 }
     };
     chunkVb.attributeCount = chunkAttrs.size();
     chunkVb.attributes = chunkAttrs.data();
     chunkVb.arrayStride = 0;
     chunkVb.stepMode = WGPUVertexStepMode_Instance;
 
-    const std::array vbLayouts{ billboardVb, voxelVb, chunkVb };
+    const std::array vbLayouts{ voxelVb, chunkVb };
 
     // Pipeline descriptor
     WGPURenderPipelineDescriptor pipelineDesc{};
