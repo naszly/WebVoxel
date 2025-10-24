@@ -152,8 +152,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         appData.renderedChunks++;
         appData.renderedVoxels += vertexCount;
 
-        const uint64_t totalSize = wgpuBufferGetSize(buffer);
-        const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
+        const uint64_t chunkMetaOffset = vertexCount * sizeof(VertexData);
 
         wgpuRenderPassEncoderSetVertexBuffer(scenePass, 0, buffer, 0, chunkMetaOffset);
         wgpuRenderPassEncoderSetVertexBuffer(scenePass, 1, buffer, chunkMetaOffset, sizeof(glm::vec4));
@@ -379,8 +378,7 @@ void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const S
     );
     for (auto &chunkVertexBuffer: shadowChunkVertexBuffers) {
         auto &[buffer, vertexCount] = chunkVertexBuffer;
-        const uint64_t totalSize = wgpuBufferGetSize(buffer);
-        const uint64_t chunkMetaOffset = totalSize - sizeof(glm::vec4);
+        const uint64_t chunkMetaOffset = vertexCount * sizeof(VertexData);
         wgpuRenderPassEncoderSetVertexBuffer(shadow, 0, buffer, 0, chunkMetaOffset);
         wgpuRenderPassEncoderSetVertexBuffer(shadow, 1, buffer, chunkMetaOffset, sizeof(glm::vec4));
         wgpuRenderPassEncoderDraw(shadow, 6, vertexCount, 0, 0);
