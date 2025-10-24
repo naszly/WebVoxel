@@ -63,3 +63,101 @@ void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std
         }
     }
 }
+
+void VoxelVertexGenerator::generateDownsample2(const ChunkNeighborhood& neighborChunks,
+                                               std::vector<VertexData>& vertices) {
+    generateDownsample<2>(neighborChunks, vertices);
+}
+
+void VoxelVertexGenerator::generateDownsample4(const ChunkNeighborhood& neighborChunks,
+                                               std::vector<VertexData>& vertices) {
+    generateDownsample<4>(neighborChunks, vertices);
+}
+
+void VoxelVertexGenerator::generateDownsample8(const ChunkNeighborhood& neighborChunks,
+                                               std::vector<VertexData>& vertices) {
+    generateDownsample<8>(neighborChunks, vertices);
+}
+
+template <size_t BlockSize>
+void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborChunks,
+                                              std::vector<VertexData>& vertices) {
+    constexpr uint32_t blockSize = BlockSize;
+    constexpr float occupancyThreshold = 0.25f;
+    constexpr uint32_t blockVolume = blockSize * blockSize * blockSize;
+    constexpr uint32_t minVoxelsToConsiderPresent = occupancyThreshold * blockVolume + 0.5f;
+
+    constexpr uint32_t lowResChunkWidth = Chunk::WIDTH / blockSize;
+    constexpr uint32_t bitmapWidth = lowResChunkWidth * 3;
+    constexpr uint32_t bitmapWidth2 = bitmapWidth * bitmapWidth;
+    Bitmap<bitmapWidth * bitmapWidth * bitmapWidth> bitmap;
+
+    auto testBitmap = [&](const uint32_t x, const uint32_t y, const uint32_t z) -> bool {
+        const uint32_t index = x * bitmapWidth2 + y * bitmapWidth + z;
+        return bitmap.test(index);
+    };
+
+    auto setBitmap = [&](const uint32_t x, const uint32_t y, const uint32_t z) {
+        const uint32_t index = x * bitmapWidth2 + y * bitmapWidth + z;
+        bitmap.set(index);
+    };
+
+    auto blockMeetsThreshold = [&](const uint32_t bx, const uint32_t by, const uint32_t bz) -> bool {
+        uint32_t count = 0;
+        for (uint32_t dx = 0; dx < blockSize; ++dx) {
+            for (uint32_t dy = 0; dy < blockSize; ++dy) {
+                for (uint32_t dz = 0; dz < blockSize; ++dz) {
+                    if (neighborChunks.hasVoxelAt(bx + dx, by + dy, bz + dz)
+                        && ++count >= minVoxelsToConsiderPresent) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    const uint32_t xStart = Chunk::WIDTH - blockSize;
+    const uint32_t xEnd = 2 * Chunk::WIDTH + blockSize;
+
+    for (uint32_t x = xStart; x < xEnd; x += blockSize) {
+        for (uint32_t y = xStart; y < xEnd; y += blockSize) {
+            for (uint32_t z = xStart; z < xEnd; z += blockSize) {
+                if (blockMeetsThreshold(x, y, z)) {
+                    const uint32_t bx = x / blockSize;
+                    const uint32_t by = y / blockSize;
+                    const uint32_t bz = z / blockSize;
+                    setBitmap(bx, by, bz);
+                }
+            }
+        }
+    }
+
+    for (uint32_t x = lowResChunkWidth; x < 2 * lowResChunkWidth; ++x) {
+        for (uint32_t y = lowResChunkWidth; y < 2 * lowResChunkWidth; ++y) {
+            for (uint32_t z = lowResChunkWidth; z < 2 * lowResChunkWidth; ++z) {
+                if (testBitmap(x, y, z)) {
+                    const bool nx = testBitmap(x - 1, y, z);
+                    const bool px = testBitmap(x + 1, y, z);
+                    const bool ny = testBitmap(x, y - 1, z);
+                    const bool py = testBitmap(x, y + 1, z);
+                    const bool nz = testBitmap(x, y, z - 1);
+                    const bool pz = testBitmap(x, y, z + 1);
+                    const bool surrounded = nx & px & ny & py & nz & pz;
+                    if (!surrounded) {
+                        const auto vx = static_cast<uint8_t>((x - lowResChunkWidth) * blockSize);
+                        const auto vy = static_cast<uint8_t>((y - lowResChunkWidth) * blockSize);
+                        const auto vz = static_cast<uint8_t>((z - lowResChunkWidth) * blockSize);
+
+                        const VoxelData dummyVoxel{255, 255, 255};
+                        VertexData voxelData = {
+                            vx, vy, vz, blockSize,
+                            dummyVoxel, AmbientOcclusion::None, {}
+                        };
+                        vertices.emplace_back(voxelData);
+                    }
+                }
+            }
+        }
+    }
+}
