@@ -83,9 +83,8 @@ template <size_t BlockSize>
 void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborChunks,
                                               std::vector<VertexData>& vertices) {
     constexpr uint32_t blockSize = BlockSize;
-    constexpr float occupancyThreshold = 0.25f;
     constexpr uint32_t blockVolume = blockSize * blockSize * blockSize;
-    constexpr uint32_t minVoxelsToConsiderPresent = occupancyThreshold * blockVolume + 0.5f;
+    constexpr uint32_t minVoxelsToConsiderPresent = blockVolume;
 
     constexpr uint32_t lowResChunkWidth = Chunk::WIDTH / blockSize;
     constexpr uint32_t bitmapWidth = lowResChunkWidth * 3;
