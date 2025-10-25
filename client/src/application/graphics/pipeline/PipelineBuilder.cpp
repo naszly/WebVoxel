@@ -191,6 +191,7 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
         WGPUConstantEntry{ .key = WGPUStringView{"LIGHTING", WGPU_STRLEN}, .value = options.lighting() },
         WGPUConstantEntry{ .key = WGPUStringView{"FOG", WGPU_STRLEN}, .value = options.fog() },
         WGPUConstantEntry{ .key = WGPUStringView{"POINT_LIGHT", WGPU_STRLEN}, .value = options.pointLight() },
+        WGPUConstantEntry{ .key = WGPUStringView{"SHADOWS", WGPU_STRLEN}, .value = options.shadows() }
     };
 
     WGPUFragmentState frag{};

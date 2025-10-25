@@ -2,7 +2,7 @@ override CHUNK_SIZE: f32 = 64.0;
 override LIGHTING: bool = true;
 override FOG: bool = true;
 override POINT_LIGHT: bool = true;
-override DIRECTIONAL_LIGHT: bool = true;
+override SHADOWS: bool = true;
 const POINT_LIGHT_RANGE: f32 = 64.0;
 const POINT_LIGHT_INTENSITY: f32 = 2.3;
 const DIRECTIONAL_LIGHT_COLOR: vec3f = vec3f(1.0, 0.99, 0.96);
@@ -546,7 +546,7 @@ fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f, lightProjectionViewMatri
     let hit: Hit = intersectBox(box, ray);
 
     var shadowFactor = 1.0;
-    if (LIGHTING && DIRECTIONAL_LIGHT) {
+    if (LIGHTING && SHADOWS) {
         let hitPointWorld = (ray.direction * hit.distance);
         let shadowResultNear = getShadowFactor(hitPointWorld, hit.normal, u.lightProjectionViewMatrixNear, shadowMapNear);
         let shadowResultFar  = getShadowFactor(hitPointWorld, hit.normal, u.lightProjectionViewMatrixFar, shadowMapFar);
@@ -577,8 +577,8 @@ fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f, lightProjectionViewMatri
             )[hit.plane];
             let baseLight = vec3f(ambient) + faceLight * (1.0 - ambient);
 
-            var dirLight = vec3f(0.0);
-            if (DIRECTIONAL_LIGHT) {
+            var dirLight = DIRECTIONAL_LIGHT_COLOR;
+            if (SHADOWS) {
                 let shadowMix = mix(1.0, shadowFactor, DIRECTIONAL_SHADOW_STRENGTH);
                 dirLight = DIRECTIONAL_LIGHT_COLOR * shadowMix;
             }

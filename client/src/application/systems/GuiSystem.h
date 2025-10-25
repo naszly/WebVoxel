@@ -15,5 +15,6 @@ private:
     void setImGuiDisplaySize() const;
     bool m_lighting = true;
     bool m_fog = true;
-    bool m_pointLight = true;
+    bool m_pointLight = false;
+    bool m_shadows = true;
 };

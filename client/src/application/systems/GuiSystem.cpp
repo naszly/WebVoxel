@@ -134,8 +134,13 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     }
 
     ImGui::Checkbox("Lighting,", &m_lighting);
-    ImGui::Checkbox("Fog", &m_fog);
+    ImGui::BeginDisabled(!m_lighting);
+    ImGui::Indent(28.0f);
     ImGui::Checkbox("Torch", &m_pointLight);
+    ImGui::Checkbox("Shadows", &m_shadows);
+    ImGui::Unindent(28.0f);
+    ImGui::EndDisabled();
+    ImGui::Checkbox("Fog", &m_fog);
 
     ImGui::End();
 
@@ -197,6 +202,8 @@ void GuiSystem::update(float dt) {
             rendererSystem->setFog(m_fog);
         if (rendererSystem->getPointLight() != m_pointLight)
             rendererSystem->setPointLight(m_pointLight);
+        if (rendererSystem->getShadows() != m_shadows)
+            rendererSystem->setShadows(m_shadows);
     }
 }
 

@@ -104,7 +104,7 @@ void RendererSystem::createFxaaBindGroup() {
 void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTextureView &targetView) {
     updateUniformBuffer();
 
-    if (m_lighting) {
+    if (m_lighting && m_shadows) {
         auto& nearShadowPass = m_shadowCascades[static_cast<size_t>(ShadowCascade::Near)];
         auto& farShadowPass = m_shadowCascades[static_cast<size_t>(ShadowCascade::Far)];
         if (nearShadowPass) {
@@ -258,6 +258,13 @@ void RendererSystem::setPointLight(const bool pointLight) {
     }
 }
 
+void RendererSystem::setShadows(const bool shadows) {
+    if (m_shadows != shadows) {
+        m_shadows = shadows;
+        createPipelines();
+    }
+}
+
 void RendererSystem::exportTimestamps() const {
     const auto queue = wgpuDeviceGetQueue(getWebGpuContext().getDevice());
     const WGPUInstance& instance = getWebGpuContext().getInstance();
@@ -299,6 +306,7 @@ void RendererSystem::createRenderPipeline() {
         m_lighting,
         m_fog,
         m_pointLight,
+        m_shadows,
         m_sampleCount,
         Chunk::WIDTH,
         getWebGpuSurface().getSurfaceFormat()

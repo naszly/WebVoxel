@@ -38,6 +38,13 @@ public:
     }
 
     void setPointLight(bool pointLight);
+
+    bool getShadows() const {
+        return m_shadows;
+    }
+
+    void setShadows(bool shadows);
+
     void exportTimestamps() const;
 
     void updateChunkVertexBuffer(const ChunkVertexData& vertexData, const glm::vec3& chunkPosition) const;
@@ -45,7 +52,8 @@ public:
 private:
     bool m_lighting = true;
     bool m_fog = true;
-    bool m_pointLight = true;
+    bool m_pointLight = false;
+    bool m_shadows = true;
     int m_sampleCount = 1;
     float m_timeAccumulator = 0.0f;
 
