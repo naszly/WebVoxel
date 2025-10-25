@@ -2,7 +2,6 @@
 
 #include "RendererSystem.h"
 #include "application/Application.h"
-#include "application/meshing/VoxelVertexGenerator.h"
 
 void ChunkVertexDataUpdaterSystem::initialize() {
     m_workersCount = 1;
@@ -21,7 +20,7 @@ void ChunkVertexDataUpdaterSystem::update(float dt) {
 void ChunkVertexDataUpdaterSystem::integrateCreatedChunkVertexData() {
     const auto rendererSystem = getApplication().getSystem<RendererSystem>();
 
-    std::queue<std::pair<glm::ivec3, std::vector<VertexData>>> updates;
+    std::queue<std::pair<glm::ivec3, ChunkVertexData>> updates;
     std::queue<ChunkNeighborhood> freeNeighborhoods;
     {
         Threading::ScopedLock lock(&m_lock);
@@ -40,7 +39,7 @@ void ChunkVertexDataUpdaterSystem::integrateCreatedChunkVertexData() {
     if (rendererSystem) {
         while (!updates.empty()) {
             auto& [chunkPos, vertexData] = updates.front();
-            rendererSystem->updateChunkVertexBuffer(vertexData, chunkPos);
+            rendererSystem->updateChunkVertexBuffer(vertexData.fullResolution, chunkPos);
             updates.pop();
         }
     }
@@ -118,13 +117,11 @@ void* ChunkVertexDataUpdaterSystem::worker(void* arg) {
                 continue;
             }
 
-            thread_local std::vector<VertexData> points;
-            points.clear();
-            VoxelVertexGenerator::generate(chunkNeighborhood, points);
+            ChunkVertexData vertexData(chunkNeighborhood);
 
             work.createdVertexData.push({
                 position,
-                std::move(points),
+                std::move(vertexData),
                 std::move(chunkNeighborhood)
             });
         }

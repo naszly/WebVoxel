@@ -3,7 +3,7 @@
 #include <queue>
 
 #include "System.h"
-#include "application/types/VertexData.h"
+#include "application/meshing/ChunkVertexData.h"
 
 class ChunkVertexDataUpdaterSystem final : public System {
 public:
@@ -27,7 +27,7 @@ private:
         CircularBuffer<ChunkNeighborhood, 24> vertexDataToCreate;
         struct Result {
             glm::ivec3 chunkNeighborPosition;
-            std::vector<VertexData> vertexData;
+            ChunkVertexData vertexData;
             ChunkNeighborhood chunkNeighborhoodToFree;
         };
         CircularBuffer<Result, 24> createdVertexData;
@@ -38,7 +38,7 @@ private:
     };
 
     CircularBuffer<ChunkNeighborhood, 128> m_dirtyChunks;
-    std::queue<std::pair<glm::ivec3, std::vector<VertexData>>> m_dirtyChunkVertexDatas;
+    std::queue<std::pair<glm::ivec3, ChunkVertexData>> m_dirtyChunkVertexDatas;
     std::queue<ChunkNeighborhood> m_freeChunkNeighborhoods;
 
     size_t m_workersCount{};
