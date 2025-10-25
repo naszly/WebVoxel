@@ -20,8 +20,10 @@ public:
 
     [[nodiscard]] std::vector<ChunkVertexBuffer> getChunksToRender(const Camera& camera) const;
 
+    using ChooseResolutionFunc = std::function<const ChunkVertexBuffer&(const ChunkVertexBufferSet&, float)>;
     [[nodiscard]] std::vector<ChunkVertexBuffer> getChunksToRender(const glm::vec3& cameraPosition,
-                                                                   const glm::mat4& projView) const;
+                                                                   const glm::mat4& projView,
+                                                                   const ChooseResolutionFunc& chooseResolution) const;
 
     void removeBuffersOfFarChunks(const Camera& camera);
 

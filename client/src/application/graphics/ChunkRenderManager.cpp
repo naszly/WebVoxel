@@ -14,12 +14,19 @@ ChunkRenderManager::~ChunkRenderManager() {
 }
 
 std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camera& camera) const {
-    return getChunksToRender(camera.getPosition(), camera.getProjectionViewMatrix());
+    const ChooseResolutionFunc chooseResolution =
+        [](const ChunkVertexBufferSet& bufferSet, float) -> const ChunkVertexBuffer& {
+            return bufferSet.fullResolution;
+        };
+    return getChunksToRender(camera.getPosition(),
+                             camera.getProjectionViewMatrix(),
+                             chooseResolution);
 }
 
 std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const glm::vec3& cameraPosition,
-                                                                     const glm::mat4& projView) const {
-    struct SortEntry { float distance2; ChunkVertexBuffer vb; };
+                                                                     const glm::mat4& projView,
+                                                                     const ChooseResolutionFunc& chooseResolution) const {
+    struct SortEntry { float distance; ChunkVertexBuffer vb; };
     std::vector<SortEntry> sorted;
     sorted.reserve(m_chunkVertexBufferSets.size());
 
@@ -29,24 +36,26 @@ std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const glm::
     constexpr glm::vec3 chunkAabbHalfExtents = glm::vec3(chunkSize) * 0.5f;
 
     for (const auto &[chunkPos, vb] : m_chunkVertexBufferSets) {
-        if (vb.fullResolution.vertexCount == 0) {
+        const auto chunkCenter = glm::vec3(chunkPos) * chunkSize + chunkAabbHalfExtents;
+        float distance = glm::length(chunkCenter - cameraPosition);
+        auto& chosenVb = chooseResolution(vb, distance);
+
+        if (chosenVb.vertexCount == 0) {
             continue;
         }
 
-        const auto chunkCenter = glm::vec3(chunkPos) * chunkSize + chunkAabbHalfExtents;
         if (!isSphereInFrustum(chunkCenter, chunkSphereRadius, cameraPosition, projView)) {
             continue;
         }
 
-        float distance2 = glm::length2(chunkCenter - cameraPosition);
-        sorted.emplace_back(distance2, vb.fullResolution);
+        sorted.emplace_back(distance, chosenVb);
     }
 
-    std::ranges::sort(sorted, [](const auto &a, const auto &b){ return a.distance2 < b.distance2; });
+    std::ranges::sort(sorted, [](const auto &a, const auto &b){ return a.distance < b.distance; });
 
     std::vector<ChunkVertexBuffer> result;
     result.reserve(sorted.size());
-    for (auto& [distance2, vb] : sorted) result.emplace_back(vb);
+    for (auto& [distance, vb] : sorted) result.emplace_back(vb);
     return result;
 }
 

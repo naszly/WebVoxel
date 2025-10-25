@@ -94,5 +94,6 @@ private:
     void createFxaaBindGroup();
     void updateUniformBuffer() const;
 
-    void renderShadowPass(const WGPUCommandEncoder& encoder, const ShadowPass& shadowPass) const;
+    void renderShadowPass(const WGPUCommandEncoder& encoder, const ShadowPass& shadowPass,
+                          const ChunkRenderManager::ChooseResolutionFunc& chooseResolution) const;
 };
