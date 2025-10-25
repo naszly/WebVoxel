@@ -6,8 +6,9 @@
 #include <glm/glm.hpp>
 
 #include "application/graphics/Camera.h"
+#include "application/meshing/ChunkVertexData.h"
 #include "application/world/World.h"
-#include "application/graphics/types/ChunkVertexBuffer.h"
+#include "application/graphics/types/ChunkVertexBufferSet.h"
 #include "application/types/VertexData.h"
 #include "common/datastructures/HashMap.h"
 
@@ -24,12 +25,12 @@ public:
 
     void removeBuffersOfFarChunks(const Camera& camera);
 
-    void updateChunkVertexBuffer(const std::vector<VertexData>& points, const glm::vec3 &position);
+    void updateChunkVertexBuffer(const ChunkVertexData& vertexData, const glm::vec3 &position);
 
 private:
     const WGPUDevice& m_device;
     World& m_world;
-    HashMap<glm::ivec3, ChunkVertexBuffer> m_chunkVertexBuffers;
+    HashMap<glm::ivec3, ChunkVertexBufferSet> m_chunkVertexBufferSets;
 
     [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const std::vector<VertexData>& points,
                                                             const glm::vec3 &position) const;

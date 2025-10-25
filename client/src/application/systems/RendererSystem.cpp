@@ -3,6 +3,7 @@
 #include "application/Application.h"
 #include "application/graphics/pipeline/FxaaPipelineBuilder.h"
 #include "application/graphics/pipeline/PipelineBuilder.h"
+#include "application/meshing/ChunkVertexData.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
 
@@ -242,7 +243,7 @@ void RendererSystem::exportTimestamps() const {
     m_profiler.exportTimestamps(instance, queue);
 }
 
-void RendererSystem::updateChunkVertexBuffer(const std::vector<VertexData>& vertexData, const glm::vec3& chunkPosition) const {
+void RendererSystem::updateChunkVertexBuffer(const ChunkVertexData& vertexData, const glm::vec3& chunkPosition) const {
     m_chunkRenderManager->updateChunkVertexBuffer(vertexData, chunkPosition);
 }
 

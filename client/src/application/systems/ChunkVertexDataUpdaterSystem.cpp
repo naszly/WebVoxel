@@ -39,7 +39,7 @@ void ChunkVertexDataUpdaterSystem::integrateCreatedChunkVertexData() {
     if (rendererSystem) {
         while (!updates.empty()) {
             auto& [chunkPos, vertexData] = updates.front();
-            rendererSystem->updateChunkVertexBuffer(vertexData.fullResolution, chunkPos);
+            rendererSystem->updateChunkVertexBuffer(vertexData, chunkPos);
             updates.pop();
         }
     }
@@ -69,7 +69,7 @@ void ChunkVertexDataUpdaterSystem::scheduleChunksForVertexDataCreation(const Cam
     const auto rendererSystem = getApplication().getSystem<RendererSystem>();
     for (auto& chunkRef : emptyChunks) {
         auto& chunk = chunkRef.get();
-        constexpr std::vector<VertexData> emptyVertexData;
+        constexpr ChunkVertexData emptyVertexData;
         const auto& chunkPosition = chunk.getPosition();
         rendererSystem->updateChunkVertexBuffer(emptyVertexData, chunkPosition);
         chunk.resetGpuBufferDirty();

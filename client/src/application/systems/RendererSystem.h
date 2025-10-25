@@ -11,7 +11,6 @@
 #include "application/graphics/resources/ShadowPass.h"
 #include "application/graphics/resources/UniformsBuffer.h"
 #include "application/graphics/ChunkRenderManager.h"
-#include "application/types/VertexData.h"
 
 class RendererSystem final : public System {
 public:
@@ -41,7 +40,7 @@ public:
     void setPointLight(bool pointLight);
     void exportTimestamps() const;
 
-    void updateChunkVertexBuffer(const std::vector<VertexData>& vertexData, const glm::vec3& chunkPosition) const;
+    void updateChunkVertexBuffer(const ChunkVertexData& vertexData, const glm::vec3& chunkPosition) const;
 
 private:
     bool m_lighting = true;
