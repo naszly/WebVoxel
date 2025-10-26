@@ -39,6 +39,14 @@ public:
         return !(*this == other);
     }
 
+    explicit operator uint32_t() const {
+        return *reinterpret_cast<const uint32_t*>(this);
+    }
+
+    explicit VoxelData(const uint32_t data) {
+        *reinterpret_cast<uint32_t*>(this) = data;
+    }
+
     template <typename H>
     friend H AbslHashValue(H h, const VoxelData& v) {
         return H::combine(std::move(h), v.m_data, v.m_hasTexture);
