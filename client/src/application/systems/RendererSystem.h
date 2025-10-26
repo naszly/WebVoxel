@@ -104,4 +104,6 @@ private:
 
     void renderShadowPass(const WGPUCommandEncoder& encoder, const ShadowPass& shadowPass,
                           const ChunkRenderManager::ChooseResolutionFunc& chooseResolution) const;
+
+    static const ChunkVertexBuffer& chooseResolutionByDistance(const ChunkVertexBufferSet& set, float distance);
 };

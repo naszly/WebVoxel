@@ -108,26 +108,10 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
         auto& nearShadowPass = m_shadowCascades[static_cast<size_t>(ShadowCascade::Near)];
         auto& farShadowPass = m_shadowCascades[static_cast<size_t>(ShadowCascade::Far)];
         if (nearShadowPass) {
-            ChunkRenderManager::ChooseResolutionFunc chooseResolution =
-                [](const ChunkVertexBufferSet& set, float) -> const ChunkVertexBuffer& {
-                    return set.fullResolution;
-                };
-            renderShadowPass(encoder,*nearShadowPass,chooseResolution
-            );
+            renderShadowPass(encoder,*nearShadowPass,chooseResolutionByDistance);
         }
         if (farShadowPass) {
-            ChunkRenderManager::ChooseResolutionFunc chooseResolution =
-                [](const ChunkVertexBufferSet& set, const float distance) -> const ChunkVertexBuffer& {
-                    if (distance < 300.0f) {
-                        return set.downsampledBy2;
-                    }
-                    if (distance < 500.0f) {
-                        return set.downsampledBy4;
-                    }
-                    return set.downsampledBy8;
-            };
-            renderShadowPass(encoder,*farShadowPass,chooseResolution
-            );
+            renderShadowPass(encoder,*farShadowPass,chooseResolutionByDistance);
         }
     }
 
@@ -167,21 +151,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
 
-    ChunkRenderManager::ChooseResolutionFunc chooseResolution =
-        [](const ChunkVertexBufferSet& set, const float distance) -> const ChunkVertexBuffer& {
-            if (distance < 800.0f) {
-                return set.fullResolution;
-            }
-            if (distance < 1200.0f) {
-                return set.downsampledBy2;
-            }
-            if (distance < 1800.0f) {
-                return set.downsampledBy4;
-            }
-            return set.downsampledBy4;
-        };
-
-    const auto sceneChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera(), chooseResolution);
+    const auto sceneChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera(), chooseResolutionByDistance);
     for (auto &chunkVertexBuffer: sceneChunkVertexBuffers) {
         auto &[buffer, vertexCount] = chunkVertexBuffer;
 
@@ -346,7 +316,7 @@ void RendererSystem::createRenderPipeline() {
 void RendererSystem::updateUniformBuffer() const {
     if (!m_uniformsBuffer) return;
 
-    constexpr double orthoHalfNear = 200.0;
+    constexpr double orthoHalfNear = 120.0;
     constexpr double orthoHalfFar = 800.0;
 
     const Camera& camera = getCamera();
@@ -430,4 +400,18 @@ void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const S
 
     wgpuRenderPassEncoderEnd(shadow);
     wgpuRenderPassEncoderRelease(shadow);
+}
+
+const ChunkVertexBuffer& RendererSystem::chooseResolutionByDistance(const ChunkVertexBufferSet& set,
+                                                                    const float distance) {
+    if (distance < 600.0f) {
+        return set.fullResolution;
+    }
+    if (distance < 800.0f) {
+        return set.downsampledBy2;
+    }
+    if (distance < 1200.0f) {
+        return set.downsampledBy4;
+    }
+    return set.downsampledBy4;
 }
