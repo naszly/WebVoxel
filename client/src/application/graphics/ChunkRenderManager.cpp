@@ -13,14 +13,11 @@ ChunkRenderManager::~ChunkRenderManager() {
     }
 }
 
-std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camera& camera) const {
-    const ChooseResolutionFunc chooseResolution =
-        [](const ChunkVertexBufferSet& bufferSet, float) -> const ChunkVertexBuffer& {
-            return bufferSet.fullResolution;
-        };
-    return getChunksToRender(camera.getPosition(),
-                             camera.getProjectionViewMatrix(),
-                             chooseResolution);
+std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const Camera& camera,
+                                                                     const ChooseResolutionFunc& chooseResolution) const {
+    const glm::vec3 cameraPosition = camera.getPosition();
+    const glm::mat4 projView = camera.getProjectionViewMatrix();
+    return getChunksToRender(cameraPosition, projView, chooseResolution);
 }
 
 std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const glm::vec3& cameraPosition,

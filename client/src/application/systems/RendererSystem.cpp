@@ -167,7 +167,21 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
     appData.renderedChunks = 0;
     appData.renderedVoxels = 0;
 
-    const auto sceneChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera());
+    ChunkRenderManager::ChooseResolutionFunc chooseResolution =
+        [](const ChunkVertexBufferSet& set, const float distance) -> const ChunkVertexBuffer& {
+            if (distance < 800.0f) {
+                return set.fullResolution;
+            }
+            if (distance < 1200.0f) {
+                return set.downsampledBy2;
+            }
+            if (distance < 1800.0f) {
+                return set.downsampledBy4;
+            }
+            return set.downsampledBy4;
+        };
+
+    const auto sceneChunkVertexBuffers = m_chunkRenderManager->getChunksToRender(getCamera(), chooseResolution);
     for (auto &chunkVertexBuffer: sceneChunkVertexBuffers) {
         auto &[buffer, vertexCount] = chunkVertexBuffer;
 
