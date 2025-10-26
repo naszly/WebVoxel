@@ -65,26 +65,30 @@ void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std
 }
 
 void VoxelVertexGenerator::generateDownsample2(const ChunkNeighborhood& neighborChunks,
-                                               std::vector<VertexData>& vertices) {
-    generateDownsample<2>(neighborChunks, vertices);
+                                               std::vector<VertexData>& vertices,
+                                               const float threshold) {
+    generateDownsample<2>(neighborChunks, vertices, threshold);
 }
 
 void VoxelVertexGenerator::generateDownsample4(const ChunkNeighborhood& neighborChunks,
-                                               std::vector<VertexData>& vertices) {
-    generateDownsample<4>(neighborChunks, vertices);
+                                               std::vector<VertexData>& vertices,
+                                               const float threshold) {
+    generateDownsample<4>(neighborChunks, vertices, threshold);
 }
 
 void VoxelVertexGenerator::generateDownsample8(const ChunkNeighborhood& neighborChunks,
-                                               std::vector<VertexData>& vertices) {
-    generateDownsample<8>(neighborChunks, vertices);
+                                               std::vector<VertexData>& vertices,
+                                               const float threshold) {
+    generateDownsample<8>(neighborChunks, vertices, threshold);
 }
 
 template <size_t BlockSize>
 void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborChunks,
-                                              std::vector<VertexData>& vertices) {
+                                              std::vector<VertexData>& vertices,
+                                              const float threshold) {
     constexpr uint32_t blockSize = BlockSize;
     constexpr uint32_t blockVolume = blockSize * blockSize * blockSize;
-    constexpr uint32_t minVoxelsToConsiderPresent = blockVolume;
+    const uint32_t minVoxelsToConsiderPresent = blockVolume * threshold;
 
     constexpr uint32_t lowResChunkWidth = Chunk::WIDTH / blockSize;
     constexpr uint32_t bitmapWidth = lowResChunkWidth * 3;
