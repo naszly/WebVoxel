@@ -133,6 +133,8 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         }
     }
 
+    ImGui::Separator();
+    ImGui::Text("Rendering Settings");
     ImGui::Checkbox("Lighting,", &m_lighting);
     ImGui::BeginDisabled(!m_lighting);
     ImGui::Indent(28.0f);
@@ -141,6 +143,10 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Unindent(28.0f);
     ImGui::EndDisabled();
     ImGui::Checkbox("Fog", &m_fog);
+
+    ImGui::Separator();
+    ImGui::Text("Chunk Management");
+    ImGui::SliderInt("Load Distance", &m_chunkLoadDistance, 200, (ChunkMap::SIZE/2-2) * Chunk::WIDTH);
 
     ImGui::End();
 
@@ -204,6 +210,12 @@ void GuiSystem::update(float dt) {
             rendererSystem->setPointLight(m_pointLight);
         if (rendererSystem->getShadows() != m_shadows)
             rendererSystem->setShadows(m_shadows);
+    }
+
+    if (const auto chunkManagementSystem = getApplication().getSystem<ChunkManagementSystem>()) {
+        if (chunkManagementSystem->getLoadDistance() != m_chunkLoadDistance) {
+            chunkManagementSystem->setLoadDistance(m_chunkLoadDistance);
+        }
     }
 }
 

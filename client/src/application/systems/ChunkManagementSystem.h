@@ -27,6 +27,23 @@ public:
         m_chunkWorkers.clear();
     }
 
+    void setLoadDistance(const int distance) {
+        if (distance == m_loadDistance) {
+            return;
+        }
+        m_loadDistance = distance;
+        m_fastAccessRadius = m_loadDistance / 80;
+        m_loadZoneRadiusXz = m_loadDistance / 32;
+        m_loadZoneRadiusY = m_loadDistance / 48;
+        m_unloadZoneRadiusXz = m_loadZoneRadiusXz + 1;
+        m_unloadZoneRadiusY = m_loadZoneRadiusY + 1;
+        m_chunkOffsets = generateChunkOffsets();
+    }
+
+    [[nodiscard]] int getLoadDistance() const {
+        return m_loadDistance;
+    }
+
 private:
     // Enhances move performance by transferring only pointers,
     // avoiding costly deep moves or copies of Chunk objects.
@@ -68,11 +85,13 @@ private:
         }
     };
 
-    static constexpr int FAST_ACCESS_RADIUS = 8;
-    static constexpr int LOAD_ZONE_RADIUS_XZ = 20;
-    static constexpr int LOAD_ZONE_RADIUS_Y = 12;
-    static constexpr int UNLOAD_ZONE_RADIUS_XZ = LOAD_ZONE_RADIUS_XZ + 1;
-    static constexpr int UNLOAD_ZONE_RADIUS_Y = LOAD_ZONE_RADIUS_Y + 1;
+    int m_loadDistance{};
+    int m_fastAccessRadius{};
+    int m_loadZoneRadiusXz{};
+    int m_loadZoneRadiusY{};
+    int m_unloadZoneRadiusXz{};
+    int m_unloadZoneRadiusY{};
+    std::vector<glm::ivec3> m_chunkOffsets;
 
     std::queue<glm::ivec3> m_chunksToLoad;
     HashSet<glm::ivec3> m_loadingChunks;
@@ -100,7 +119,7 @@ private:
     void integrateLoadedChunks(World &world);
     void integrateCompressedChunks(World& world);
 
-    static std::vector<glm::ivec3> generateChunkOffsets();
+    [[nodiscard]] std::vector<glm::ivec3> generateChunkOffsets() const;
 
     void scheduleChunksForLoading(const Camera& camera, const World& world);
     void scheduleChunksForSaving(World &world);

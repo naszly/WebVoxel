@@ -17,4 +17,6 @@ private:
     bool m_fog = true;
     bool m_pointLight = false;
     bool m_shadows = true;
+
+    int m_chunkLoadDistance = 500;
 };

@@ -18,6 +18,8 @@ void ChunkManagementSystem::initialize() {
         m_chunkWorkers.push_back(std::make_unique<Threading::Worker>());
         m_chunkWorkers[i]->start(worker, this);
     }
+
+    setLoadDistance(500);
 }
 
 void ChunkManagementSystem::update(const float dt) {
@@ -26,7 +28,7 @@ void ChunkManagementSystem::update(const float dt) {
 
     processChunkManagement(camera, world);
 
-    m_generator.pruneCacheByDistance(camera.getPosition(), UNLOAD_ZONE_RADIUS_XZ);
+    m_generator.pruneCacheByDistance(camera.getPosition(), m_unloadZoneRadiusXz);
 }
 
 void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& world) {
@@ -74,20 +76,20 @@ void ChunkManagementSystem::integrateCompressedChunks(World& world) {
     m_compressedChunks.clear();
 }
 
-std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() {
+std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() const {
     std::vector<glm::ivec3> offsets;
-    constexpr float yCorrection = static_cast<float>(LOAD_ZONE_RADIUS_XZ) / LOAD_ZONE_RADIUS_Y;
-    for (int x = -LOAD_ZONE_RADIUS_XZ; x <= LOAD_ZONE_RADIUS_XZ; ++x) {
-        for (int y = -LOAD_ZONE_RADIUS_Y; y <= LOAD_ZONE_RADIUS_Y; ++y) {
+    const float yCorrection = static_cast<float>(m_loadZoneRadiusXz) / m_loadZoneRadiusY;
+    for (int x = -m_loadZoneRadiusXz; x <= m_loadZoneRadiusXz; ++x) {
+        for (int y = -m_loadZoneRadiusY; y <= m_loadZoneRadiusY; ++y) {
             const auto cy = static_cast<float>(y) * yCorrection;
-            for (int z = -LOAD_ZONE_RADIUS_XZ; z <= LOAD_ZONE_RADIUS_XZ; ++z) {
-                if (x * x + z * z + cy * cy <= LOAD_ZONE_RADIUS_XZ * LOAD_ZONE_RADIUS_XZ) {
+            for (int z = -m_loadZoneRadiusXz; z <= m_loadZoneRadiusXz; ++z) {
+                if (x * x + z * z + cy * cy <= m_loadZoneRadiusXz * m_loadZoneRadiusXz) {
                     offsets.emplace_back(x, y, z);
                 }
             }
         }
     }
-    std::ranges::sort(offsets, [](const glm::ivec3& a, const glm::ivec3& b) {
+    std::ranges::sort(offsets, [&](const glm::ivec3& a, const glm::ivec3& b) {
         const float cay = static_cast<float>(a.y) * yCorrection;
         const float cby = static_cast<float>(b.y) * yCorrection;
         const float da = a.x * a.x + a.z * a.z + cay * cay;
@@ -101,12 +103,10 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
     const glm::vec3 playerPosition = camera.getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
 
-    static std::vector<glm::ivec3> offsets = generateChunkOffsets();
-
     std::vector<glm::ivec3> chunksToLoad;
     const size_t maxChunksToLoad = m_chunkWorkersCount * 32;
 
-    for (const auto& offset : offsets) {
+    for (const auto& offset : m_chunkOffsets) {
         const auto chunkPos = playerChunk + offset;
 
         if (world.hasChunk(chunkPos) || m_loadingChunks.contains(chunkPos)) {
@@ -139,7 +139,7 @@ void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
 void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, World &world) {
     const glm::vec3 playerPosition = camera.getPosition();
     const glm::ivec3 playerChunk = WorldCoordinate(playerPosition).chunkPosition();
-    constexpr float yCorrection = static_cast<float>(UNLOAD_ZONE_RADIUS_XZ) / UNLOAD_ZONE_RADIUS_Y;
+    const float yCorrection = static_cast<float>(m_unloadZoneRadiusXz) / m_unloadZoneRadiusY;
 
     std::vector<glm::ivec3> chunksToUnload;
 
@@ -149,14 +149,14 @@ void ChunkManagementSystem::scheduleChunksForUnloading(const Camera &camera, Wor
         const glm::ivec3 offset = chunkPos - playerChunk;
         const float correctedOffestY = static_cast<float>(offset.y) * yCorrection;
         const float distanceSq = offset.x * offset.x + offset.z * offset.z + correctedOffestY * correctedOffestY;
-        constexpr float unloadRadiusSq = static_cast<float>(UNLOAD_ZONE_RADIUS_XZ * UNLOAD_ZONE_RADIUS_XZ);
+        const float unloadRadiusSq = static_cast<float>(m_unloadZoneRadiusXz * m_unloadZoneRadiusXz);
         if (distanceSq > unloadRadiusSq) {
             chunksToUnload.push_back(chunkPos);
         }
     }
 
     for (const auto &chunkPos : chunksToUnload) {
-        m_chunksToUnload.push(ChunkHandle(world.extractChunkByMove(chunkPos)));
+        m_chunksToUnload.emplace(world.extractChunkByMove(chunkPos));
     }
 }
 
@@ -177,7 +177,7 @@ void ChunkManagementSystem::scheduleChunksForCompression(World& world, const Cam
         if (chunk.isCompressed()) continue;
         if (chunk.isGpuBufferDirty() || chunk.isSaveFileDirty()) continue;
         if (chunk.getLastEdit() - now < std::chrono::seconds(15)) continue;
-        if (getChunkDistance(playerPosition, chunkPos) <= FAST_ACCESS_RADIUS) continue;
+        if (getChunkDistance(playerPosition, chunkPos) <= m_fastAccessRadius) continue;
         if (m_compressingChunks.contains(chunkPos)) continue;
 
         const auto& chunkNeighborhood = world.getChunkNeighborhoodPtrs(chunkPos);
