@@ -31,10 +31,20 @@ public:
 
     void updateChunkVertexBuffer(const ChunkVertexData& vertexData, const glm::vec3 &position);
 
+    void setRenderDistance(const float distance) {
+        m_renderDistance = distance;
+    }
+
+    [[nodiscard]] float getRenderDistance() const {
+        return m_renderDistance;
+    }
+
 private:
     const WGPUDevice& m_device;
     World& m_world;
     HashMap<glm::ivec3, ChunkVertexBufferSet> m_chunkVertexBufferSets;
+
+    float m_renderDistance{Camera::FAR};
 
     [[nodiscard]] ChunkVertexBuffer createChunkVertexBuffer(const std::vector<VertexData>& points,
                                                             const glm::vec3 &position) const;

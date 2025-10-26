@@ -49,6 +49,9 @@ public:
 
     void updateChunkVertexBuffer(const ChunkVertexData& vertexData, const glm::vec3& chunkPosition) const;
 
+    ChunkRenderManager& getChunkRenderManager() const {
+        return *m_chunkRenderManager;
+    }
 private:
     bool m_lighting = true;
     bool m_fog = true;

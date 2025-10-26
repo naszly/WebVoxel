@@ -19,4 +19,5 @@ private:
     bool m_shadows = true;
 
     int m_chunkLoadDistance = 500;
+    int m_renderDistance = 500;
 };

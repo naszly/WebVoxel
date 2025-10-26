@@ -41,6 +41,10 @@ std::vector<ChunkVertexBuffer> ChunkRenderManager::getChunksToRender(const glm::
             continue;
         }
 
+        if (distance - chunkSphereRadius > m_renderDistance) {
+            continue;
+        }
+
         if (!isSphereInFrustum(chunkCenter, chunkSphereRadius, cameraPosition, projView)) {
             continue;
         }

@@ -107,7 +107,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(320, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Debug Info");
     static double lastTime = 0.0f;
@@ -147,12 +147,13 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
     ImGui::Separator();
     ImGui::Text("Chunk Management");
     ImGui::SliderInt("Load Distance", &m_chunkLoadDistance, 200, (ChunkMap::SIZE/2-2) * Chunk::WIDTH);
+    ImGui::SliderInt("Render Distance", &m_renderDistance, 200, Camera::FAR);
 
     ImGui::End();
 
     ImGui::SetNextWindowDockID(dockSpaceId, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(0, 400), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(300, 0), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 480), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(320, 0), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Voxel Placement");
     static bool isColorVoxel = false;
@@ -210,6 +211,11 @@ void GuiSystem::update(float dt) {
             rendererSystem->setPointLight(m_pointLight);
         if (rendererSystem->getShadows() != m_shadows)
             rendererSystem->setShadows(m_shadows);
+
+        auto& chunkRenderManager = rendererSystem->getChunkRenderManager();
+        if (chunkRenderManager.getRenderDistance() != m_renderDistance) {
+            chunkRenderManager.setRenderDistance(m_renderDistance);
+        }
     }
 
     if (const auto chunkManagementSystem = getApplication().getSystem<ChunkManagementSystem>()) {
