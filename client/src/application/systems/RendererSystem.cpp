@@ -348,18 +348,16 @@ void RendererSystem::updateUniformBuffer() const {
 
     constexpr double orthoHalfNear = 200.0;
     constexpr double orthoHalfFar = 800.0;
-    constexpr double shadowNearPlane = -265.0;
-    constexpr double shadowFarPlane = 265.0;
 
     const Camera& camera = getCamera();
 
     const glm::dvec3 lightDir = glm::normalize(glm::vec3(2.0, -7.0, 3.0));
 
     const glm::mat4 lightProjectionViewNear =
-        ShadowPass::computeDirectionalLightProjectionView(orthoHalfNear, shadowNearPlane, shadowFarPlane, lightDir);
+        ShadowPass::computeDirectionalLightProjectionView(orthoHalfNear, -orthoHalfNear, orthoHalfNear, lightDir);
 
     const glm::mat4 lightProjectionViewFar =
-        ShadowPass::computeDirectionalLightProjectionView(orthoHalfFar,  shadowNearPlane, shadowFarPlane, lightDir);
+        ShadowPass::computeDirectionalLightProjectionView(orthoHalfFar,  -orthoHalfFar, orthoHalfFar, lightDir);
 
     const Uniforms uniforms{
         .projectionViewMatrix = camera.getProjectionViewMatrix(),
@@ -377,7 +375,7 @@ void RendererSystem::updateUniformBuffer() const {
     };
     m_uniformsBuffer->write(m_queue, uniforms);
 
-    auto updateCascade = [&](ShadowCascade idx, const glm::mat4& lightProjectionView) {
+    auto updateCascade = [&](ShadowCascade idx, const glm::mat4& lightProjectionView, const float orthoHalf) {
         const auto& pass = m_shadowCascades[static_cast<size_t>(idx)];
         if (!pass) return;
         const float mapSize = static_cast<float>(pass->getSize());
@@ -386,14 +384,14 @@ void RendererSystem::updateUniformBuffer() const {
             lightProjectionView,
             camera.getPosition(),
             glm::vec2(mapSize, mapSize),
-            shadowNearPlane,
-            shadowFarPlane,
+            -orthoHalf,
+            orthoHalf,
             glm::vec3(lightDir),
             m_timeAccumulator
         );
     };
-    updateCascade(ShadowCascade::Near, lightProjectionViewNear);
-    updateCascade(ShadowCascade::Far,  lightProjectionViewFar);
+    updateCascade(ShadowCascade::Near, lightProjectionViewNear, orthoHalfNear);
+    updateCascade(ShadowCascade::Far,  lightProjectionViewFar, orthoHalfFar);
 }
 
 void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const ShadowPass &shadowPass,
