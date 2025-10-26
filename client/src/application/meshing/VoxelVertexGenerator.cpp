@@ -148,10 +148,31 @@ void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborC
                         const auto vy = static_cast<uint8_t>((y - lowResChunkWidth) * blockSize);
                         const auto vz = static_cast<uint8_t>((z - lowResChunkWidth) * blockSize);
 
-                        const VoxelData dummyVoxel{255, 255, 255};
+                        thread_local HashMap<uint32_t, uint32_t> voxelCounts;
+                        voxelCounts.clear();
+                        auto& centerChunk = *neighborChunks.getCenterChunk();
+                        for (uint32_t dx = 0; dx < blockSize; ++dx) {
+                            for (uint32_t dy = 0; dy < blockSize; ++dy) {
+                                for (uint32_t dz = 0; dz < blockSize; ++dz) {
+                                    if (centerChunk.hasVoxel(vx + dx, vy + dy, vz + dz)) {
+                                        VoxelData voxel = centerChunk.getVoxel(vx + dx, vy + dy, vz + dz);
+                                        ++voxelCounts[static_cast<uint32_t>(voxel)];
+                                    }
+                                }
+                            }
+                        }
+
+                        uint32_t maxCount = 0;
+                        VoxelData dominantVoxel;
+                        for (const auto& [voxel, count] : voxelCounts) {
+                            if (count > maxCount) {
+                                maxCount = count;
+                                dominantVoxel = static_cast<VoxelData>(voxel);
+                            }
+                        }
                         VertexData voxelData = {
                             vx, vy, vz, blockSize,
-                            dummyVoxel, AmbientOcclusion::None, {}
+                            dominantVoxel, AmbientOcclusion::None, {}
                         };
                         vertices.emplace_back(voxelData);
                     }
