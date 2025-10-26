@@ -65,30 +65,24 @@ void VoxelVertexGenerator::generate(const ChunkNeighborhood& neighborChunks, std
 }
 
 void VoxelVertexGenerator::generateDownsample2(const ChunkNeighborhood& neighborChunks,
-                                               std::vector<VertexData>& vertices,
-                                               const float threshold) {
-    generateDownsample<2>(neighborChunks, vertices, threshold);
+                                               std::vector<VertexData>& vertices) {
+    generateDownsample<2>(neighborChunks, vertices);
 }
 
 void VoxelVertexGenerator::generateDownsample4(const ChunkNeighborhood& neighborChunks,
-                                               std::vector<VertexData>& vertices,
-                                               const float threshold) {
-    generateDownsample<4>(neighborChunks, vertices, threshold);
+                                               std::vector<VertexData>& vertices) {
+    generateDownsample<4>(neighborChunks, vertices);
 }
 
 void VoxelVertexGenerator::generateDownsample8(const ChunkNeighborhood& neighborChunks,
-                                               std::vector<VertexData>& vertices,
-                                               const float threshold) {
-    generateDownsample<8>(neighborChunks, vertices, threshold);
+                                               std::vector<VertexData>& vertices) {
+    generateDownsample<8>(neighborChunks, vertices);
 }
 
 template <size_t BlockSize>
 void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborChunks,
-                                              std::vector<VertexData>& vertices,
-                                              const float threshold) {
+                                              std::vector<VertexData>& vertices) {
     constexpr uint32_t blockSize = BlockSize;
-    constexpr uint32_t blockVolume = blockSize * blockSize * blockSize;
-    const uint32_t minVoxelsToConsiderPresent = blockVolume * threshold;
 
     constexpr uint32_t lowResChunkWidth = Chunk::WIDTH / blockSize;
     constexpr uint32_t bitmapWidth = lowResChunkWidth * 3;
@@ -106,12 +100,10 @@ void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborC
     };
 
     auto blockMeetsThreshold = [&](const uint32_t bx, const uint32_t by, const uint32_t bz) -> bool {
-        uint32_t count = 0;
         for (uint32_t dx = 0; dx < blockSize; ++dx) {
             for (uint32_t dy = 0; dy < blockSize; ++dy) {
                 for (uint32_t dz = 0; dz < blockSize; ++dz) {
-                    if (neighborChunks.hasVoxelAt(bx + dx, by + dy, bz + dz)
-                        && ++count >= minVoxelsToConsiderPresent) {
+                    if (neighborChunks.hasVoxelAt(bx + dx, by + dy, bz + dz)) {
                         return true;
                     }
                 }
@@ -136,6 +128,19 @@ void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborC
         }
     }
 
+    auto isVisibleVoxel = [&](const uint32_t cx, const uint32_t cy, const uint32_t cz) -> bool {
+        const uint32_t x = cx + Chunk::WIDTH;
+        const uint32_t y = cy + Chunk::WIDTH;
+        const uint32_t z = cz + Chunk::WIDTH;
+        const bool nx = neighborChunks.hasVoxelAt(x-1, y, z);
+        const bool px = neighborChunks.hasVoxelAt(x+1, y, z);
+        const bool ny = neighborChunks.hasVoxelAt(x, y-1, z);
+        const bool py = neighborChunks.hasVoxelAt(x, y+1, z);
+        const bool nz = neighborChunks.hasVoxelAt(x, y, z-1);
+        const bool pz = neighborChunks.hasVoxelAt(x, y, z+1);
+        return neighborChunks.hasVoxelAt(x, y, z) && !(nx & px & ny & py & nz & pz);
+    };
+
     for (uint32_t x = lowResChunkWidth; x < 2 * lowResChunkWidth; ++x) {
         for (uint32_t y = lowResChunkWidth; y < 2 * lowResChunkWidth; ++y) {
             for (uint32_t z = lowResChunkWidth; z < 2 * lowResChunkWidth; ++z) {
@@ -158,7 +163,7 @@ void VoxelVertexGenerator::generateDownsample(const ChunkNeighborhood& neighborC
                         for (uint32_t dx = 0; dx < blockSize; ++dx) {
                             for (uint32_t dy = 0; dy < blockSize; ++dy) {
                                 for (uint32_t dz = 0; dz < blockSize; ++dz) {
-                                    if (centerChunk.hasVoxel(vx + dx, vy + dy, vz + dz)) {
+                                    if (isVisibleVoxel(vx + dx, vy + dy, vz + dz)) {
                                         VoxelData voxel = centerChunk.getVoxel(vx + dx, vy + dy, vz + dz);
                                         ++voxelCounts[static_cast<uint32_t>(voxel)];
                                     }

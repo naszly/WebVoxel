@@ -16,8 +16,8 @@ struct ChunkVertexData {
 
     explicit ChunkVertexData(const ChunkNeighborhood &chunkNeighborhood) {
         VoxelVertexGenerator::generate(chunkNeighborhood, fullResolution);
-        VoxelVertexGenerator::generateDownsample2(chunkNeighborhood, downsampledBy2, 0.9f);
-        VoxelVertexGenerator::generateDownsample4(chunkNeighborhood, downsampledBy4, 0.9f);
-        VoxelVertexGenerator::generateDownsample8(chunkNeighborhood, downsampledBy8, 0.9f);
+        VoxelVertexGenerator::generateDownsample2(chunkNeighborhood, downsampledBy2);
+        VoxelVertexGenerator::generateDownsample4(chunkNeighborhood, downsampledBy4);
+        VoxelVertexGenerator::generateDownsample8(chunkNeighborhood, downsampledBy8);
     }
 };
