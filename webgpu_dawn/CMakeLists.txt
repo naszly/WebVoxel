@@ -64,6 +64,10 @@ else ()
         set(DAWN_FETCH_DEPENDENCIES ON)
         set(DAWN_BUILD_MONOLITHIC_LIBRARY STATIC)
 
+        if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            add_compile_options(-Wno-invalid-constexpr)
+        endif ()
+
         set(DAWN_ENABLE_D3D11 OFF)
         set(DAWN_ENABLE_D3D12 OFF)
         set(DAWN_ENABLE_METAL OFF)
