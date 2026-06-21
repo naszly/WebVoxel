@@ -1,5 +1,7 @@
 #include "ChunkManagementSystem.h"
 
+#include <algorithm>
+
 #include "RendererSystem.h"
 #include "application/Application.h"
 #include "common/Log.h"
@@ -89,7 +91,7 @@ std::vector<glm::ivec3> ChunkManagementSystem::generateChunkOffsets() const {
             }
         }
     }
-    std::ranges::sort(offsets, [&](const glm::ivec3& a, const glm::ivec3& b) {
+    std::sort(offsets.begin(), offsets.end(), [yCorrection](const glm::ivec3& a, const glm::ivec3& b) {
         const float cay = static_cast<float>(a.y) * yCorrection;
         const float cby = static_cast<float>(b.y) * yCorrection;
         const float da = a.x * a.x + a.z * a.z + cay * cay;
