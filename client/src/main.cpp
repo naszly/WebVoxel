@@ -21,6 +21,7 @@ int main(const int argc, char** argv) {
     int width = 800;
     int height = 600;
     bool cavesEnabled = true;
+    int seed = 0;
     std::optional<int> voxWorldModelIndex = std::nullopt;
 
     try {
@@ -31,6 +32,7 @@ int main(const int argc, char** argv) {
             ("height", "Window height", cxxopts::value<int>()->default_value("600"))
             ("modelIndex", "Vox model index", cxxopts::value<int>())
             ("caves", "Enable cave generation", cxxopts::value<bool>()->default_value("true"))
+            ("seed", "Seed for world generation", cxxopts::value<int>()->default_value("0"))
             ("help", "Print help");
 
         auto result = options.parse(argc, argv);
@@ -46,6 +48,7 @@ int main(const int argc, char** argv) {
             voxWorldModelIndex = result["modelIndex"].as<int>();
         }
         cavesEnabled = result["caves"].as<bool>();
+        seed = result["seed"].as<int>();
 
     } catch (const std::exception& e) {
         LogCore::critical("Failed to parse CLI arguments: {}", e.what());
@@ -62,7 +65,7 @@ int main(const int argc, char** argv) {
     if (voxWorldModelIndex) {
         builder.addSystemToLayer<VoxWorldLoaderSystem>(mainLayerIdx, *voxWorldModelIndex);
     } else {
-        builder.addSystemToLayer<ChunkManagementSystem>(mainLayerIdx, cavesEnabled);
+        builder.addSystemToLayer<ChunkManagementSystem>(mainLayerIdx, cavesEnabled, seed);
     }
 
     const size_t guiLayerIdx = builder.addLayer();

@@ -19,8 +19,8 @@ public:
 
     void onEvent(Event &event) override {}
 
-    explicit ChunkManagementSystem(const bool cavesEnabled = true)
-        : System(), m_generator(cavesEnabled) {}
+    explicit ChunkManagementSystem(const bool cavesEnabled = true, const int seed = 0)
+        : System(), m_generator(cavesEnabled, seed) {}
 
     ~ChunkManagementSystem() override {
         m_shouldExit = true;

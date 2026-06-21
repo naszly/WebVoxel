@@ -9,7 +9,7 @@
 
 class WorldGenerator {
 public:
-    explicit WorldGenerator(bool cavesEnabled = true);
+    explicit WorldGenerator(bool cavesEnabled = true, int seed = 0);
     ~WorldGenerator() = default;
 
     WorldGenerator(const WorldGenerator&) = delete;
