@@ -115,14 +115,14 @@ void Chunk::generate(WorldGenerator& generator) {
     }
 }
 
-bool Chunk::fileExists() const {
-    const std::string &fileName = getFileName();
+bool Chunk::fileExists(const std::string &path) const {
+    const std::string fileName = path + '/' + getFileName();
 
     return FileSystem::fileExists(fileName);
 }
 
-void Chunk::save() {
-    const std::string &fileName = getFileName();
+void Chunk::save(const std::string &path) {
+    const std::string fileName = path + '/' + getFileName();
 
     std::ostringstream oss;
     m_data.serialize(oss);
@@ -137,8 +137,8 @@ void Chunk::save() {
     FileSystem::writeFile(fileName, fileData.data(), fileData.size());
 }
 
-void Chunk::load() {
-    const std::string &fileName = getFileName();
+void Chunk::load(const std::string &path) {
+    const std::string fileName = path + '/' + getFileName();
     const std::vector<char> compressedData = FileSystem::readFile(fileName);
 
     // First 4 bytes represent the decompressed data length

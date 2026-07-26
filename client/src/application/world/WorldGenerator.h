@@ -7,9 +7,14 @@
 
 #include <glm/glm.hpp>
 
+struct WorldGeneratorParams {
+    int seed = 0;
+    bool cavesEnabled = true;
+};
+
 class WorldGenerator {
 public:
-    explicit WorldGenerator(bool cavesEnabled = true, int seed = 0);
+    explicit WorldGenerator(WorldGeneratorParams param);
     ~WorldGenerator() = default;
 
     WorldGenerator(const WorldGenerator&) = delete;

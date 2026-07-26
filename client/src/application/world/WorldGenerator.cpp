@@ -22,10 +22,10 @@ FastNoise::SmartNode<> makeOreGenerator(const bool cavesEnabled) {
     return constant;
 }
 
-WorldGenerator::WorldGenerator(const bool cavesEnabled, const int seed)
-    : m_caveGenerator(makeCaveGenerator(cavesEnabled)),
-      m_oreGenerator(makeOreGenerator(cavesEnabled)),
-      m_noiseSeed(seed) {}
+WorldGenerator::WorldGenerator(const WorldGeneratorParams param)
+    : m_caveGenerator(makeCaveGenerator(param.cavesEnabled)),
+      m_oreGenerator(makeOreGenerator(param.cavesEnabled)),
+      m_noiseSeed(param.seed) {}
 
 std::vector<uint8_t> WorldGenerator::generateTerrainHeights(int chunkPosX, int chunkPosZ) {
     Threading::ScopedLock lock(&m_cacheLock);

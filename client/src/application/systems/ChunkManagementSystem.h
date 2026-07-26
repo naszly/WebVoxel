@@ -19,8 +19,17 @@ public:
 
     void onEvent(Event &event) override {}
 
-    explicit ChunkManagementSystem(const bool cavesEnabled = true, const int seed = 0)
-        : System(), m_generator(cavesEnabled, seed) {}
+    explicit ChunkManagementSystem(
+        const std::string& path,
+        std::optional<WorldGeneratorParams> worldGeneratorParam = std::nullopt) : System() {
+        m_savePath = path;
+        if (worldGeneratorParam) {
+            saveWorldGeneratorParams(m_savePath, worldGeneratorParam.value());
+        } else {
+            worldGeneratorParam = loadWorldGeneratorParams(m_savePath);
+        }
+        m_generator = std::make_unique<WorldGenerator>(*worldGeneratorParam);
+    }
 
     ~ChunkManagementSystem() override {
         m_shouldExit = true;
@@ -112,7 +121,8 @@ private:
     Threading::Lock m_lock;
     bool m_shouldExit = false;
 
-    WorldGenerator m_generator;
+    std::unique_ptr<WorldGenerator> m_generator{};
+    std::string m_savePath{};
 
     void processChunkManagement(const Camera& camera, World& world);
 
@@ -135,4 +145,8 @@ private:
     static void* worker(void *arg);
 
     bool fetchWork(Work& work);
+
+    static void saveWorldGeneratorParams(const std::string &path, WorldGeneratorParams worldGeneratorParams);
+
+    static WorldGeneratorParams loadWorldGeneratorParams(const std::string &path);
 };

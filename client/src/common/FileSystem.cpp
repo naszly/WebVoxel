@@ -218,6 +218,184 @@ void FileSystem::writeFile(const std::string& fileName, const char* buffer, cons
 #endif
 }
 
+void FileSystem::ensureDirectory(const std::string& path) {
+    if (path.empty()) {
+        return;
+    }
+
+#if defined(__EMSCRIPTEN__)
+    MAIN_THREAD_EM_ASM({
+        const rawPath = UTF8ToString($0);
+        if (!rawPath) return;
+
+        const parts = rawPath.split("/").filter(Boolean);
+        let current = "workdir";
+        for (const part of parts) {
+            current += "/" + part;
+            try {
+                if (!FS.analyzePath(current).exists) {
+                    FS.mkdir(current);
+                }
+            } catch (e) {
+                // Ignore "already exists" and intermediate path races.
+            }
+        }
+    }, path.c_str());
+#else
+    std::error_code ec;
+    std::filesystem::create_directories(path, ec);
+    if (ec) {
+        LogCore::error("Failed to create directory {0}: {1}", path, ec.message());
+    }
+#endif
+}
+
+std::vector<std::string> FileSystem::listDirectories(const std::string& path)
+{
+    std::vector<std::string> result;
+
+#if defined(__EMSCRIPTEN__)
+
+    char buffer[8192] = {};
+
+    MAIN_THREAD_EM_ASM({
+
+        let path = UTF8ToString($0);
+
+
+        // Application filesystem root is /workdir
+        // Convert relative paths to IDBFS paths
+        if (!path.startsWith("/workdir"))
+        {
+            if (path.startsWith("./"))
+            {
+                path = path.substring(2);
+            }
+
+            path = "/workdir/" + path;
+        }
+
+
+        console.log("Listing directory:", path);
+
+
+        try
+        {
+            const entries =
+                FS.readdir(path);
+
+
+            const directories = [];
+
+
+            for (const entry of entries)
+            {
+                if (entry === "." || entry === "..")
+                    continue;
+
+
+                const fullPath =
+                    path + "/" + entry;
+
+
+                const stat =
+                    FS.stat(fullPath);
+
+
+                if (FS.isDir(stat.mode))
+                {
+                    directories.push(entry);
+                }
+            }
+
+
+            stringToUTF8(
+                directories.join("\n"),
+                $1,
+                $2
+            );
+
+        }
+        catch (e)
+        {
+            console.error(
+                "Failed to list directories:",
+                path,
+                e
+            );
+
+
+            stringToUTF8(
+                "",
+                $1,
+                $2
+            );
+        }
+
+
+    },
+    path.c_str(),
+    buffer,
+    sizeof(buffer));
+
+
+    std::string data(buffer);
+
+
+    size_t start = 0;
+
+
+    while (start < data.size())
+    {
+        const auto end =
+            data.find('\n', start);
+
+
+        if (end == std::string::npos)
+        {
+            if (!data.substr(start).empty())
+            {
+                result.push_back(
+                    data.substr(start)
+                );
+            }
+
+            break;
+        }
+
+
+        result.push_back(
+            data.substr(start, end - start)
+        );
+
+
+        start = end + 1;
+    }
+
+
+#else
+
+    std::error_code ec;
+
+
+    for (const auto& entry :
+         std::filesystem::directory_iterator(path, ec))
+    {
+        if (entry.is_directory())
+        {
+            result.push_back(
+                entry.path().filename().string()
+            );
+        }
+    }
+
+
+#endif
+
+
+    return result;
+}
+
 void FileSystem::download(const std::string& fileName, const std::string& downloadName) {
 #if defined(__EMSCRIPTEN__)
     const auto filePath = "/workdir/" + fileName;

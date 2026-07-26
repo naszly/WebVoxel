@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>WebVoxel</title>
+
+    <style>
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background: #060708;
+            color: #e0e0e0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .emscripten {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+
+            z-index: 1000;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 6px;
+
+            background: linear-gradient(
+                    180deg,
+                    rgba(0, 0, 0, .5),
+                    rgba(0, 0, 0, 0)
+            );
+
+            pointer-events: none;
+        }
+
+        #header * {
+            pointer-events: auto;
+        }
+
+
+        canvas.emscripten {
+
+            display: block;
+
+            width: 100vw;
+            height: 100vh;
+
+            border: 0;
+            background: black;
+
+        }
+
+
+        canvas.emscripten:focus,
+        canvas.emscripten:focus-visible {
+
+            outline: 1px solid #3399ff;
+            box-shadow: 0 0 5px #3399ff;
+
+        }
+
+
+        button,
+        input[type="button"] {
+
+            background: #222;
+            color: #eee;
+
+            border: 1px solid #444;
+            border-radius: 3px;
+
+            padding: 5px 12px;
+
+            cursor: pointer;
+
+        }
+
+
+        button:hover,
+        input[type="button"]:hover {
+
+            background: #333;
+
+        }
+
+
+        .spinner {
+
+            height: 16px;
+            width: 16px;
+
+            border-radius: 100%;
+
+            display: inline-block;
+
+            border-left: 5px solid #eee;
+            border-right: 5px solid #eee;
+            border-bottom: 5px solid #eee;
+            border-top: 5px solid #777;
+
+            animation: rotation .8s linear infinite;
+
+        }
+
+
+        @keyframes rotation {
+
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+
+        }
+
+
+        #status {
+
+            font-weight: bold;
+
+            color: #aaa;
+
+        }
+
+
+        #progress {
+
+            width: 300px;
+
+        }
+
+
+        .no-scroll {
+
+            overflow: hidden !important;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div id="header">
+
+    <div id="spinner"
+         class="spinner"></div>
+
+
+    <div id="status">
+        Downloading...
+    </div>
+
+
+    <progress id="progress"
+              value="0"
+              max="100"
+              hidden>
+    </progress>
+
+
+    <input type="button"
+           value="Fullscreen"
+           onclick="Module.requestFullscreen()">
+
+
+    <input type="button"
+           value="Back"
+           onclick="location.replace('index.html');">
+
+</div>
+
+
+<canvas id="canvas"
+        class="emscripten"
+        oncontextmenu="event.preventDefault()"
+        tabindex="-1">
+</canvas>
+
+
+<script>
+
+
+    const statusElement =
+        document.getElementById("status");
+
+
+    const progressElement =
+        document.getElementById("progress");
+
+
+    const spinnerElement =
+        document.getElementById("spinner");
+
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+
+    const world =
+        params.get("world");
+
+
+    const createWorld =
+        params.get("create") === "true";
+
+
+    const seed =
+        params.get("seed");
+
+
+    const caves =
+        params.get("caves");
+
+
+    Module = {
+
+        arguments: [],
+
+
+        canvas: (() => {
+
+            const canvas =
+                document.getElementById("canvas");
+
+
+            canvas.addEventListener(
+                "webglcontextlost",
+                (e) => {
+
+                    alert(
+                        "Graphics context lost."
+                    );
+
+                    e.preventDefault();
+
+                },
+                false
+            );
+
+
+            return canvas;
+
+        })(),
+
+
+        setStatus(text) {
+
+
+            Module.setStatus.last ??=
+                {
+                    time: Date.now(),
+                    text: ""
+                };
+
+
+            if (
+                text ===
+                Module.setStatus.last.text
+            )
+                return;
+
+
+            Module.setStatus.last.text =
+                text;
+
+
+            const match =
+                text.match(
+                    /([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/
+                );
+
+
+            if (match) {
+
+                progressElement.value =
+                    Number(match[2]) * 100;
+
+
+                progressElement.max =
+                    Number(match[4]) * 100;
+
+
+                progressElement.hidden =
+                    false;
+
+
+                spinnerElement.hidden =
+                    false;
+
+
+            } else {
+
+                progressElement.hidden =
+                    true;
+
+
+                if (!text)
+                    spinnerElement.style.display =
+                        "none";
+
+            }
+
+
+            statusElement.innerHTML =
+                text;
+
+        },
+
+
+        totalDependencies: 0,
+
+
+        monitorRunDependencies(left) {
+
+            this.totalDependencies =
+                Math.max(
+                    this.totalDependencies,
+                    left
+                );
+
+
+            Module.setStatus(
+                left
+                    ?
+                    "Preparing..."
+                    :
+                    "Ready"
+            );
+
+        }
+
+    };
+
+
+    Module.setStatus(
+        "Downloading..."
+    );
+
+
+    window.onerror = () => {
+
+        Module.setStatus(
+            "Exception thrown, check console"
+        );
+
+        spinnerElement.style.display =
+            "none";
+
+    };
+
+
+    /*
+        Pass browser URL parameters to main(argc, argv).
+
+        Example:
+
+        game.html?world=my_world&create=true&seed=123&caves=false
+
+        becomes:
+
+        --world=my_world
+        --create
+        --seed=123
+        --caves=false
+
+        which is handled by cxxopts in main.cpp.
+    */
+
+
+    if (world) {
+        Module.arguments.push(
+            "--world=" + world
+        );
+    }
+
+
+    if (createWorld) {
+        Module.arguments.push(
+            "--create"
+        );
+    }
+
+
+    if (params.has("seed")) {
+        Module.arguments.push(
+            "--seed=" + seed
+        );
+    }
+
+
+    if (params.has("caves")) {
+        Module.arguments.push(
+            "--caves=" + caves
+        );
+    }
+
+    /*
+        Prevent browser scrolling
+        while playing.
+    */
+
+
+    (function () {
+
+
+        const canvas =
+            document.getElementById("canvas");
+
+
+        const scrollKeys =
+            new Set([
+                "Space",
+                "ArrowUp",
+                "ArrowDown",
+                "ArrowLeft",
+                "ArrowRight"
+            ]);
+
+
+        function locked() {
+
+            return (
+                document.pointerLockElement === canvas
+            );
+
+        }
+
+
+        function key(e) {
+
+            if (scrollKeys.has(e.code))
+                e.preventDefault();
+
+        }
+
+
+        function update() {
+
+
+            if (locked()) {
+
+                document.body.classList.add(
+                    "no-scroll"
+                );
+
+                window.scrollTo(0, 0);
+
+                document.addEventListener(
+                    "keydown",
+                    key,
+                    {passive: false}
+                );
+
+            } else {
+
+                document.body.classList.remove(
+                    "no-scroll"
+                );
+
+                document.removeEventListener(
+                    "keydown",
+                    key
+                );
+
+            }
+
+        }
+
+
+        document.addEventListener(
+            "pointerlockchange",
+            update
+        );
+
+
+    })();
+
+
+</script>
+
+
+{{{ SCRIPT }}}
+
+
+</body>
+</html>

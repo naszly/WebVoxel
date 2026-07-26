@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+    <meta charset="utf-8">
+
+    <meta http-equiv="Cache-Control" content="no-store">
+
+    <title>WebVoxel Worlds</title>
+
+    <script>
+
+        window.addEventListener("pageshow", function(event)
+        {
+            if (event.persisted)
+            {
+                window.location.reload();
+            }
+        });
+
+    </script>
+
+    <style>
+
+        body {
+            margin: 0;
+            padding: 40px;
+            background: #060708;
+            color: #eee;
+            font-family: Arial, sans-serif;
+        }
+
+
+        .container {
+
+            width: 500px;
+
+            margin: auto;
+
+            background: #111;
+
+            padding: 20px;
+
+            border: 1px solid #333;
+
+            border-radius: 8px;
+
+        }
+
+
+
+        h1 {
+
+            text-align: center;
+
+            color: #9ecbff;
+
+        }
+
+
+
+        h2 {
+
+            color: #9ecbff;
+
+        }
+
+
+
+        .world {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            background: #1a1a1a;
+
+            padding: 8px;
+
+            margin-bottom: 5px;
+
+            border-radius: 3px;
+
+        }
+
+
+
+        .world:hover {
+
+            background: #222;
+
+        }
+
+
+
+        input {
+
+            width: 100%;
+
+            box-sizing: border-box;
+
+            margin: 5px 0 12px;
+
+            padding: 8px;
+
+            background: #222;
+
+            color: white;
+
+            border: 1px solid #555;
+
+        }
+
+
+
+        input[type="checkbox"] {
+
+            width: auto;
+
+        }
+
+
+
+        button {
+
+            padding: 8px 16px;
+
+            background: #222;
+
+            color: white;
+
+            border: 1px solid #555;
+
+            cursor: pointer;
+
+        }
+
+
+
+        button:hover {
+
+            background: #333;
+
+        }
+
+
+
+        #status {
+
+            color: #aaa;
+
+            margin-bottom: 20px;
+
+        }
+
+
+    </style>
+
+</head>
+
+
+
+<body>
+
+
+<div class="container">
+
+
+    <h1>
+        WebVoxel
+    </h1>
+
+
+
+    <div id="status">
+        Loading worlds...
+    </div>
+
+
+
+    <h2>
+        Worlds
+    </h2>
+
+
+
+    <div id="worlds">
+
+        No worlds found.
+
+    </div>
+
+
+
+    <h2>
+        Create world
+    </h2>
+
+
+
+    <label>
+        Name
+    </label>
+
+
+    <input
+            id="worldName"
+            type="text"
+            placeholder="my_world">
+
+
+
+    <label>
+        Seed
+    </label>
+
+
+    <input
+            id="seed"
+            type="number"
+            value="0">
+
+
+
+    <label>
+
+        <input
+                id="caves"
+                type="checkbox"
+                checked>
+
+        Generate caves
+
+    </label>
+
+
+
+    <br><br>
+
+
+
+    <button onclick="createWorld()">
+
+        Create and Play
+
+    </button>
+
+
+
+</div>
+
+
+
+<script>
+
+    const worldsElement =
+        document.getElementById("worlds");
+
+    const statusElement =
+        document.getElementById("status");
+
+    function renderWorlds(worlds)
+    {
+        worldsElement.innerHTML = "";
+
+        if (worlds.length === 0)
+        {
+            worldsElement.innerHTML = "No worlds found.";
+            return;
+        }
+
+        for (const world of worlds)
+        {
+            const row = document.createElement("div");
+            row.className = "world";
+
+            row.innerHTML =
+                `<span>${world}</span>
+             <button>Play</button>`;
+
+            row.querySelector("button").onclick = function ()
+            {
+                location.replace(
+                    "game.html?" +
+                    new URLSearchParams({
+                        world: world
+                    })
+                );
+            };
+
+            worldsElement.appendChild(row);
+        }
+    }
+
+    function createWorld()
+    {
+        const name =
+            document.getElementById("worldName")
+                .value
+                .trim();
+
+        const seed =
+            document.getElementById("seed").value || "0";
+
+        const caves =
+            document.getElementById("caves").checked;
+
+        if (!/^[a-z0-9_]+$/.test(name))
+        {
+            alert("World names may only contain a-z, 0-9 and _");
+            return;
+        }
+
+        location.replace(
+            "game.html?" +
+            new URLSearchParams({
+                world: name,
+                create: "true",
+                seed: seed,
+                caves: caves
+            })
+        );
+    }
+
+    window.onWorldListReady = function ()
+    {
+        console.log("World list ready.");
+
+        const count =
+            Module.ccall(
+                "getWorldCount",
+                "number"
+            );
+
+        console.log("Count:", count);
+
+        const worlds = [];
+
+        for (let i = 0; i < count; i++)
+        {
+            const world =
+                Module.ccall(
+                    "getWorldName",
+                    "string",
+                    ["number"],
+                    [i]
+                );
+
+            console.log(world);
+
+            worlds.push(world);
+        }
+
+        renderWorlds(worlds);
+
+        statusElement.innerText = "Ready";
+    };
+
+    var Module =
+        {
+            print(text)
+            {
+                console.log(text);
+            },
+
+            printErr(text)
+            {
+                console.error(text);
+            },
+
+            onRuntimeInitialized()
+            {
+                console.log("Launcher runtime initialized.");
+                statusElement.innerText = "Loading worlds...";
+            }
+        };
+
+</script>
+
+{{{ SCRIPT }}}
+
+</body>
+
+</html>

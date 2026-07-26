@@ -12,5 +12,5 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         super().end_headers()
 
-httpd = HTTPServer((host, 8000), CORSRequestHandler)
+httpd = HTTPServer((host, 8001), CORSRequestHandler)
 httpd.serve_forever()

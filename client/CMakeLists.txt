@@ -12,7 +12,11 @@ endif ()
 
 include(FetchContent)
 
-# GLM
+
+# -------------------------
+# Dependencies
+# -------------------------
+
 FetchContent_Declare(
         glm
         GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -29,7 +33,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw3webgpu)
 
-# spdlog
 set(SPDLOG_USE_STD_FORMAT ON)
 FetchContent_Declare(
         spdlog
@@ -39,7 +42,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
-# Magic Enum
 FetchContent_Declare(
         magic_enum
         GIT_REPOSITORY https://github.com/Neargye/magic_enum
@@ -48,7 +50,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
-# ImGUI
 FetchContent_Declare(
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -63,9 +64,9 @@ file(GLOB IMGUI_SOURCES
         ${imgui_SOURCE_DIR}/*.cpp
         ${imgui_SOURCE_DIR}/*.h
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp)
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp
+)
 
-# FastNoise2
 FetchContent_Declare(
         FastNoise2
         GIT_REPOSITORY https://github.com/uriel-4/FastNoise2
@@ -74,7 +75,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(FastNoise2)
 
-# ZLIB
 set(ZLIB_BUILD_EXAMPLES OFF)
 FetchContent_Declare(
         zlib
@@ -84,7 +84,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(zlib)
 
-# opengametools (ogt_vox.h)
 FetchContent_Declare(
         opengametools
         GIT_REPOSITORY https://github.com/jpaver/opengametools
@@ -95,7 +94,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(opengametools)
 file(GLOB_RECURSE OGT_SOURCES ${opengametools_SOURCE_DIR}/src/*)
 
-# stb image
 FetchContent_Declare(
         stb
         GIT_REPOSITORY https://github.com/nothings/stb
@@ -104,7 +102,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stb)
 
-# cxxopts
 FetchContent_Declare(
         cxxopts
         GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
@@ -113,24 +110,88 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cxxopts)
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.h)
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${OGT_SOURCES})
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)
-set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_AS_ERROR ON)
+# -------------------------
+# Shared filesystem sources
+# -------------------------
 
-target_link_libraries(${PROJECT_NAME} glm::glm webgpu glfw glfw3webgpu spdlog::spdlog magic_enum::magic_enum FastNoise2 zlib cxxopts)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_include_directories(${PROJECT_NAME} PRIVATE ${webgpu_SOURCE_DIR})
-target_include_directories(${PROJECT_NAME} PRIVATE ${glfw3webgpu_SOURCE_DIR})
-target_include_directories(${PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
-target_include_directories(${PROJECT_NAME} PRIVATE ${opengametools_SOURCE_DIR}/src)
-target_include_directories(${PROJECT_NAME} PRIVATE ${stb_SOURCE_DIR})
-target_include_directories(${PROJECT_NAME} PRIVATE ${cxxopts_SOURCE_DIR}/include)
+file(GLOB_RECURSE FILESYSTEM_SOURCES
+        CONFIGURE_DEPENDS
+        src/common/*.cpp
+        src/common/*.h
+)
+
+
+
+# -------------------------
+# GAME
+# -------------------------
+
+file(GLOB_RECURSE GAME_SOURCES
+        CONFIGURE_DEPENDS
+        src/*.cpp
+        src/*.h
+)
+
+list(REMOVE_ITEM GAME_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_main.cpp
+)
+
+
+add_executable(
+        WebVoxel
+        ${GAME_SOURCES}
+        ${IMGUI_SOURCES}
+        ${OGT_SOURCES}
+)
+
+
+set_property(
+        TARGET WebVoxel
+        PROPERTY CXX_STANDARD 23
+)
+
+
+target_link_libraries(
+        WebVoxel
+        glm::glm
+        webgpu
+        glfw
+        glfw3webgpu
+        spdlog::spdlog
+        magic_enum::magic_enum
+        FastNoise2
+        cxxopts
+        zlibstatic
+)
+
+
+
+target_include_directories(
+        WebVoxel PRIVATE
+
+        src
+
+        ${webgpu_SOURCE_DIR}
+        ${glfw3webgpu_SOURCE_DIR}
+
+        ${imgui_SOURCE_DIR}
+        ${imgui_SOURCE_DIR}/backends
+
+        ${opengametools_SOURCE_DIR}/src
+        ${stb_SOURCE_DIR}
+
+        ${cxxopts_SOURCE_DIR}/include
+
+        ${zlib_SOURCE_DIR}
+        ${zlib_BINARY_DIR}
+)
+
+
 
 target_compile_definitions(
-        ${PROJECT_NAME} PRIVATE
+        WebVoxel PRIVATE
         GLM_FORCE_DEPTH_ZERO_TO_ONE
         GLM_FORCE_LEFT_HANDED
         GLM_FORCE_RADIANS
@@ -139,9 +200,6 @@ target_compile_definitions(
         IMGUI_IMPL_WEBGPU_BACKEND_DAWN
 )
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-        S_DEBUGGER_ENVIRONMENT "DAWN_DEBUG_BREAK_ON_ERROR=1"
-)
 
 if (EMSCRIPTEN)
     set(ASSET_DIR ${PROJECT_BINARY_DIR}/asset_dir)
@@ -173,17 +231,73 @@ foreach (FONT_FILE ${FONT_FILES})
     configure_file(${FONT_FILE} ${ASSET_DIR}/fonts/${FONT_NAME} COPYONLY)
 endforeach ()
 
+
+
+# -------------------------
+# LAUNCHER
+# -------------------------
+
+add_executable(WebVoxelLauncher
+        src/launcher_main.cpp
+        src/common/FileSystem.cpp
+        src/common/Log.cpp
+        src/common/Timer.cpp
+        #src/common/datastructures/GlobalBlockAllocator.cpp
+)
+
+set_property(
+        TARGET WebVoxelLauncher
+        PROPERTY CXX_STANDARD 23
+)
+
+target_link_libraries(
+        WebVoxelLauncher
+        spdlog::spdlog
+        absl::hash
+        absl::raw_hash_set
+        glm::glm
+)
+
+target_include_directories(
+        WebVoxelLauncher PRIVATE
+
+        src
+)
+
+
+
+# -------------------------
+# Emscripten output
+# -------------------------
+
 if (EMSCRIPTEN)
-    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html" OUTPUT_NAME "index")
-    target_link_options(${PROJECT_NAME} PRIVATE
+
+
+    #
+    # GAME
+    #
+
+    set_target_properties(
+            WebVoxel
+            PROPERTIES
+
+            SUFFIX ".html"
+
+            OUTPUT_NAME "game"
+    )
+
+
+    target_link_options(
+            WebVoxel PRIVATE
+
             -sASSERTIONS=2
             -sSTACK_OVERFLOW_CHECK=2
             -sUSE_GLFW=3
             -sASYNCIFY
             -sSTACK_SIZE=8388608 # 8MB
             -sALLOW_MEMORY_GROWTH
-            -sINITIAL_MEMORY=2147483648 # 2GB
-            -sMAXIMUM_MEMORY=4294967296 # 4GB
+            -sINITIAL_MEMORY=536870912      # 512 MB
+            -sMAXIMUM_MEMORY=4294967296     # 4 GB
             -sEXIT_RUNTIME
             -sUSE_PTHREADS
             -sPTHREAD_POOL_SIZE=6
@@ -193,5 +307,53 @@ if (EMSCRIPTEN)
             -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished
     )
 
-    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "--preload-file ${ASSET_DIR}@/ --shell-file ${PROJECT_SOURCE_DIR}/shell.html")
-endif ()
+
+    set_target_properties(
+            WebVoxel
+            PROPERTIES
+
+            LINK_FLAGS
+            "--preload-file ${PROJECT_BINARY_DIR}/asset_dir@/ --shell-file ${PROJECT_SOURCE_DIR}/game_shell.html"
+    )
+
+
+
+    #
+    # LAUNCHER
+    #
+
+    set_target_properties(
+            WebVoxelLauncher
+
+            PROPERTIES
+
+            SUFFIX ".html"
+            OUTPUT_NAME "index"
+    )
+
+
+    target_link_options(
+            WebVoxelLauncher PRIVATE
+            -sASSERTIONS=2
+            -sASYNCIFY
+            -sALLOW_MEMORY_GROWTH
+            -sINITIAL_MEMORY=67108864
+            -sFORCE_FILESYSTEM=1
+            -lidbfs.js
+            -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS
+            -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished,_getWorldCount,_getWorldName
+            -sNO_EXIT_RUNTIME=1
+    )
+
+
+    set_target_properties(
+            WebVoxelLauncher
+
+            PROPERTIES
+
+            LINK_FLAGS
+            "--shell-file ${PROJECT_SOURCE_DIR}/index_shell.html"
+    )
+
+
+endif()

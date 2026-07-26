@@ -10,6 +10,8 @@ namespace FileSystem {
     bool fileExists(const std::string& fileName);
 
     void writeFile(const std::string& fileName, const char* buffer, size_t size);
+    void ensureDirectory(const std::string& path);
+    std::vector<std::string> listDirectories(const std::string& path);
 
     /**
      * @brief Reads the contents of a file into a buffer.

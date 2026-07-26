@@ -5,6 +5,105 @@
 #include "RendererSystem.h"
 #include "application/Application.h"
 #include "common/Log.h"
+#include "common/FileSystem.h"
+
+#include <charconv>
+#include <optional>
+#include <string_view>
+
+namespace {
+
+std::string resolveWorldGeneratorParamsFileName(const std::string& path) {
+    if (path.empty()) {
+        return "worldGeneratorParams.json";
+    }
+
+    if (path.size() >= 5 && path.substr(path.size() - 5) == ".json") {
+        return path;
+    }
+
+    if (!path.empty() && (path.back() == '/' || path.back() == '\\')) {
+        return path + "worldGeneratorParams.json";
+    }
+
+    return path + "/worldGeneratorParams.json";
+}
+
+std::string serializeWorldGeneratorParams(const WorldGeneratorParams& params) {
+    return "{\n"
+           "  \"seed\": " + std::to_string(params.seed) + ",\n"
+           "  \"cavesEnabled\": " + std::string(params.cavesEnabled ? "true" : "false") + "\n"
+           "}\n";
+}
+
+bool extractIntValue(const std::string& json, const std::string_view key, int& outValue) {
+    const std::string keyPattern = "\"" + std::string(key) + "\"";
+    const auto keyPos = json.find(keyPattern);
+    if (keyPos == std::string::npos) {
+        return false;
+    }
+
+    const auto colonPos = json.find(':', keyPos + keyPattern.size());
+    if (colonPos == std::string::npos) {
+        return false;
+    }
+
+    const auto valuePos = json.find_first_of("-0123456789", colonPos + 1);
+    if (valuePos == std::string::npos) {
+        return false;
+    }
+
+    const char* begin = json.data() + valuePos;
+    const char* end = json.data() + json.size();
+    const auto [_, ec] = std::from_chars(begin, end, outValue);
+    return ec == std::errc{};
+}
+
+bool extractBoolValue(const std::string& json, const std::string_view key, bool& outValue) {
+    const std::string keyPattern = "\"" + std::string(key) + "\"";
+    const auto keyPos = json.find(keyPattern);
+    if (keyPos == std::string::npos) {
+        return false;
+    }
+
+    const auto colonPos = json.find(':', keyPos + keyPattern.size());
+    if (colonPos == std::string::npos) {
+        return false;
+    }
+
+    const auto valuePos = json.find_first_not_of(" \t\r\n", colonPos + 1);
+    if (valuePos == std::string::npos) {
+        return false;
+    }
+
+    if (json.compare(valuePos, 4, "true") == 0 || json.compare(valuePos, 1, "1") == 0) {
+        outValue = true;
+        return true;
+    }
+
+    if (json.compare(valuePos, 5, "false") == 0 || json.compare(valuePos, 1, "0") == 0) {
+        outValue = false;
+        return true;
+    }
+
+    return false;
+}
+
+std::optional<WorldGeneratorParams> parseWorldGeneratorParams(const std::string& json) {
+    WorldGeneratorParams params{};
+
+    if (!extractIntValue(json, "seed", params.seed)) {
+        return std::nullopt;
+    }
+
+    if (!extractBoolValue(json, "cavesEnabled", params.cavesEnabled)) {
+        return std::nullopt;
+    }
+
+    return params;
+}
+
+} // namespace
 
 void ChunkManagementSystem::initialize() {
 
@@ -30,7 +129,7 @@ void ChunkManagementSystem::update(const float dt) {
 
     processChunkManagement(camera, world);
 
-    m_generator.pruneCacheByDistance(camera.getPosition(), m_unloadZoneRadiusXz);
+    m_generator->pruneCacheByDistance(camera.getPosition(), m_unloadZoneRadiusXz);
 }
 
 void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& world) {
@@ -212,7 +311,7 @@ float ChunkManagementSystem::getChunkDistance(const glm::vec3 playerPosition, co
 
 void ChunkManagementSystem::handleChunkSave(ChunkHandle& chunkToSave) {
     const auto chunkPos = chunkToSave->getPosition();
-    chunkToSave->save();
+    chunkToSave->save(m_savePath);
 
     Threading::ScopedLock lock(&m_lock);
     m_savingChunks.erase(chunkPos);
@@ -220,10 +319,10 @@ void ChunkManagementSystem::handleChunkSave(ChunkHandle& chunkToSave) {
 
 void ChunkManagementSystem::handleChunkLoad(const glm::ivec3& chunkToLoad) {
     Chunk chunk(chunkToLoad);
-    if (chunk.fileExists()) {
-        chunk.load();
+    if (chunk.fileExists(m_savePath)) {
+        chunk.load(m_savePath);
     } else {
-        chunk.generate(m_generator);
+        chunk.generate(*m_generator);
     }
 
     Threading::ScopedLock lock(&m_lock);
@@ -305,4 +404,38 @@ bool ChunkManagementSystem::fetchWork(Work& work) {
     }
 
     return true;
+}
+
+void ChunkManagementSystem::saveWorldGeneratorParams(const std::string &path, const WorldGeneratorParams worldGeneratorParams) {
+    const auto fileName = resolveWorldGeneratorParamsFileName(path);
+    const auto parentPathPos = fileName.find_last_of("/\\");
+    if (parentPathPos != std::string::npos) {
+        FileSystem::ensureDirectory(fileName.substr(0, parentPathPos));
+    }
+
+    const auto json = serializeWorldGeneratorParams(worldGeneratorParams);
+    FileSystem::writeFile(fileName, json.data(), json.size());
+}
+
+WorldGeneratorParams ChunkManagementSystem::loadWorldGeneratorParams(const std::string &path) {
+    const auto fileName = resolveWorldGeneratorParamsFileName(path);
+    if (!FileSystem::fileExists(fileName)) {
+        LogApp::warning("World generator params file not found: {}", fileName);
+        return {};
+    }
+
+    const std::vector<char> buffer = FileSystem::readFile(fileName);
+    if (buffer.empty()) {
+        LogApp::warning("World generator params file is empty: {}", fileName);
+        return {};
+    }
+
+    const std::string json(buffer.begin(), buffer.end());
+    const auto params = parseWorldGeneratorParams(json);
+    if (!params.has_value()) {
+        LogApp::error("Failed to parse world generator params from file: {}", fileName);
+        return {};
+    }
+
+    return params.value();
 }

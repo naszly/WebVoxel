@@ -134,11 +134,11 @@ public:
         return m_data.getBitmap();
     }
 
-    [[nodiscard]] bool fileExists() const;
+    [[nodiscard]] bool fileExists(const std::string &path) const;
 
-    void save();
+    void save(const std::string &path);
 
-    void load();
+    void load(const std::string &path);
 
     void compress() {
         return m_data.compress();

@@ -22,6 +22,9 @@ int main(const int argc, char** argv) {
     int height = 600;
     bool cavesEnabled = true;
     int seed = 0;
+    std::string worldName;
+    bool createWorld = false;
+    bool listWorlds = false;
     std::optional<int> voxWorldModelIndex = std::nullopt;
 
     try {
@@ -33,6 +36,9 @@ int main(const int argc, char** argv) {
             ("modelIndex", "Vox model index", cxxopts::value<int>())
             ("caves", "Enable cave generation", cxxopts::value<bool>()->default_value("true"))
             ("seed", "Seed for world generation", cxxopts::value<int>()->default_value("0"))
+            ("world", "World name", cxxopts::value<std::string>())
+            ("create", "Create the world if it doesn't exist")
+            ("list-worlds", "List available worlds")
             ("help", "Print help");
 
         auto result = options.parse(argc, argv);
@@ -50,6 +56,35 @@ int main(const int argc, char** argv) {
         cavesEnabled = result["caves"].as<bool>();
         seed = result["seed"].as<int>();
 
+        if (result.count("world")) {
+            worldName = result["world"].as<std::string>();
+
+            const bool valid = !worldName.empty() &&
+                std::ranges::all_of(worldName, [](const unsigned char c) {
+                    return std::islower(c) || std::isdigit(c) || c == '_';
+                });
+
+            if (!valid) {
+                throw std::runtime_error(
+                    "Invalid world name. World names may only contain lowercase letters (a-z), digits (0-9), and underscores (_).");
+            }
+        }
+
+        createWorld = result.count("create") > 0;
+
+        listWorlds = result.count("list-worlds") > 0;
+
+
+        if (listWorlds)
+        {
+            for (const auto worlds = FileSystem::listDirectories("./worlds/"); const auto& world : worlds)
+            {
+                std::cout << world << "\n";
+            }
+
+            return 0;
+        }
+
     } catch (const std::exception& e) {
         LogCore::critical("Failed to parse CLI arguments: {}", e.what());
         return 1;
@@ -64,8 +99,22 @@ int main(const int argc, char** argv) {
            .addSystemToLayer<ControllerSystem>(mainLayerIdx);
     if (voxWorldModelIndex) {
         builder.addSystemToLayer<VoxWorldLoaderSystem>(mainLayerIdx, *voxWorldModelIndex);
-    } else {
-        builder.addSystemToLayer<ChunkManagementSystem>(mainLayerIdx, cavesEnabled, seed);
+    } else if (!worldName.empty()) {
+        if (createWorld) {
+            WorldGeneratorParams params{
+                .seed = seed,
+                .cavesEnabled = cavesEnabled,
+            };
+
+            builder.addSystemToLayer<ChunkManagementSystem>(
+                mainLayerIdx,
+                "worlds/" + worldName,
+                params);
+        } else {
+            builder.addSystemToLayer<ChunkManagementSystem>(
+                mainLayerIdx,
+                "worlds/" + worldName);
+        }
     }
 
     const size_t guiLayerIdx = builder.addLayer();
