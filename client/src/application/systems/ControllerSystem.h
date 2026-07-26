@@ -70,4 +70,8 @@ private:
     static void animateCameraFov(float dt, const Input& input, Camera& camera);
 
     static void castRay(glm::vec3 position, glm::vec3 direction, float length, const RayHitCallbackFn &callback);
+
+    // Auto-save timer for player state
+    float m_saveTimer = 0.0f;
+    static constexpr float SAVE_INTERVAL = 5.0f; // seconds
 };

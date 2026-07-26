@@ -9,6 +9,8 @@
 #include "core/events/MouseEvent.h"
 #include "application/world/World.h"
 #include "application/world/WorldCoordinate.h"
+#include "application/systems/ChunkManagementSystem.h"
+#include "common/Log.h"
 #include <limits>
 
 void ControllerSystem::initialize() {
@@ -16,6 +18,13 @@ void ControllerSystem::initialize() {
 
     camera.setDirection({0,0,1});
     camera.setPosition({0,150,0});
+
+    // Try to restore saved player state if available
+    if (auto* cms = getApplication().getSystem<ChunkManagementSystem>()) {
+        if (cms->loadPlayerState(camera)) {
+            LogApp::info("Loaded player state from save");
+        }
+    }
 }
 
 void ControllerSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView &targetView) {
@@ -23,6 +32,15 @@ void ControllerSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextu
 }
 
 void ControllerSystem::update(const float dt) {
+    // Periodically save player state
+    m_saveTimer += dt;
+    if (m_saveTimer >= SAVE_INTERVAL) {
+        if (auto* cms = getApplication().getSystem<ChunkManagementSystem>()) {
+            cms->savePlayerState(getCamera());
+        }
+        m_saveTimer = 0.0f;
+    }
+
     if (!m_isMouseCaptured) return;
 
     const Input& input = getInput();

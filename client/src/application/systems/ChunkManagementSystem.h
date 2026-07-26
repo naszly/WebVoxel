@@ -36,6 +36,10 @@ public:
         m_chunkWorkers.clear();
     }
 
+    // Save and load player state (position & direction) to the world save path
+    void savePlayerState(const Camera& camera);
+    bool loadPlayerState(Camera& camera);
+
     void setLoadDistance(const int distance) {
         if (distance == m_loadDistance) {
             return;

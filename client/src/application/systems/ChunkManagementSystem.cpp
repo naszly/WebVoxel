@@ -10,6 +10,7 @@
 #include <charconv>
 #include <optional>
 #include <string_view>
+#include <sstream>
 
 namespace {
 
@@ -438,4 +439,82 @@ WorldGeneratorParams ChunkManagementSystem::loadWorldGeneratorParams(const std::
     }
 
     return params.value();
+}
+
+// Helper: extract array of 3 floats from simple JSON like: "key": [x, y, z]
+static bool extractFloatArray(const std::string& json, const std::string_view key, glm::vec3& outValue) {
+    const std::string keyPattern = "\"" + std::string(key) + "\"";
+    const auto keyPos = json.find(keyPattern);
+    if (keyPos == std::string::npos) {
+        return false;
+    }
+
+    const auto bracketPos = json.find('[', keyPos + keyPattern.size());
+    if (bracketPos == std::string::npos) return false;
+    const auto endBracket = json.find(']', bracketPos + 1);
+    if (endBracket == std::string::npos) return false;
+
+    const std::string arrayContent = json.substr(bracketPos + 1, endBracket - bracketPos - 1);
+    std::istringstream ss(arrayContent);
+    float a, b, c;
+    char comma;
+    if (!(ss >> a)) return false;
+    // consume optional commas/spaces
+    ss >> std::ws;
+    if (ss.peek() == ',') ss >> comma;
+    ss >> std::ws;
+    if (!(ss >> b)) return false;
+    ss >> std::ws;
+    if (ss.peek() == ',') ss >> comma;
+    ss >> std::ws;
+    if (!(ss >> c)) return false;
+
+    outValue = glm::vec3(a, b, c);
+    return true;
+}
+
+void ChunkManagementSystem::savePlayerState(const Camera& camera) {
+    const auto fileName = m_savePath.empty() ? "player.json" : (m_savePath + "/player.json");
+    const auto parentPathPos = fileName.find_last_of("/\\");
+    if (parentPathPos != std::string::npos) {
+        FileSystem::ensureDirectory(fileName.substr(0, parentPathPos));
+    }
+
+    const auto pos = camera.getPosition();
+    const auto dir = camera.getDirection();
+
+    std::ostringstream oss;
+    oss << "{\n";
+    oss << "  \"position\": [" << pos.x << ", " << pos.y << ", " << pos.z << "],\n";
+    oss << "  \"direction\": [" << dir.x << ", " << dir.y << ", " << dir.z << "]\n";
+    oss << "}\n";
+
+    const auto json = oss.str();
+    FileSystem::writeFile(fileName, json.data(), json.size());
+}
+
+bool ChunkManagementSystem::loadPlayerState(Camera& camera) {
+    const auto fileName = m_savePath.empty() ? "player.json" : (m_savePath + "/player.json");
+    if (!FileSystem::fileExists(fileName)) {
+        LogApp::warning("Player state file not found: {}", fileName);
+        return false;
+    }
+
+    const std::vector<char> buffer = FileSystem::readFile(fileName);
+    if (buffer.empty()) {
+        LogApp::warning("Player state file is empty: {}", fileName);
+        return false;
+    }
+
+    const std::string json(buffer.begin(), buffer.end());
+    glm::vec3 position;
+    glm::vec3 direction;
+    if (!extractFloatArray(json, "position", position) || !extractFloatArray(json, "direction", direction)) {
+        LogApp::error("Failed to parse player state from file: {}", fileName);
+        return false;
+    }
+
+    camera.setPosition(position);
+    camera.setDirection(direction);
+    return true;
 }
