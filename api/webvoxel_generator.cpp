@@ -4,12 +4,15 @@
 #include "application/world/WorldGenerator.h"
 #include "application/world/chunk/Chunk.h"
 
+#include <magic_enum.hpp>
+
 #include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 struct WebVoxelGenerator {
@@ -25,20 +28,10 @@ namespace {
 
 thread_local std::string lastError;
 
-const char* blockName(const BlockId block) {
-    switch (block) {
-        case BlockId::Grass: return "Grass";
-        case BlockId::Dirt: return "Dirt";
-        case BlockId::Stone: return "Stone";
-        case BlockId::Duskstone: return "Duskstone";
-        case BlockId::Blackrock: return "Blackrock";
-        case BlockId::EclipseCrystal: return "EclipseCrystal";
-        case BlockId::MoonlitLantern: return "MoonlitLantern";
-        case BlockId::Air:
-        case BlockId::Count:
-            return "Air";
-    }
-    return "Unknown";
+std::string_view blockName(const BlockId block) {
+    if (block == BlockId::Count) return "Air";
+    const auto name = magic_enum::enum_name(block);
+    return name.empty() ? "Unknown" : name;
 }
 
 std::vector<uint8_t> serializeJson(const Chunk& chunk, const int32_t seed, const int32_t x, const int32_t y, const int32_t z) {

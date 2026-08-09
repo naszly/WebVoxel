@@ -16,6 +16,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 
 FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum
+    GIT_TAG v0.9.6
+    GIT_SHALLOW ON
+    UPDATE_DISCONNECTED ON
+)
+FetchContent_MakeAvailable(magic_enum)
+
+FetchContent_Declare(
     abseil-cpp
     GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
     GIT_TAG 20250512.1
@@ -71,6 +80,7 @@ endif ()
 target_include_directories(webvoxel_generator PRIVATE ../client/src)
 target_link_libraries(webvoxel_generator PRIVATE
     glm::glm
+    magic_enum::magic_enum
     absl::flat_hash_map
     absl::hash
     FastNoise2
