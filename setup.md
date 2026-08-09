@@ -32,6 +32,17 @@ cmake --build build-web
 # web output is generated under `build-web/client` (for example `index.html`)
 ```
 
+The web build generates chunks locally by default and can run without an API server.
+To load missing chunks from the WebVoxelServer API instead, configure it with:
+
+```bash
+emcmake cmake -S . -B build-web -DWEBVOXEL_USE_CHUNK_API=ON
+cmake --build build-web
+```
+
+`publish.sh` accepts the same option after its optional output directory. The
+WebVoxelServer `publish-webvoxel.sh` wrapper enables API-backed chunks automatically.
+
 Serve the web build locally with `server.py`:
 
 ```bash

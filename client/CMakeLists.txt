@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.28)
 
 project(WebVoxel)
 
+option(WEBVOXEL_USE_CHUNK_API "Load missing WebAssembly chunks from the server API" OFF)
+
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
@@ -200,6 +202,10 @@ target_compile_definitions(
         IMGUI_IMPL_WEBGPU_BACKEND_DAWN
 )
 
+if (EMSCRIPTEN AND WEBVOXEL_USE_CHUNK_API)
+    target_compile_definitions(WebVoxel PRIVATE WEBVOXEL_USE_CHUNK_API=1)
+endif ()
+
 
 if (EMSCRIPTEN)
     set(ASSET_DIR ${PROJECT_BINARY_DIR}/asset_dir)
@@ -304,8 +310,12 @@ if (EMSCRIPTEN)
             -sFORCE_FILESYSTEM=1
             -lidbfs.js
             -sEXPORTED_RUNTIME_METHODS=requestFullscreen,ccall,cwrap
-            -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished
+            -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished,_onNavigationAway
     )
+
+    if (WEBVOXEL_USE_CHUNK_API)
+        target_link_options(WebVoxel PRIVATE -sFETCH)
+    endif ()
 
 
     set_target_properties(

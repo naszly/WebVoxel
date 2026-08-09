@@ -138,7 +138,11 @@ public:
 
     void save(const std::string &path);
 
+    [[nodiscard]] std::vector<char> serializeCompressed();
+
     void load(const std::string &path);
+
+    void loadCompressed(const std::vector<char>& fileData);
 
     void compress() {
         return m_data.compress();

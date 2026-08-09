@@ -1,6 +1,5 @@
 #include "Chunk.h"
 
-#include "application/Application.h"
 #include "application/common/CompressionUtils.h"
 #include "common/Log.h"
 #include "common/FileSystem.h"
@@ -124,27 +123,43 @@ bool Chunk::fileExists(const std::string &path) const {
 void Chunk::save(const std::string &path) {
     const std::string fileName = path + '/' + getFileName();
 
+    const auto fileData = serializeCompressed();
+    FileSystem::writeFile(fileName, fileData.data(), fileData.size());
+}
+
+std::vector<char> Chunk::serializeCompressed() {
     std::ostringstream oss;
     m_data.serialize(oss);
-    const auto compressedData = CompressionUtils::compressData(oss.str().data(), oss.str().size());
+    const auto serializedData = oss.str();
+    const auto compressedData = CompressionUtils::compressData(serializedData.data(), serializedData.size());
 
     // First 4 bytes represent the decompressed data length
     std::vector<char> fileData(sizeof(uint32_t) + compressedData.size());
-    const uint32_t decompressedLength = static_cast<uint32_t>(oss.str().size());
+    const uint32_t decompressedLength = static_cast<uint32_t>(serializedData.size());
     std::memcpy(fileData.data(), &decompressedLength, sizeof(uint32_t));
     std::memcpy(fileData.data() + sizeof(uint32_t), compressedData.data(), compressedData.size());
 
-    FileSystem::writeFile(fileName, fileData.data(), fileData.size());
+    return fileData;
 }
 
 void Chunk::load(const std::string &path) {
     const std::string fileName = path + '/' + getFileName();
     const std::vector<char> compressedData = FileSystem::readFile(fileName);
 
+    loadCompressed(compressedData);
+    LogApp::info("Chunk data loaded from file: {}", fileName);
+}
+
+void Chunk::loadCompressed(const std::vector<char>& fileData) {
+    if (fileData.size() < sizeof(uint32_t)) {
+        throw std::runtime_error("Compressed chunk data is missing its length prefix");
+    }
+
     // First 4 bytes represent the decompressed data length
-    const size_t decompressedLength = *reinterpret_cast<const uint32_t*>(compressedData.data());
+    uint32_t decompressedLength;
+    std::memcpy(&decompressedLength, fileData.data(), sizeof(decompressedLength));
     const auto data = CompressionUtils::decompressData(
-        std::vector(compressedData.begin() + sizeof(uint32_t), compressedData.end()),
+        std::vector(fileData.begin() + sizeof(uint32_t), fileData.end()),
         decompressedLength
     );
 
@@ -152,9 +167,7 @@ void Chunk::load(const std::string &path) {
     m_data.deserialize(iss);
 
     if (iss.fail()) {
-        LogApp::error("Failed to deserialize chunk data from file: {}", fileName);
-    } else {
-        LogApp::info("Chunk data loaded from file: {}", fileName);
+        throw std::runtime_error("Failed to deserialize compressed chunk data");
     }
 
     m_litVoxels.clear();

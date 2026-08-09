@@ -1,5 +1,9 @@
 #include "ChunkManagementSystem.h"
 
+#if defined(__EMSCRIPTEN__) && defined(WEBVOXEL_USE_CHUNK_API)
+#include <emscripten/fetch.h>
+#endif
+
 #include <algorithm>
 
 #include "RendererSystem.h"
@@ -8,9 +12,19 @@
 #include "common/FileSystem.h"
 
 #include <charconv>
+#include <cstring>
+#include <atomic>
 #include <optional>
 #include <string_view>
 #include <sstream>
+
+#if defined(__EMSCRIPTEN__)
+static std::atomic_bool navigatingAway = false;
+
+extern "C" void onNavigationAway() {
+    navigatingAway.store(true);
+}
+#endif
 
 namespace {
 
@@ -323,7 +337,46 @@ void ChunkManagementSystem::handleChunkLoad(const glm::ivec3& chunkToLoad) {
     if (chunk.fileExists(m_savePath)) {
         chunk.load(m_savePath);
     } else {
+#if defined(__EMSCRIPTEN__) && defined(WEBVOXEL_USE_CHUNK_API)
+        const std::string url = "/api/chunks/"
+            + std::to_string(chunkToLoad.x) + "/"
+            + std::to_string(chunkToLoad.y) + "/"
+            + std::to_string(chunkToLoad.z)
+            + "?seed=" + std::to_string(m_generatorParams.seed)
+            + "&caves=" + (m_generatorParams.cavesEnabled ? "true" : "false")
+            + "&binary=true";
+
+        emscripten_fetch_attr_t attributes;
+        emscripten_fetch_attr_init(&attributes);
+        std::strcpy(attributes.requestMethod, "GET");
+        attributes.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
+
+        emscripten_fetch_t* fetch = emscripten_fetch(&attributes, url.c_str());
+        bool succeeded = fetch != nullptr && fetch->status == 200;
+        if (succeeded) {
+            try {
+                chunk.loadCompressed(std::vector<char>(fetch->data, fetch->data + fetch->numBytes));
+            } catch (const std::exception& error) {
+                succeeded = false;
+                LogApp::error("Invalid chunk API response for ({}, {}, {}): {}",
+                              chunkToLoad.x, chunkToLoad.y, chunkToLoad.z, error.what());
+            }
+        } else if (!navigatingAway.load()) {
+            LogApp::error("Chunk API request failed for ({}, {}, {}): HTTP {}",
+                          chunkToLoad.x, chunkToLoad.y, chunkToLoad.z, fetch == nullptr ? 0 : fetch->status);
+        }
+        if (fetch != nullptr) {
+            emscripten_fetch_close(fetch);
+        }
+
+        if (!succeeded) {
+            Threading::ScopedLock lock(&m_lock);
+            m_loadingChunks.erase(chunkToLoad);
+            return;
+        }
+#else
         chunk.generate(*m_generator);
+#endif
     }
 
     Threading::ScopedLock lock(&m_lock);
@@ -375,6 +428,12 @@ void* ChunkManagementSystem::worker(void *arg) {
 
 bool ChunkManagementSystem::fetchWork(Work& work) {
     Threading::ScopedLock lock(&m_lock);
+
+#if defined(__EMSCRIPTEN__)
+    if (navigatingAway.load()) {
+        return false;
+    }
+#endif
 
     if (m_shouldExit && m_chunksToSave.empty()) {
         return false;

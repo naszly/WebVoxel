@@ -28,7 +28,8 @@ public:
         } else {
             worldGeneratorParam = loadWorldGeneratorParams(m_savePath);
         }
-        m_generator = std::make_unique<WorldGenerator>(*worldGeneratorParam);
+        m_generatorParams = *worldGeneratorParam;
+        m_generator = std::make_unique<WorldGenerator>(m_generatorParams);
     }
 
     ~ChunkManagementSystem() override {
@@ -126,6 +127,7 @@ private:
     bool m_shouldExit = false;
 
     std::unique_ptr<WorldGenerator> m_generator{};
+    WorldGeneratorParams m_generatorParams{};
     std::string m_savePath{};
 
     void processChunkManagement(const Camera& camera, World& world);

@@ -186,7 +186,7 @@
 
     <input type="button"
            value="Back"
-           onclick="location.replace('index.html');">
+           onclick="navigateBack();">
 
 </div>
 
@@ -357,6 +357,46 @@
 
     Module.setStatus(
         "Downloading..."
+    );
+
+
+    let navigatingAway = false;
+
+
+    function notifyNavigationAway() {
+
+        if (navigatingAway)
+            return;
+
+        navigatingAway = true;
+
+        try {
+            if (typeof Module?.ccall === "function") {
+                Module.ccall(
+                    "onNavigationAway",
+                    null,
+                    [],
+                    []
+                );
+            }
+        } catch (_) {
+            // The runtime may already be shutting down during pagehide.
+        }
+
+    }
+
+
+    function navigateBack() {
+
+        notifyNavigationAway();
+        location.replace("index.html");
+
+    }
+
+
+    window.addEventListener(
+        "pagehide",
+        notifyNavigationAway
     );
 
 
