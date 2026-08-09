@@ -134,6 +134,49 @@ int32_t webvoxel_generate_chunk(WebVoxelGenerator* generator, const int32_t x, c
     return 4;
 }
 
+int32_t webvoxel_generate_chunk_with_mutations(
+    WebVoxelGenerator* generator, const int32_t x, const int32_t y, const int32_t z,
+    const WebVoxelMutation* mutations, const size_t mutation_count, uint8_t** output, size_t* output_size) {
+    if (generator == nullptr || output == nullptr || output_size == nullptr || (mutations == nullptr && mutation_count != 0)) {
+        lastError = "Generator, mutations, output, and output_size must be valid.";
+        return 1;
+    }
+    *output = nullptr;
+    *output_size = 0;
+    try {
+        lastError.clear();
+        std::scoped_lock lock(generator->mutex);
+        Chunk chunk(x, y, z);
+        chunk.generate(generator->generator);
+        for (size_t index = 0; index < mutation_count; ++index) {
+            const auto& mutation = mutations[index];
+            if (mutation.x < 0 || mutation.x >= static_cast<int32_t>(Chunk::WIDTH) ||
+                mutation.y < 0 || mutation.y >= static_cast<int32_t>(Chunk::WIDTH) ||
+                mutation.z < 0 || mutation.z >= static_cast<int32_t>(Chunk::WIDTH) ||
+                mutation.block_id >= static_cast<uint32_t>(BlockId::Count)) {
+                lastError = "A persisted block mutation is invalid.";
+                return 2;
+            }
+            chunk.setVoxel(VoxelData(static_cast<BlockId>(mutation.block_id)), mutation.x, mutation.y, mutation.z);
+        }
+        const auto compressed = chunk.serializeCompressed();
+        auto* memory = static_cast<uint8_t*>(std::malloc(compressed.size()));
+        if (memory == nullptr && !compressed.empty()) {
+            lastError = "Unable to allocate the chunk response buffer.";
+            return 3;
+        }
+        if (!compressed.empty()) std::memcpy(memory, compressed.data(), compressed.size());
+        *output = memory;
+        *output_size = compressed.size();
+        return 0;
+    } catch (const std::exception& error) {
+        lastError = error.what();
+    } catch (...) {
+        lastError = "Unknown error while generating a mutated chunk.";
+    }
+    return 4;
+}
+
 void webvoxel_free(void* memory) {
     std::free(memory);
 }

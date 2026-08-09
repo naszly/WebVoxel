@@ -233,9 +233,17 @@
         }
         setServerStatus("Finding room...");
         try {
-            const response = await fetch("/api/rooms/" + encodeURIComponent(normalized));
+            const response = await fetch("/api/rooms/" + encodeURIComponent(normalized) + "/join", {
+                method: "POST",
+                headers: {
+                    "X-Room-Token": sessionStorage.getItem("webvoxel.roomToken." + normalized) || ""
+                }
+            });
             if (response.status === 404) throw new Error("Room not found. It may have expired; you can forget it from Recent rooms.");
-            if (!response.ok) throw new Error("Unable to join room.");
+            if (!response.ok) {
+                const problem = await response.json().catch(() => null);
+                throw new Error(problem?.detail || "Unable to join room.");
+            }
             playRoom(await response.json());
         } catch (error) {
             setServerStatus(error.message || "Server unavailable.", "error");

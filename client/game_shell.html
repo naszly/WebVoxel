@@ -434,12 +434,16 @@
 
 
     let navigatingAway = false;
+    let flushPendingMultiplayerEdits = null;
 
 
-    function notifyNavigationAway() {
+    function notifyNavigationAway(cancelOnPersistenceFailure = false) {
 
         if (navigatingAway)
-            return;
+            return true;
+
+        if (flushPendingMultiplayerEdits && !flushPendingMultiplayerEdits() && cancelOnPersistenceFailure)
+            return false;
 
         navigatingAway = true;
 
@@ -456,12 +460,15 @@
             // The runtime may already be shutting down during pagehide.
         }
 
+        return true;
+
     }
 
 
     function navigateBack() {
 
-        notifyNavigationAway();
+        if (!notifyNavigationAway(true))
+            return;
         location.replace("index.html");
 
     }
@@ -469,7 +476,7 @@
 
     window.addEventListener(
         "pagehide",
-        notifyNavigationAway
+        () => notifyNavigationAway()
     );
 
 
@@ -538,6 +545,272 @@
         if (validRoomToken) {
             Module.arguments.push("--room-token=" + roomToken);
         }
+    }
+
+
+    if (multiplayerMode && validRoomCode && validRoomToken) {
+        Module.preRun = Module.preRun || [];
+        let releaseMultiplayerStartup = null;
+        Module.preRun.push(() => {
+            if (joinedRoom) return;
+            addRunDependency("multiplayer-room-join");
+            releaseMultiplayerStartup = () => {
+                if (!releaseMultiplayerStartup) return;
+                releaseMultiplayerStartup = null;
+                removeRunDependency("multiplayer-room-join");
+            };
+        });
+        const recordSeparator = "\u001e";
+        const tokenFingerprint = (() => {
+            let hash = 14695981039346656037n;
+            for (const character of roomToken) {
+                hash ^= BigInt(character.charCodeAt(0));
+                hash = BigInt.asUintN(64, hash * 1099511628211n);
+            }
+            return hash.toString(16).padStart(16, "0");
+        })();
+        const roomStorageKey = roomCode + "." + tokenFingerprint;
+        const revisionKey = "webvoxel.roomRevision." + roomStorageKey;
+        const pendingEditsKey = "webvoxel.pendingEdits." + roomStorageKey;
+        const maxPendingEdits = 16384;
+        const pendingEditRetentionMs = 30 * 24 * 60 * 60 * 1000;
+        const maxCoordinate = 2147483583;
+        const operationIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const hasValidEditPayload = edit => edit &&
+            operationIdPattern.test(edit.operationId) &&
+            Number.isSafeInteger(edit.x) && Math.abs(edit.x) <= maxCoordinate &&
+            Number.isSafeInteger(edit.y) && Math.abs(edit.y) <= maxCoordinate &&
+            Number.isSafeInteger(edit.z) && Math.abs(edit.z) <= maxCoordinate &&
+            Number.isInteger(edit.blockId) && edit.blockId >= 0 && edit.blockId < 8;
+        const normalizeStoredEdit = edit => {
+            if (!hasValidEditPayload(edit)) return null;
+            const createdAt = Number.isFinite(edit.createdAt) ? edit.createdAt : Date.now();
+            return createdAt >= Date.now() - pendingEditRetentionMs ? { ...edit, createdAt } : null;
+        };
+        let persistenceWarningShown = false;
+        const storedPendingEdits = (() => {
+            try {
+                const edits = JSON.parse(localStorage.getItem(pendingEditsKey) || "[]");
+                if (!Array.isArray(edits)) return [];
+                const validEdits = edits.map(normalizeStoredEdit).filter(Boolean).slice(-maxPendingEdits);
+                if (validEdits.length !== edits.length)
+                    console.warn("Discarded invalid stored multiplayer edits.");
+                return validEdits;
+            } catch (error) {
+                console.warn("Could not restore pending multiplayer edits:", error);
+                return [];
+            }
+        })();
+        const pendingEdits = new Map(storedPendingEdits.map(edit => [edit.operationId, edit]));
+        const locallyAppliedOperationIds = new Set();
+        const pendingRemoteEdits = [];
+        const pendingInvocations = new Map();
+        const retryOperationIds = new Set();
+        let roomSocket = null;
+        let joinedRoom = false;
+        let runtimeReady = false;
+        let reconnectDelay = 500;
+        let retryDelay = 1000;
+        let retryTimer = null;
+        let keepAliveTimer = null;
+        let persistTimer = null;
+        let nextInvocationId = 1;
+
+        const sendHubMessage = message =>
+            roomSocket?.readyState === WebSocket.OPEN && roomSocket.send(JSON.stringify(message) + recordSeparator);
+
+        const flushPendingEdits = () => {
+            clearTimeout(persistTimer);
+            persistTimer = null;
+            try {
+                if (pendingEdits.size)
+                    localStorage.setItem(pendingEditsKey, JSON.stringify([...pendingEdits.values()]));
+                else
+                    localStorage.removeItem(pendingEditsKey);
+                return true;
+            } catch (error) {
+                console.error("Could not persist pending multiplayer edits:", error);
+                if (!persistenceWarningShown) {
+                    persistenceWarningShown = true;
+                    alert("Pending multiplayer edits cannot be saved by this browser. Keep this page open until the connection recovers.");
+                }
+                return false;
+            }
+        };
+
+        const persistPendingEdits = () => {
+            clearTimeout(persistTimer);
+            persistTimer = setTimeout(flushPendingEdits, 100);
+        };
+
+        flushPendingMultiplayerEdits = flushPendingEdits;
+
+        const sendBlockBatch = edits => {
+            if (!edits.length || !joinedRoom) return;
+            const invocationId = String(nextInvocationId++);
+            pendingInvocations.set(invocationId, edits.map(edit => edit.operationId));
+            sendHubMessage({
+                type: 1,
+                invocationId,
+                target: "SetBlocks",
+                arguments: [edits]
+            });
+        };
+
+        const sendPendingEdits = operationIds => {
+            const expirationCutoff = Date.now() - pendingEditRetentionMs;
+            for (const [operationId, edit] of pendingEdits) {
+                if (edit.createdAt < expirationCutoff) {
+                    pendingEdits.delete(operationId);
+                    locallyAppliedOperationIds.delete(operationId);
+                }
+            }
+            persistPendingEdits();
+            const edits = operationIds
+                ? operationIds.map(id => pendingEdits.get(id)).filter(Boolean)
+                : [...pendingEdits.values()];
+            for (let offset = 0; offset < edits.length; offset += 4096) {
+                sendBlockBatch(edits.slice(offset, offset + 4096));
+            }
+        };
+
+        const scheduleRetry = operationIds => {
+            operationIds.forEach(id => retryOperationIds.add(id));
+            if (retryTimer) return;
+            retryTimer = setTimeout(() => {
+                retryTimer = null;
+                const retryIds = [...retryOperationIds];
+                retryOperationIds.clear();
+                if (joinedRoom) sendPendingEdits(retryIds);
+                retryDelay = Math.min(retryDelay * 2, 10000);
+            }, retryDelay);
+        };
+
+        const applyRemoteEdit = mutation => {
+            const currentRevision = Number(sessionStorage.getItem(revisionKey) || 0);
+            sessionStorage.setItem(revisionKey, String(Math.max(currentRevision, mutation.revision)));
+            const wasAppliedLocally = locallyAppliedOperationIds.delete(mutation.operationId);
+            pendingEdits.delete(mutation.operationId);
+            persistPendingEdits();
+            if (wasAppliedLocally) {
+                return;
+            } else if (runtimeReady) {
+                Module.ccall("applyRemoteBlockEdit", null,
+                    ["number", "number", "number", "number"],
+                    [mutation.x, mutation.y, mutation.z, mutation.blockId]);
+            } else {
+                pendingRemoteEdits.push(mutation);
+            }
+        };
+
+        Module.multiplayerSendBrush = (centerX, centerY, centerZ, radius, sphere, blockId) => {
+            const edits = [];
+            for (let x = -radius; x <= radius; ++x)
+                for (let y = -radius; y <= radius; ++y)
+                    for (let z = -radius; z <= radius; ++z) {
+                        if (sphere && x * x + y * y + z * z > radius * radius) continue;
+                        const edit = {
+                            operationId: crypto.randomUUID(),
+                            x: centerX + x, y: centerY + y, z: centerZ + z, blockId,
+                            createdAt: Date.now()
+                        };
+                        edits.push(edit);
+                    }
+            if (pendingEdits.size + edits.length > maxPendingEdits) {
+                console.error("Pending multiplayer edit limit reached; reloading the authoritative world state.");
+                location.reload();
+                return;
+            }
+            edits.forEach(edit => {
+                pendingEdits.set(edit.operationId, edit);
+                locallyAppliedOperationIds.add(edit.operationId);
+            });
+            persistPendingEdits();
+            sendBlockBatch(edits);
+        };
+
+        const previousRuntimeInitialized = Module.onRuntimeInitialized;
+        Module.onRuntimeInitialized = () => {
+            runtimeReady = true;
+            previousRuntimeInitialized?.();
+            pendingRemoteEdits.splice(0).forEach(applyRemoteEdit);
+        };
+
+        const connectRoom = async () => {
+            try {
+                const negotiation = await fetch("/rooms-hub/negotiate?negotiateVersion=1", { method: "POST" });
+                if (!negotiation.ok) throw new Error("Room negotiation failed.");
+                const { connectionToken } = await negotiation.json();
+                const socketUrl = new URL("/rooms-hub", location.href);
+                socketUrl.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+                socketUrl.searchParams.set("id", connectionToken);
+                roomSocket = new WebSocket(socketUrl);
+                roomSocket.onopen = () => sendHubMessage({ protocol: "json", version: 1 });
+                roomSocket.onmessage = event => {
+                    for (const frame of event.data.split(recordSeparator)) {
+                        if (!frame) continue;
+                        const message = JSON.parse(frame);
+                        if (message.type === 6) continue;
+                        if (message.type === 1 && message.target === "BlockChanged") applyRemoteEdit(message.arguments[0]);
+                        if (message.type === 1 && message.target === "BlocksChanged") message.arguments[0].forEach(applyRemoteEdit);
+                        if (message.type === 1 && message.target === "BlocksAcknowledged") {
+                            message.arguments[0].forEach(operationId => {
+                                pendingEdits.delete(operationId);
+                                locallyAppliedOperationIds.delete(operationId);
+                            });
+                            persistPendingEdits();
+                        }
+                        if (message.type === 3) {
+                            const operationIds = pendingInvocations.get(message.invocationId) || [];
+                            pendingInvocations.delete(message.invocationId);
+                            if (message.error) scheduleRetry(operationIds);
+                        }
+                        if (message.type === 1 && message.target === "ResyncRequired") {
+                            sessionStorage.removeItem(revisionKey);
+                            location.reload();
+                            return;
+                        }
+                        if (message.type === 1 && message.target === "RoomJoined") {
+                            joinedRoom = true;
+                            releaseMultiplayerStartup?.();
+                            reconnectDelay = 500;
+                            retryDelay = 1000;
+                            clearInterval(keepAliveTimer);
+                            keepAliveTimer = setInterval(() => sendHubMessage({ type: 6 }), 15000);
+                            sessionStorage.setItem(revisionKey, String(Math.max(
+                                Number(sessionStorage.getItem(revisionKey) || 0),
+                                message.arguments[0].currentRevision)));
+                            sendPendingEdits();
+                        }
+                        if (message.type === undefined) {
+                            sendHubMessage({
+                                type: 1,
+                                target: "JoinRoom",
+                                arguments: [roomCode, roomToken, Number(sessionStorage.getItem(revisionKey) || 0)]
+                            });
+                        }
+                    }
+                };
+                roomSocket.onclose = () => {
+                    joinedRoom = false;
+                    pendingInvocations.clear();
+                    retryOperationIds.clear();
+                    clearInterval(keepAliveTimer);
+                    keepAliveTimer = null;
+                    clearTimeout(retryTimer);
+                    retryTimer = null;
+                    if (!navigatingAway) {
+                        setTimeout(connectRoom, reconnectDelay);
+                        reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+                    }
+                };
+            } catch (error) {
+                console.error("Multiplayer connection failed:", error);
+                if (!navigatingAway) setTimeout(connectRoom, reconnectDelay);
+                reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+            }
+        };
+        connectRoom();
     }
 
     /*

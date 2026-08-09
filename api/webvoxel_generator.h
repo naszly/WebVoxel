@@ -14,6 +14,12 @@ extern "C" {
 #endif
 
 typedef struct WebVoxelGenerator WebVoxelGenerator;
+typedef struct WebVoxelMutation {
+    int32_t x;
+    int32_t y;
+    int32_t z;
+    uint32_t block_id;
+} WebVoxelMutation;
 
 WEBVOXEL_API WebVoxelGenerator* webvoxel_generator_create(int32_t seed, int32_t caves_enabled);
 WEBVOXEL_API void webvoxel_generator_destroy(WebVoxelGenerator* generator);
@@ -26,6 +32,16 @@ WEBVOXEL_API int32_t webvoxel_generate_chunk(
     int32_t y,
     int32_t z,
     int32_t format,
+    uint8_t** output,
+    size_t* output_size);
+
+WEBVOXEL_API int32_t webvoxel_generate_chunk_with_mutations(
+    WebVoxelGenerator* generator,
+    int32_t x,
+    int32_t y,
+    int32_t z,
+    const WebVoxelMutation* mutations,
+    size_t mutation_count,
     uint8_t** output,
     size_t* output_size);
 

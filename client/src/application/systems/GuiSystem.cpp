@@ -174,7 +174,7 @@ void GuiSystem::render(const WGPUCommandEncoder& encoder, const WGPUTextureView 
         const BlockId selectedBlockId = blockValues[blockIdIndex + 1];
         appData.selectedVoxel = VoxelData(selectedBlockId);
     }
-    ImGui::SliderInt("Radius", &appData.placedVoxelRadius, 0, 64);
+    ImGui::SliderInt("Radius", &appData.placedVoxelRadius, 0, 7);
     ImGui::Checkbox("Is Sphere", &appData.placedVoxelShapeIsSphere);
     ImGui::End();
 

@@ -1,5 +1,9 @@
 #include "ChunkManagementSystem.h"
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+
 #if defined(__EMSCRIPTEN__) && defined(WEBVOXEL_USE_CHUNK_API)
 #include <emscripten/fetch.h>
 #endif
@@ -17,6 +21,7 @@
 #include <optional>
 #include <string_view>
 #include <sstream>
+#include <vector>
 
 #if defined(__EMSCRIPTEN__)
 static std::atomic_bool navigatingAway = false;
@@ -27,6 +32,11 @@ extern "C" void onNavigationAway() {
 #endif
 
 namespace {
+
+struct RemoteMutation { int x; int y; int z; uint32_t blockId; };
+std::mutex remoteMutationMutex;
+std::vector<RemoteMutation> remoteMutations;
+constexpr size_t maxPendingRemoteMutations = 65536;
 
 std::string resolveWorldGeneratorParamsFileName(const std::string& path) {
     if (path.empty()) {
@@ -43,6 +53,21 @@ std::string resolveWorldGeneratorParamsFileName(const std::string& path) {
 
     return path + "/worldGeneratorParams.json";
 }
+
+#if defined(__EMSCRIPTEN__)
+extern "C" EMSCRIPTEN_KEEPALIVE void applyRemoteBlockEdit(const int x, const int y, const int z, const uint32_t blockId) {
+    std::scoped_lock lock(remoteMutationMutex);
+    if (remoteMutations.size() == maxPendingRemoteMutations) {
+        remoteMutations.clear();
+        EM_ASM({
+            console.error("Remote mutation queue overflowed; reloading the authoritative world state.");
+            location.reload();
+        });
+        return;
+    }
+    remoteMutations.push_back({x, y, z, blockId});
+}
+#endif
 
 std::string serializeWorldGeneratorParams(const WorldGeneratorParams& params) {
     return "{\n"
@@ -152,6 +177,26 @@ void ChunkManagementSystem::processChunkManagement(const Camera& camera, World& 
 
     integrateLoadedChunks(world);
     integrateCompressedChunks(world);
+    if (!m_roomCode.empty()) {
+        std::scoped_lock mutationLock(remoteMutationMutex);
+        size_t appliedThisFrame = 0;
+        std::erase_if(remoteMutations, [this, &world, &appliedThisFrame](const RemoteMutation& mutation) {
+            if (appliedThisFrame >= 512) return false;
+            const WorldCoordinate coordinate(glm::i64vec3(mutation.x, mutation.y, mutation.z));
+            const auto chunkPosition = coordinate.chunkPosition();
+            if (!world.hasChunk(chunkPosition)) {
+                // A chunk currently being fetched may contain a snapshot from before this
+                // mutation. Other unloaded chunks will receive current state when fetched.
+                return !m_loadingChunks.contains(chunkPosition);
+            }
+            world.setVoxel(coordinate, VoxelData(static_cast<BlockId>(mutation.blockId)));
+            if (auto* chunk = world.tryGetChunkPtr(chunkPosition)) {
+                chunk->resetSaveFileDirty();
+            }
+            ++appliedThisFrame;
+            return true;
+        });
+    }
 
     static int turn = 0;
     turn = (turn + 1) % 4;

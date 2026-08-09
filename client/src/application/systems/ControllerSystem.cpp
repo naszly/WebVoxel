@@ -1,7 +1,13 @@
 #include "ControllerSystem.h"
 
 #ifdef __EMSCRIPTEN__
+#include <emscripten.h>
 #include <emscripten/html5.h>
+
+EM_JS(void, sendMultiplayerBrushMutation,
+      (int x, int y, int z, int radius, int sphere, unsigned int blockId), {
+    if (Module.multiplayerSendBrush) Module.multiplayerSendBrush(x, y, z, radius, sphere !== 0, blockId);
+});
 #endif
 
 #include "application/Application.h"
@@ -138,6 +144,11 @@ void ControllerSystem::onEvent(Event &event) {
                 }
 
                 world.removeVoxel(worldPos, appData.placedVoxelRadius, appData.placedVoxelShapeIsSphere);
+#ifdef __EMSCRIPTEN__
+                const auto edit = worldPos.worldPosition();
+                sendMultiplayerBrushMutation(edit.x, edit.y, edit.z, appData.placedVoxelRadius,
+                    appData.placedVoxelShapeIsSphere, static_cast<uint32_t>(BlockId::Air));
+#endif
 
                 return true;
             });
@@ -158,6 +169,11 @@ void ControllerSystem::onEvent(Event &event) {
                     appData.selectedVoxel,
                     appData.placedVoxelRadius,
                     appData.placedVoxelShapeIsSphere);
+#ifdef __EMSCRIPTEN__
+                const auto edit = prevWorldPos.worldPosition();
+                sendMultiplayerBrushMutation(edit.x, edit.y, edit.z, appData.placedVoxelRadius,
+                    appData.placedVoxelShapeIsSphere, static_cast<uint32_t>(appData.selectedVoxel.getBlockId()));
+#endif
 
                 return true;
             });
