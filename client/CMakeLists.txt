@@ -310,7 +310,7 @@ if (EMSCRIPTEN)
             -sFORCE_FILESYSTEM=1
             -lidbfs.js
             -sEXPORTED_RUNTIME_METHODS=requestFullscreen,ccall,cwrap
-            -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished,_onNavigationAway,_applyRemoteBlockEdit
+            -sEXPORTED_FUNCTIONS=_main,_onSyncfsFinished,_onNavigationAway,_applyRemoteBlockEdit,_updateRemotePlayer,_removeRemotePlayer
     )
 
     if (WEBVOXEL_USE_CHUNK_API)

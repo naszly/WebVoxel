@@ -17,13 +17,14 @@ struct VertexInput {
     @builtin(vertex_index) vertexIndex: u32,
     @location(0) voxelPosition: u32,
     @location(1) voxelData: u32,
-    @location(2) chunkPosition: vec3f
+    @location(2) chunkPosition: vec4f
 };
 
 struct VertexOut {
     @builtin(position) pos: vec4f,
     @location(0) vPos: vec3f,
-    @location(1) vSize: f32
+    @location(1) vSize: f32,
+    @location(2) @interpolate(flat) isRemotePlayer: u32
 }
 
 fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2f) -> vec4f {
@@ -95,9 +96,51 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
         vec2f( 1.0,  1.0),
         vec2f(-1.0,  1.0)
     );
-    let vertexPosition: vec2f = quadPos[vertex.vertexIndex];
+    let vertexPosition: vec2f = quadPos[vertex.vertexIndex % 6u];
     let instanceVoxelPosition: vec4f = unpack4x8unorm(vertex.voxelPosition) * 255;
     let chunkOffset: vec3f = vertex.chunkPosition.xyz * CHUNK_SIZE;
+
+    if (vertex.chunkPosition.w != 0.0) {
+        let facingAngle = vertex.chunkPosition.w - 10.0;
+        let facing = vec3f(sin(facingAngle), 0.0, cos(facingAngle));
+        let playerRight = vec3f(facing.z, 0.0, -facing.x);
+        let playerUp = vec3f(0.0, 1.0, 0.0);
+        var localPosition: vec3f;
+        if (vertex.vertexIndex < 36u) {
+            let face = vertex.vertexIndex / 6u;
+            let cornerIndex = array<u32, 6>(0u, 1u, 2u, 0u, 2u, 3u)[vertex.vertexIndex % 6u];
+            let corner = array<vec2f, 4>(
+                vec2f(-1.0, -1.0), vec2f(1.0, -1.0),
+                vec2f(1.0, 1.0), vec2f(-1.0, 1.0)
+            )[cornerIndex];
+            let normals = array<vec3f, 6>(-playerRight, playerRight, -playerUp, playerUp, -facing, facing);
+            let axesU = array<vec3f, 6>(facing, -facing, playerRight, playerRight, -playerRight, playerRight);
+            let axesV = array<vec3f, 6>(playerUp, playerUp, facing, -facing, playerUp, playerUp);
+            localPosition = (normals[face] + axesU[face] * corner.x + axesV[face] * corner.y) * vec3f(0.25, 0.9, 0.25);
+        } else {
+            let beakVertex = vertex.vertexIndex - 36u;
+            let edge = beakVertex / 3u;
+            let baseCorners = array<vec3f, 4>(
+                facing * 0.25 - playerRight * 0.16 + playerUp * 0.2,
+                facing * 0.25 + playerRight * 0.16 + playerUp * 0.2,
+                facing * 0.25 + playerRight * 0.16 + playerUp * 0.5,
+                facing * 0.25 - playerRight * 0.16 + playerUp * 0.5
+            );
+            let tip = facing * 0.55 + playerUp * 0.35;
+            localPosition = array<vec3f, 3>(
+                baseCorners[edge], baseCorners[(edge + 1u) % 4u], tip
+            )[beakVertex % 3u];
+        }
+        let center = vertex.chunkPosition.xyz - u.cameraPosition + vec3f(0.0, -0.5, 0.0);
+        let worldPosition = center + localPosition;
+
+        var playerOut: VertexOut;
+        playerOut.pos = u.projectionViewMatrix * vec4f(worldPosition, 1.0);
+        playerOut.vPos = worldPosition;
+        playerOut.vSize = 0.8;
+        playerOut.isRemotePlayer = 1u;
+        return playerOut;
+    }
 
     let voxelSize = instanceVoxelPosition.w;
     let voxelPosition = instanceVoxelPosition.xyz - u.cameraPosition + chunkOffset + vec3f(0.5 * voxelSize);
@@ -106,6 +149,7 @@ fn calculateBillboard(voxelPosition: vec3f, voxelSize: f32, vertexPosition: vec2
     out.pos = calculateBillboard(voxelPosition, voxelSize, vertexPosition);
     out.vPos = voxelPosition;
     out.vSize = voxelSize;
+    out.isRemotePlayer = 0u;
     return out;
 }
 
@@ -113,6 +157,7 @@ struct FragmentIn {
     @builtin(position) fragPos: vec4f,
     @location(0) vPos: vec3f,
     @location(1) vSize: f32,
+    @location(2) @interpolate(flat) isRemotePlayer: u32,
 }
 
 struct FragmentOut {
@@ -175,6 +220,9 @@ fn getBox(input: FragmentIn) -> Box {
 }
 
 @fragment fn fsShadow(input: FragmentIn) -> FragmentOut {
+    if (input.isRemotePlayer != 0u) {
+        return FragmentOut(input.fragPos.z);
+    }
     let ray = computeRay(input);
     let box = getBox(input);
     let hit = intersectBox(box, ray);

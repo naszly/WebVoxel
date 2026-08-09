@@ -97,6 +97,11 @@ ShadowPipelineBuilder::Artifacts ShadowPipelineBuilder::build(const WGPUDevice &
 
     out.pipeline = wgpuDeviceCreateRenderPipeline(device, &rp);
 
+    chunkVb.arrayStride = sizeof(glm::vec4);
+    const std::array remotePlayerVbLayouts{ voxelVb, chunkVb };
+    rp.vertex.buffers = remotePlayerVbLayouts.data();
+    out.remotePlayerPipeline = wgpuDeviceCreateRenderPipeline(device, &rp);
+
     // Release intermediates
     wgpuShaderModuleRelease(shaderModule);
     wgpuBindGroupLayoutRelease(bgl);

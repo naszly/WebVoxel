@@ -33,13 +33,14 @@ void ShadowMap::createResources(const WGPUDevice &device) {
 void ShadowMap::createPipeline(const WGPUDevice &device, const WGPUBuffer &uniformBuffer, size_t chunkSize) {
     auto artifacts = ShadowPipelineBuilder::build(device, uniformBuffer, chunkSize);
     m_pipeline = artifacts.pipeline;
+    m_remotePlayerPipeline = artifacts.remotePlayerPipeline;
     m_bindGroup = artifacts.bindGroup;
 }
 
 void ShadowMap::releaseResources() {
     if (m_bindGroup) { wgpuBindGroupRelease(m_bindGroup); m_bindGroup = nullptr; }
     if (m_pipeline) { wgpuRenderPipelineRelease(m_pipeline); m_pipeline = nullptr; }
+    if (m_remotePlayerPipeline) { wgpuRenderPipelineRelease(m_remotePlayerPipeline); m_remotePlayerPipeline = nullptr; }
     if (m_depthView) { wgpuTextureViewRelease(m_depthView); m_depthView = nullptr; }
     if (m_depthTexture) { wgpuTextureRelease(m_depthTexture); m_depthTexture = nullptr; }
 }
-

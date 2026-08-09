@@ -12,7 +12,8 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
                                          const BlockTextureManager& blockTextures,
                                          const WGPUTextureView& shadowMapNearView,
                                          const WGPUTextureView& shadowMapFarView,
-                                         const WGPUSampler& shadowSampler) const {
+                                         const WGPUSampler& shadowSampler,
+                                         const bool perInstanceChunkPosition) const {
     PipelineArtifacts out{};
 
     // Load shader
@@ -149,7 +150,7 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
     };
     chunkVb.attributeCount = chunkAttrs.size();
     chunkVb.attributes = chunkAttrs.data();
-    chunkVb.arrayStride = 0;
+    chunkVb.arrayStride = perInstanceChunkPosition ? sizeof(glm::vec4) : 0;
     chunkVb.stepMode = WGPUVertexStepMode_Instance;
 
     const std::array vbLayouts{ voxelVb, chunkVb };
@@ -196,7 +197,9 @@ PipelineArtifacts PipelineBuilder::build(const PipelineOptions& options,
 
     WGPUFragmentState frag{};
     frag.module = shaderModule;
-    frag.entryPoint = WGPUStringView{"fsMain", WGPU_STRLEN};
+    frag.entryPoint = perInstanceChunkPosition
+        ? WGPUStringView{"fsRemotePlayer", WGPU_STRLEN}
+        : WGPUStringView{"fsMain", WGPU_STRLEN};
     frag.constantCount = fragmentConstants.size();
     frag.constants = fragmentConstants.data();
     frag.targetCount = 1;

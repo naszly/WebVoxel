@@ -72,6 +72,7 @@ public:
 
     [[nodiscard]] WGPUTextureView getDepthView() const { return m_map->getDepthView(); }
     [[nodiscard]] WGPURenderPipeline getPipeline() const { return m_map->getPipeline(); }
+    [[nodiscard]] WGPURenderPipeline getRemotePlayerPipeline() const { return m_map->getRemotePlayerPipeline(); }
     [[nodiscard]] WGPUBindGroup getBindGroup() const { return m_map->getBindGroup(); }
 
     [[nodiscard]] uint32_t getSize() const { return m_size; }
@@ -83,4 +84,3 @@ private:
     uint32_t m_size{4092};
     glm::mat4 m_lightProjectionView{1.0f};
 };
-

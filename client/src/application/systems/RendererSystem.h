@@ -5,6 +5,8 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <array>
+#include <string>
+#include <unordered_map>
 
 #include "application/graphics/profiling/GpuTimestampProfiler.h"
 #include "application/graphics/rendering/RenderTargets.h"
@@ -20,6 +22,7 @@ public:
     void onEvent(Event& event) override;
 
     explicit RendererSystem() : System() {}
+    ~RendererSystem() override;
 
     [[nodiscard]] bool getLighting() const {
         return m_lighting;
@@ -82,10 +85,26 @@ private:
 
     WGPUQueue m_queue{};
     WGPURenderPipeline m_renderPipeline{};
+    WGPURenderPipeline m_remotePlayerPipeline{};
     std::unique_ptr<UniformsBuffer> m_uniformsBuffer;
     WGPUBindGroup m_uniformBindGroup{};
+    WGPUBindGroup m_remotePlayerUniformBindGroup{};
 
     std::unique_ptr<ChunkRenderManager> m_chunkRenderManager;
+
+    struct RemotePlayer {
+        glm::vec3 position{};
+        glm::vec3 targetPosition{};
+        glm::vec3 direction{0.0f, 0.0f, 1.0f};
+        glm::vec3 targetDirection{0.0f, 0.0f, 1.0f};
+    };
+    std::unordered_map<std::string, RemotePlayer> m_remotePlayers;
+    WGPUBuffer m_remotePlayerVertexBuffer{};
+    WGPUBuffer m_remotePlayerMetadataBuffer{};
+    uint64_t m_remotePlayerVertexBufferSize{};
+    uint64_t m_remotePlayerMetadataBufferSize{};
+    uint32_t m_remotePlayerInstanceCount{};
+    bool m_remotePlayersDirty{true};
 
     GpuTimestampProfiler m_profiler{};
 
@@ -109,4 +128,6 @@ private:
                           const ChunkRenderManager::ChooseResolutionFunc& chooseResolution) const;
 
     static const ChunkVertexBuffer& chooseResolutionByDistance(const ChunkVertexBufferSet& set, float distance);
+    void updateRemotePlayerBuffers(float dt);
+    void renderRemotePlayers(WGPURenderPassEncoder scenePass) const;
 };

@@ -44,6 +44,8 @@ public:
     void savePlayerState(const Camera& camera);
     bool loadPlayerState(Camera& camera);
 
+    [[nodiscard]] bool isMultiplayer() const { return !m_roomCode.empty(); }
+
     void setLoadDistance(const int distance) {
         if (distance == m_loadDistance) {
             return;

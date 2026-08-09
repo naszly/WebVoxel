@@ -55,7 +55,8 @@ public:
                                           const BlockTextureManager& blockTextures,
                                           const WGPUTextureView& shadowMapNearView,
                                           const WGPUTextureView& shadowMapFarView,
-                                          const WGPUSampler& shadowSampler) const;
+                                          const WGPUSampler& shadowSampler,
+                                          bool perInstanceChunkPosition = false) const;
 
 private:
     WGPUDevice m_device{};

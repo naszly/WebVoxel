@@ -16,6 +16,7 @@ public:
 
     [[nodiscard]] WGPUTextureView getDepthView() const { return m_depthView; }
     [[nodiscard]] WGPURenderPipeline getPipeline() const { return m_pipeline; }
+    [[nodiscard]] WGPURenderPipeline getRemotePlayerPipeline() const { return m_remotePlayerPipeline; }
     [[nodiscard]] WGPUBindGroup getBindGroup() const { return m_bindGroup; }
     [[nodiscard]] uint32_t getSize() const { return m_size; }
 
@@ -29,6 +30,6 @@ private:
     WGPUTexture m_depthTexture{};
     WGPUTextureView m_depthView{};
     WGPURenderPipeline m_pipeline{};
+    WGPURenderPipeline m_remotePlayerPipeline{};
     WGPUBindGroup m_bindGroup{};
 };
-

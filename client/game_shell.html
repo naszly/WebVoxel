@@ -604,6 +604,8 @@
         const pendingEdits = new Map(storedPendingEdits.map(edit => [edit.operationId, edit]));
         const locallyAppliedOperationIds = new Set();
         const pendingRemoteEdits = [];
+        const pendingRemotePlayers = new Map();
+        const remotePlayerIds = new Set();
         const pendingInvocations = new Map();
         const retryOperationIds = new Set();
         let roomSocket = null;
@@ -615,6 +617,8 @@
         let keepAliveTimer = null;
         let persistTimer = null;
         let nextInvocationId = 1;
+        let lastTransformSentAt = 0;
+        let lastTransform = null;
 
         const sendHubMessage = message =>
             roomSocket?.readyState === WebSocket.OPEN && roomSocket.send(JSON.stringify(message) + recordSeparator);
@@ -729,11 +733,53 @@
             sendBlockBatch(edits);
         };
 
+        Module.multiplayerSendPlayerTransform = (x, y, z, directionX, directionY, directionZ) => {
+            if (!joinedRoom) return;
+            const now = performance.now();
+            const transform = [x, y, z, directionX, directionY, directionZ];
+            const changed = !lastTransform || transform.some((value, index) => Math.abs(value - lastTransform[index]) > 0.001);
+            if (!changed || now - lastTransformSentAt < 100) return;
+            lastTransform = transform;
+            lastTransformSentAt = now;
+            sendHubMessage({ type: 1, target: "UpdatePlayerTransform", arguments: transform });
+        };
+
+        const updateRemotePlayer = player => {
+            remotePlayerIds.add(player.playerId);
+            if (!runtimeReady) {
+                pendingRemotePlayers.set(player.playerId, player);
+                return;
+            }
+            Module.ccall("updateRemotePlayer", null,
+                ["string", "number", "number", "number", "number", "number", "number"],
+                [player.playerId, player.x, player.y, player.z, player.directionX, player.directionY, player.directionZ]);
+        };
+
+        const removeRemotePlayer = playerId => {
+            remotePlayerIds.delete(playerId);
+            pendingRemotePlayers.delete(playerId);
+            if (runtimeReady)
+                Module.ccall("removeRemotePlayer", null, ["string"], [playerId]);
+        };
+
+        const clearRemotePlayers = () =>
+            [...remotePlayerIds].forEach(removeRemotePlayer);
+
+        const applyPlayersSnapshot = players => {
+            const snapshotIds = new Set(players.map(player => player.playerId));
+            [...remotePlayerIds]
+                .filter(playerId => !snapshotIds.has(playerId))
+                .forEach(removeRemotePlayer);
+            players.forEach(updateRemotePlayer);
+        };
+
         const previousRuntimeInitialized = Module.onRuntimeInitialized;
         Module.onRuntimeInitialized = () => {
             runtimeReady = true;
             previousRuntimeInitialized?.();
             pendingRemoteEdits.splice(0).forEach(applyRemoteEdit);
+            pendingRemotePlayers.forEach(updateRemotePlayer);
+            pendingRemotePlayers.clear();
         };
 
         const connectRoom = async () => {
@@ -760,6 +806,12 @@
                             });
                             persistPendingEdits();
                         }
+                        if (message.type === 1 && message.target === "PlayersSnapshot")
+                            applyPlayersSnapshot(message.arguments[0]);
+                        if (message.type === 1 && message.target === "PlayerMoved")
+                            updateRemotePlayer(message.arguments[0]);
+                        if (message.type === 1 && message.target === "PlayerLeft")
+                            removeRemotePlayer(message.arguments[0]);
                         if (message.type === 3) {
                             const operationIds = pendingInvocations.get(message.invocationId) || [];
                             pendingInvocations.delete(message.invocationId);
@@ -772,6 +824,7 @@
                         }
                         if (message.type === 1 && message.target === "RoomJoined") {
                             joinedRoom = true;
+                            lastTransform = null;
                             releaseMultiplayerStartup?.();
                             reconnectDelay = 500;
                             retryDelay = 1000;
@@ -793,6 +846,7 @@
                 };
                 roomSocket.onclose = () => {
                     joinedRoom = false;
+                    clearRemotePlayers();
                     pendingInvocations.clear();
                     retryOperationIds.clear();
                     clearInterval(keepAliveTimer);

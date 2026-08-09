@@ -7,6 +7,7 @@ class ShadowPipelineBuilder {
 public:
     struct Artifacts {
         WGPURenderPipeline pipeline{};
+        WGPURenderPipeline remotePlayerPipeline{};
         WGPUBindGroup bindGroup{};
     };
 
@@ -16,4 +17,3 @@ public:
                                          const WGPUBuffer& shadowUniformBuffer,
                                          size_t chunkSize);
 };
-

@@ -6,6 +6,54 @@
 #include "application/meshing/ChunkVertexData.h"
 #include "core/events/ApplicationEvent.h"
 #include "common/Log.h"
+#include "application/types/VertexData.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+
+namespace {
+struct RemotePlayerUpdate {
+    glm::vec3 position;
+    glm::vec3 direction;
+};
+std::mutex remotePlayerUpdatesMutex;
+std::unordered_map<std::string, RemotePlayerUpdate> remotePlayerUpdates;
+std::vector<std::string> removedRemotePlayers;
+}
+
+#if defined(__EMSCRIPTEN__)
+extern "C" EMSCRIPTEN_KEEPALIVE void updateRemotePlayer(
+    const char* playerId, const double x, const double y, const double z,
+    const double directionX, const double directionY, const double directionZ) {
+    if (!playerId) return;
+    std::scoped_lock lock(remotePlayerUpdatesMutex);
+    remotePlayerUpdates[playerId] = {
+        glm::vec3(x, y, z), glm::vec3(directionX, directionY, directionZ)
+    };
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void removeRemotePlayer(const char* playerId) {
+    if (!playerId) return;
+    std::scoped_lock lock(remotePlayerUpdatesMutex);
+    remotePlayerUpdates.erase(playerId);
+    removedRemotePlayers.emplace_back(playerId);
+}
+#endif
+
+RendererSystem::~RendererSystem() {
+    if (m_remotePlayerMetadataBuffer) wgpuBufferRelease(m_remotePlayerMetadataBuffer);
+    if (m_remotePlayerVertexBuffer) wgpuBufferRelease(m_remotePlayerVertexBuffer);
+    if (m_remotePlayerUniformBindGroup) wgpuBindGroupRelease(m_remotePlayerUniformBindGroup);
+    if (m_remotePlayerPipeline) wgpuRenderPipelineRelease(m_remotePlayerPipeline);
+}
 
 void RendererSystem::initialize() {
     LogApp::info("RendererSystem::initialize");
@@ -165,6 +213,7 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 
         wgpuRenderPassEncoderDraw(scenePass, 6, vertexCount, 0, 0);
     }
+    renderRemotePlayers(scenePass);
     wgpuRenderPassEncoderEnd(scenePass);
     wgpuRenderPassEncoderRelease(scenePass);
 
@@ -198,8 +247,119 @@ void RendererSystem::render(const WGPUCommandEncoder &encoder, const WGPUTexture
 void RendererSystem::update(const float dt) {
     const Camera& camera = getCamera();
     m_chunkRenderManager->removeBuffersOfFarChunks(camera);
+    updateRemotePlayerBuffers(dt);
 
     m_timeAccumulator = std::fmod(m_timeAccumulator + dt, 1e+8f);
+}
+
+void RendererSystem::updateRemotePlayerBuffers(const float dt) {
+    std::unordered_map<std::string, RemotePlayerUpdate> updates;
+    std::vector<std::string> removals;
+    {
+        std::scoped_lock lock(remotePlayerUpdatesMutex);
+        updates.swap(remotePlayerUpdates);
+        removals.swap(removedRemotePlayers);
+    }
+
+    for (const auto& playerId : removals) {
+        if (const auto found = m_remotePlayers.find(playerId); found != m_remotePlayers.end()) {
+            m_remotePlayers.erase(found);
+            m_remotePlayersDirty = true;
+        }
+    }
+
+    for (const auto& [playerId, update] : updates) {
+        auto [iterator, inserted] = m_remotePlayers.try_emplace(playerId);
+        auto& player = iterator->second;
+        player.targetPosition = update.position;
+        const glm::vec3 horizontalDirection(update.direction.x, 0.0f, update.direction.z);
+        if (glm::dot(horizontalDirection, horizontalDirection) > 0.000001f) {
+            player.targetDirection = glm::normalize(horizontalDirection);
+        }
+        if (inserted) {
+            player.position = update.position;
+            player.direction = player.targetDirection;
+        }
+        m_remotePlayersDirty = true;
+    }
+
+    const float interpolation = std::clamp(dt * 12.0f, 0.0f, 1.0f);
+    const auto device = getWebGpuContext().getDevice();
+    for (auto& [playerId, player] : m_remotePlayers) {
+        const glm::vec3 positionDelta = player.targetPosition - player.position;
+        if (glm::dot(positionDelta, positionDelta) > 0.000001f) {
+            player.position = glm::mix(player.position, player.targetPosition, interpolation);
+            if (const glm::vec3 remaining = player.targetPosition - player.position;
+                glm::dot(remaining, remaining) <= 0.000001f)
+                player.position = player.targetPosition;
+            m_remotePlayersDirty = true;
+        }
+        constexpr float twoPi = 6.28318530717958647692f;
+        const float currentAngle = std::atan2(player.direction.x, player.direction.z);
+        const float targetAngle = std::atan2(player.targetDirection.x, player.targetDirection.z);
+        const float angleDelta = std::remainder(targetAngle - currentAngle, twoPi);
+        if (std::abs(angleDelta) > 0.001f) {
+            const float nextAngle = currentAngle + angleDelta * interpolation;
+            player.direction = glm::vec3(std::sin(nextAngle), 0.0f, std::cos(nextAngle));
+            if (std::abs(angleDelta) * (1.0f - interpolation) <= 0.001f)
+                player.direction = player.targetDirection;
+            m_remotePlayersDirty = true;
+        }
+    }
+
+    if (!m_remotePlayersDirty) return;
+
+    std::vector<VertexData> vertices;
+    std::vector<glm::vec4> metadata;
+    vertices.reserve(m_remotePlayers.size());
+    metadata.reserve(m_remotePlayers.size());
+    for (const auto& [playerId, player] : m_remotePlayers) {
+
+        const auto hash = std::hash<std::string>{}(playerId);
+        const auto color = VoxelData(
+            static_cast<uint8_t>(64 + (hash & 127)),
+            static_cast<uint8_t>(64 + ((hash >> 8) & 127)),
+            static_cast<uint8_t>(64 + ((hash >> 16) & 127)));
+        vertices.emplace_back(VertexData{0, 0, 0, 1, color, {}, {}});
+        const float facingAngle = std::atan2(player.direction.x, player.direction.z);
+        const glm::vec4 playerOffset(
+            player.position.x,
+            player.position.y,
+            player.position.z,
+            facingAngle + 10.0f);
+        metadata.push_back(playerOffset);
+    }
+
+    const uint64_t vertexBytes = vertices.size() * sizeof(VertexData);
+    const uint64_t metadataBytes = metadata.size() * sizeof(glm::vec4);
+    const auto ensureBuffer = [&](WGPUBuffer& buffer, uint64_t& allocatedSize, const uint64_t requiredSize,
+                                  const char* label) {
+        if (requiredSize == 0 || allocatedSize >= requiredSize) return;
+        if (buffer) wgpuBufferRelease(buffer);
+        allocatedSize = std::max<uint64_t>(requiredSize, allocatedSize * 2);
+        WGPUBufferDescriptor descriptor{};
+        descriptor.size = allocatedSize;
+        descriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+        descriptor.label = WGPUStringView{label, WGPU_STRLEN};
+        buffer = wgpuDeviceCreateBuffer(device, &descriptor);
+    };
+    ensureBuffer(m_remotePlayerVertexBuffer, m_remotePlayerVertexBufferSize, vertexBytes, "Remote Player Vertices");
+    ensureBuffer(m_remotePlayerMetadataBuffer, m_remotePlayerMetadataBufferSize, metadataBytes, "Remote Player Metadata");
+    if (vertexBytes > 0) {
+        wgpuQueueWriteBuffer(m_queue, m_remotePlayerVertexBuffer, 0, vertices.data(), vertexBytes);
+        wgpuQueueWriteBuffer(m_queue, m_remotePlayerMetadataBuffer, 0, metadata.data(), metadataBytes);
+    }
+    m_remotePlayerInstanceCount = static_cast<uint32_t>(vertices.size());
+    m_remotePlayersDirty = false;
+}
+
+void RendererSystem::renderRemotePlayers(const WGPURenderPassEncoder scenePass) const {
+    if (m_remotePlayerInstanceCount == 0) return;
+    wgpuRenderPassEncoderSetPipeline(scenePass, m_remotePlayerPipeline);
+    wgpuRenderPassEncoderSetBindGroup(scenePass, 0, m_remotePlayerUniformBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetVertexBuffer(scenePass, 0, m_remotePlayerVertexBuffer, 0, WGPU_WHOLE_SIZE);
+    wgpuRenderPassEncoderSetVertexBuffer(scenePass, 1, m_remotePlayerMetadataBuffer, 0, WGPU_WHOLE_SIZE);
+    wgpuRenderPassEncoderDraw(scenePass, 48, m_remotePlayerInstanceCount, 0, 0);
 }
 
 void RendererSystem::onEvent(Event &event) {
@@ -308,9 +468,24 @@ void RendererSystem::createRenderPipeline() {
         farCascade->getDepthView(),
         m_shadowSampler
     );
+    const auto remotePlayerArtifacts = builder.build(
+        opts,
+        uniformBuffer,
+        blockTextureManager,
+        nearCascade->getDepthView(),
+        farCascade->getDepthView(),
+        m_shadowSampler,
+        true
+    );
 
+    if (m_renderPipeline) wgpuRenderPipelineRelease(m_renderPipeline);
+    if (m_uniformBindGroup) wgpuBindGroupRelease(m_uniformBindGroup);
+    if (m_remotePlayerPipeline) wgpuRenderPipelineRelease(m_remotePlayerPipeline);
+    if (m_remotePlayerUniformBindGroup) wgpuBindGroupRelease(m_remotePlayerUniformBindGroup);
     m_renderPipeline = artifacts.pipeline;
     m_uniformBindGroup = artifacts.uniformBindGroup;
+    m_remotePlayerPipeline = remotePlayerArtifacts.pipeline;
+    m_remotePlayerUniformBindGroup = remotePlayerArtifacts.uniformBindGroup;
 }
 
 void RendererSystem::updateUniformBuffer() const {
@@ -396,6 +571,13 @@ void RendererSystem::renderShadowPass(const WGPUCommandEncoder &encoder, const S
         wgpuRenderPassEncoderSetVertexBuffer(shadow, 0, buffer, 0, chunkMetaOffset);
         wgpuRenderPassEncoderSetVertexBuffer(shadow, 1, buffer, chunkMetaOffset, sizeof(glm::vec4));
         wgpuRenderPassEncoderDraw(shadow, 6, vertexCount, 0, 0);
+    }
+
+    if (m_remotePlayerInstanceCount > 0) {
+        wgpuRenderPassEncoderSetPipeline(shadow, shadowPass.getRemotePlayerPipeline());
+        wgpuRenderPassEncoderSetVertexBuffer(shadow, 0, m_remotePlayerVertexBuffer, 0, WGPU_WHOLE_SIZE);
+        wgpuRenderPassEncoderSetVertexBuffer(shadow, 1, m_remotePlayerMetadataBuffer, 0, WGPU_WHOLE_SIZE);
+        wgpuRenderPassEncoderDraw(shadow, 48, m_remotePlayerInstanceCount, 0, 0);
     }
 
     wgpuRenderPassEncoderEnd(shadow);

@@ -8,6 +8,12 @@ EM_JS(void, sendMultiplayerBrushMutation,
       (int x, int y, int z, int radius, int sphere, unsigned int blockId), {
     if (Module.multiplayerSendBrush) Module.multiplayerSendBrush(x, y, z, radius, sphere !== 0, blockId);
 });
+
+EM_JS(void, sendMultiplayerPlayerTransform,
+      (double x, double y, double z, double directionX, double directionY, double directionZ), {
+    if (Module.multiplayerSendPlayerTransform)
+        Module.multiplayerSendPlayerTransform(x, y, z, directionX, directionY, directionZ);
+});
 #endif
 
 #include "application/Application.h"
@@ -47,13 +53,19 @@ void ControllerSystem::update(const float dt) {
         m_saveTimer = 0.0f;
     }
 
-    if (!m_isMouseCaptured) return;
-
-    const Input& input = getInput();
     Camera& camera = getCamera();
-
-    updateCameraMovement(dt, input, camera);
-    animateCameraFov(dt, input, camera);
+    if (m_isMouseCaptured) {
+        const Input& input = getInput();
+        updateCameraMovement(dt, input, camera);
+        animateCameraFov(dt, input, camera);
+    }
+#ifdef __EMSCRIPTEN__
+    if (const auto* cms = getApplication().getSystem<ChunkManagementSystem>(); cms && cms->isMultiplayer()) {
+        const auto position = camera.getPosition();
+        const auto direction = camera.getDirection();
+        sendMultiplayerPlayerTransform(position.x, position.y, position.z, direction.x, direction.y, direction.z);
+    }
+#endif
 }
 
 void ControllerSystem::onEvent(Event &event) {
