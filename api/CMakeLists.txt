@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.28)
 
 project(WebVoxelChunkGeneratorApi LANGUAGES CXX)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -50,8 +52,8 @@ FetchContent_Declare(
 set(ZLIB_BUILD_EXAMPLES OFF)
 FetchContent_MakeAvailable(zlib)
 
-add_executable(world-generator-api
-    chunk_generator_main.cpp
+add_library(webvoxel_generator SHARED
+    webvoxel_generator.cpp
     ../client/src/application/world/WorldGenerator.cpp
     ../client/src/application/world/chunk/Chunk.cpp
     ../client/src/application/domain/Block.cpp
@@ -61,13 +63,13 @@ add_executable(world-generator-api
     ../client/src/common/datastructures/GlobalBlockAllocator.cpp
 )
 
-target_compile_features(world-generator-api PRIVATE cxx_std_23)
+target_compile_features(webvoxel_generator PRIVATE cxx_std_23)
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(world-generator-api PRIVATE -ffunction-sections)
-    target_link_options(world-generator-api PRIVATE -Wl,--gc-sections)
+    target_compile_options(webvoxel_generator PRIVATE -ffunction-sections)
+    target_link_options(webvoxel_generator PRIVATE -Wl,--gc-sections)
 endif ()
-target_include_directories(world-generator-api PRIVATE ../client/src)
-target_link_libraries(world-generator-api PRIVATE
+target_include_directories(webvoxel_generator PRIVATE ../client/src)
+target_link_libraries(webvoxel_generator PRIVATE
     glm::glm
     absl::flat_hash_map
     absl::hash
