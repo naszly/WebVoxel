@@ -2,7 +2,9 @@
 
 set -ex
 
-mkdir -p publish
+publish_dir="${1:-publish}"
+
+mkdir -p "$publish_dir"
 
 rm -f build-web/client/index.*
 rm -f build-web/client/game.*
@@ -10,12 +12,12 @@ rm -f build-web/client/game.*
 emcmake cmake -B build-web
 cmake --build build-web
 
-rm -rf publish/*
+rm -rf "${publish_dir:?}/"*
 
-cp -v build-web/client/index.* publish/
-cp -v build-web/client/game.* publish/
+cp -v build-web/client/index.* "$publish_dir"/
+cp -v build-web/client/game.* "$publish_dir"/
 
-cat <<EOL > publish/_headers
+cat <<EOL > "$publish_dir"/_headers
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
