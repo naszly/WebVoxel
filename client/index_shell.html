@@ -1,460 +1,321 @@
 <!doctype html>
 <html lang="en-us">
-
 <head>
     <meta charset="utf-8">
-
     <meta http-equiv="Cache-Control" content="no-store">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>WebVoxel Worlds</title>
-
-    <script>
-
-        window.addEventListener("pageshow", function(event)
-        {
-            if (event.persisted)
-            {
-                window.location.reload();
-            }
-        });
-
-    </script>
-
     <style>
-
-        body {
-            margin: 0;
-            padding: 40px;
-            background: #060708;
-            color: #eee;
-            font-family: Arial, sans-serif;
-        }
-
-
-        .container {
-
-            width: 500px;
-
-            margin: auto;
-
-            background: #111;
-
-            padding: 20px;
-
-            border: 1px solid #333;
-
-            border-radius: 8px;
-
-        }
-
-
-
-        h1 {
-
-            text-align: center;
-
-            color: #9ecbff;
-
-        }
-
-
-
-        h2 {
-
-            color: #9ecbff;
-
-        }
-
-
-
-        .world {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            background: #1a1a1a;
-
-            padding: 8px;
-
-            margin-bottom: 5px;
-
-            border-radius: 3px;
-
-        }
-
-
-
-        .world:hover {
-
-            background: #222;
-
-        }
-
-
-
-        input {
-
-            width: 100%;
-
-            box-sizing: border-box;
-
-            margin: 5px 0 12px;
-
-            padding: 8px;
-
-            background: #222;
-
-            color: white;
-
-            border: 1px solid #555;
-
-        }
-
-
-
-        input[type="checkbox"] {
-
-            width: auto;
-
-        }
-
-
-
-        button {
-
-            padding: 8px 16px;
-
-            background: #222;
-
-            color: white;
-
-            border: 1px solid #555;
-
-            cursor: pointer;
-
-        }
-
-
-
-        button:hover {
-
-            background: #333;
-
-        }
-
-
-
-        #status {
-
-            color: #aaa;
-
-            margin-bottom: 20px;
-
-        }
-
-
-
-        #controls-doc {
-
-            margin-top: 30px;
-
-            background: #0b0d10;
-
-            border: 1px solid #333;
-
-            border-radius: 6px;
-
-            padding: 12px 16px;
-
-            color: #ccc;
-
-        }
-
-
-        #controls-doc h3 {
-
-            margin: 0 0 10px;
-
-            color: #9ecbff;
-
-        }
-
-
-        #controls-doc ul {
-
-            margin: 0;
-
-            padding-left: 20px;
-
-        }
-
-
-        #controls-doc li {
-
-            margin: 4px 0;
-
-        }
-
-
+        :root { color-scheme: dark; font-family: Arial, sans-serif; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 32px 16px; background: #060708; color: #eee; }
+        .container { width: min(680px, 100%); margin: auto; }
+        h1 { text-align: center; color: #9ecbff; }
+        h2 { margin-top: 0; color: #9ecbff; }
+        section { margin-top: 18px; padding: 20px; border: 1px solid #333; border-radius: 8px; background: #111; }
+        .row { display: flex; gap: 10px; align-items: center; }
+        .world { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px; margin: 6px 0; border-radius: 4px; background: #1a1a1a; }
+        .world-details { min-width: 0; }
+        .world-actions { display: flex; gap: 6px; }
+        .recent-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+        .recent-heading h3 { margin: 0; }
+        .world-name { display: block; overflow: hidden; text-overflow: ellipsis; }
+        .world-code { color: #9ecbff; font-family: monospace; letter-spacing: .12em; }
+        label { display: block; margin-top: 10px; color: #ccc; }
+        input { width: 100%; margin-top: 5px; padding: 9px; color: white; background: #222; border: 1px solid #555; border-radius: 3px; }
+        input[type="checkbox"] { width: auto; }
+        button { flex: 0 0 auto; padding: 9px 16px; color: white; background: #222; border: 1px solid #555; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #333; }
+        button:disabled { cursor: default; opacity: .5; }
+        .muted { color: #999; }
+        .error { color: #ff9b9b; }
+        .success { color: #9fe0ae; }
+        #roomCode { text-transform: uppercase; font-family: monospace; letter-spacing: .12em; }
+        #controls-doc ul { margin-bottom: 0; padding-left: 20px; }
     </style>
-
+    <script>
+        window.addEventListener("pageshow", event => { if (event.persisted) window.location.reload(); });
+    </script>
 </head>
-
-
-
 <body>
+<main class="container">
+    <h1>WebVoxel</h1>
 
+    <section>
+        <h2>Local worlds</h2>
+        <div id="localStatus" class="muted">Loading local worlds...</div>
+        <div id="localWorlds"></div>
 
-<div class="container">
+        <h3>Create local world</h3>
+        <label>Name <input id="localWorldName" type="text" placeholder="my_world" maxlength="50"></label>
+        <label>Seed <input id="localSeed" type="number" value="0"></label>
+        <label><input id="localCaves" type="checkbox" checked> Generate caves</label>
+        <p><button id="createLocalButton" type="button">Create and Play</button></p>
+    </section>
 
+    <section>
+        <h2>Multiplayer</h2>
+        <div id="serverStatus" class="muted">Checking server...</div>
 
-    <h1>
-        WebVoxel
-    </h1>
+        <h3>Join with a room code</h3>
+        <div class="row">
+            <input id="roomCode" type="text" placeholder="A7K9QF" maxlength="6" autocomplete="off">
+            <button id="joinRoomButton" type="button">Join</button>
+        </div>
 
+        <div id="recentRooms"></div>
 
+        <h3>Create multiplayer room</h3>
+        <label>Room name <input id="roomName" type="text" placeholder="My shared world" maxlength="50"></label>
+        <label>Seed <input id="roomSeed" type="number" value="0"></label>
+        <label><input id="roomCaves" type="checkbox" checked> Generate caves</label>
+        <p><button id="createRoomButton" type="button">Create Room</button></p>
+    </section>
 
-    <div id="status">
-        Loading worlds...
-    </div>
-
-
-
-    <h2>
-        Worlds
-    </h2>
-
-
-
-    <div id="worlds">
-
-        No worlds found.
-
-    </div>
-
-
-
-    <h2>
-        Create world
-    </h2>
-
-
-
-    <label>
-        Name
-    </label>
-
-
-    <input
-            id="worldName"
-            type="text"
-            placeholder="my_world">
-
-
-
-    <label>
-        Seed
-    </label>
-
-
-    <input
-            id="seed"
-            type="number"
-            value="0">
-
-
-
-    <label>
-
-        <input
-                id="caves"
-                type="checkbox"
-                checked>
-
-        Generate caves
-
-    </label>
-
-
-
-    <br><br>
-
-
-
-    <button onclick="createWorld()">
-
-        Create and Play
-
-    </button>
-
-
-
-    <div id="controls-doc">
-
-        <h3>
-            Game Controls
-        </h3>
-
+    <section id="controls-doc">
+        <h2>Game controls</h2>
         <ul>
             <li>Click once to lock cursor; press E to unlock</li>
             <li>Mouse: look around</li>
             <li>Left click: remove voxel</li>
             <li>Right click: place voxel</li>
             <li>W/A/S/D: move</li>
-            <li>
-                Space: jump
-                <span style="color:#9ecbff;">
-                    (or up in god mode)
-                </span>
-            </li>
-            <li>
-                C: down
-                <span style="color:#9ecbff;">
-                    (in god mode)
-                </span>
-            </li>
+            <li>Space: jump (or up in god mode)</li>
+            <li>C: down in god mode</li>
             <li>Shift: sprint</li>
             <li>G: gravity/god mode toggle</li>
         </ul>
-
-    </div>
-
-
-</div>
-
-
+    </section>
+</main>
 
 <script>
+    const recentRoomsKey = "webvoxel.recentRooms";
+    const localStatus = document.getElementById("localStatus");
+    const localWorlds = document.getElementById("localWorlds");
+    const serverStatus = document.getElementById("serverStatus");
 
-    const worldsElement =
-        document.getElementById("worlds");
+    function setServerStatus(message, kind = "muted") {
+        serverStatus.textContent = message;
+        serverStatus.className = kind;
+    }
 
-    const statusElement =
-        document.getElementById("status");
+    function gameUrl(parameters) {
+        return "game.html?" + new URLSearchParams(parameters);
+    }
 
-    function renderWorlds(worlds)
-    {
-        worldsElement.innerHTML = "";
+    function playLocal(world) {
+        location.replace(gameUrl({ mode: "local", world }));
+    }
 
-        if (worlds.length === 0)
-        {
-            worldsElement.innerHTML = "No worlds found.";
+    function playRoom(room) {
+        rememberRoom(room);
+        sessionStorage.setItem("webvoxel.roomToken." + room.code, room.accessToken);
+        location.replace(gameUrl({
+            mode: "multiplayer",
+            room: room.code,
+            world: "room_" + room.code.toLowerCase(),
+            create: "true",
+            seed: room.seed,
+            caves: room.cavesEnabled
+        }));
+    }
+
+    function createWorldRow(name, detail, actionLabel, action) {
+        const row = document.createElement("div");
+        row.className = "world";
+        const info = document.createElement("div");
+        info.className = "world-details";
+        const title = document.createElement("span");
+        title.className = "world-name";
+        title.textContent = name;
+        info.appendChild(title);
+        if (detail) {
+            const subtitle = document.createElement("span");
+            subtitle.className = "world-code";
+            subtitle.textContent = detail;
+            info.appendChild(subtitle);
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = actionLabel;
+        button.onclick = action;
+        row.append(info, button);
+        return row;
+    }
+
+    function renderLocalWorlds(worlds) {
+        localWorlds.replaceChildren();
+        if (worlds.length === 0) {
+            localWorlds.textContent = "No local worlds found.";
             return;
         }
+        worlds.forEach(world => localWorlds.appendChild(createWorldRow(world, "", "Play", () => playLocal(world))));
+    }
 
-        for (const world of worlds)
-        {
-            const row = document.createElement("div");
-            row.className = "world";
+    function loadRecentRooms() {
+        try {
+            const rooms = JSON.parse(localStorage.getItem(recentRoomsKey) || "[]");
+            if (!Array.isArray(rooms)) return [];
+            return rooms.filter(room =>
+                room &&
+                typeof room.name === "string" &&
+                typeof room.code === "string" &&
+                typeof room.seed === "number" &&
+                typeof room.cavesEnabled === "boolean");
+        }
+        catch (_) { return []; }
+    }
 
-            row.innerHTML =
-                `<span>${world}</span>
-             <button>Play</button>`;
+    function rememberRoom(room) {
+        const rooms = loadRecentRooms().filter(item => item.code !== room.code);
+        rooms.unshift({
+            name: room.name,
+            code: room.code,
+            seed: room.seed,
+            cavesEnabled: room.cavesEnabled
+        });
+        localStorage.setItem(recentRoomsKey, JSON.stringify(rooms.slice(0, 8)));
+        renderRecentRooms();
+    }
 
-            row.querySelector("button").onclick = function ()
-            {
-                location.replace(
-                    "game.html?" +
-                    new URLSearchParams({
-                        world: world
-                    })
-                );
-            };
+    function forgetRoom(code) {
+        const rooms = loadRecentRooms().filter(room => room.code !== code);
+        localStorage.setItem(recentRoomsKey, JSON.stringify(rooms));
+        renderRecentRooms();
+    }
 
-            worldsElement.appendChild(row);
+    function clearRecentRooms() {
+        localStorage.removeItem(recentRoomsKey);
+        renderRecentRooms();
+        setServerStatus("Recent room shortcuts cleared.");
+    }
+
+    function renderRecentRooms() {
+        const element = document.getElementById("recentRooms");
+        element.replaceChildren();
+        const rooms = loadRecentRooms();
+        if (rooms.length === 0) return;
+        const heading = document.createElement("div");
+        heading.className = "recent-heading";
+        const title = document.createElement("h3");
+        title.textContent = "Recent rooms";
+        const clearButton = document.createElement("button");
+        clearButton.type = "button";
+        clearButton.textContent = "Clear recents";
+        clearButton.onclick = clearRecentRooms;
+        heading.append(title, clearButton);
+        element.appendChild(heading);
+
+        rooms.forEach(room => {
+            const row = createWorldRow(room.name, room.code, "Join", () => resolveRoom(room.code));
+            const joinButton = row.querySelector("button");
+            const actions = document.createElement("div");
+            actions.className = "world-actions";
+            const forgetButton = document.createElement("button");
+            forgetButton.type = "button";
+            forgetButton.textContent = "Forget";
+            forgetButton.onclick = () => forgetRoom(room.code);
+            joinButton.replaceWith(actions);
+            actions.append(joinButton, forgetButton);
+            element.appendChild(row);
+        });
+    }
+
+    function normalizeCode(value) {
+        return value.trim().toUpperCase().replace(/[^ABCDEFGHJKMNPQRTUVWXYZ2346789]/g, "");
+    }
+
+    async function resolveRoom(code) {
+        const normalized = normalizeCode(code);
+        if (normalized.length !== 6) {
+            setServerStatus("Enter a valid six-character room code.", "error");
+            return;
+        }
+        setServerStatus("Finding room...");
+        try {
+            const response = await fetch("/api/rooms/" + encodeURIComponent(normalized));
+            if (response.status === 404) throw new Error("Room not found. It may have expired; you can forget it from Recent rooms.");
+            if (!response.ok) throw new Error("Unable to join room.");
+            playRoom(await response.json());
+        } catch (error) {
+            setServerStatus(error.message || "Server unavailable.", "error");
         }
     }
 
-    function createWorld()
-    {
-        const name =
-            document.getElementById("worldName")
-                .value
-                .trim();
+    async function createRoom() {
+        const button = document.getElementById("createRoomButton");
+        const name = document.getElementById("roomName").value.trim();
+        if (!name) {
+            setServerStatus("Enter a room name.", "error");
+            return;
+        }
+        button.disabled = true;
+        setServerStatus("Creating room...");
+        try {
+            const response = await fetch("/api/rooms", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name,
+                    seed: Number(document.getElementById("roomSeed").value || 0),
+                    cavesEnabled: document.getElementById("roomCaves").checked
+                })
+            });
+            if (!response.ok) throw new Error("Unable to create room.");
+            const room = await response.json();
+            setServerStatus("Room " + room.code + " created.", "success");
+            playRoom(room);
+        } catch (error) {
+            setServerStatus(error.message || "Server unavailable.", "error");
+            button.disabled = false;
+        }
+    }
 
-        const seed =
-            document.getElementById("seed").value || "0";
-
-        const caves =
-            document.getElementById("caves").checked;
-
-        if (!/^[a-z0-9_]+$/.test(name))
-        {
+    function createLocalWorld() {
+        const name = document.getElementById("localWorldName").value.trim();
+        if (!/^[a-z0-9_]+$/.test(name)) {
             alert("World names may only contain a-z, 0-9 and _");
             return;
         }
-
-        location.replace(
-            "game.html?" +
-            new URLSearchParams({
-                world: name,
-                create: "true",
-                seed: seed,
-                caves: caves
-            })
-        );
+        location.replace(gameUrl({
+            mode: "local",
+            world: name,
+            create: "true",
+            seed: document.getElementById("localSeed").value || "0",
+            caves: document.getElementById("localCaves").checked
+        }));
     }
 
-    window.onWorldListReady = function ()
-    {
-        console.log("World list ready.");
+    document.getElementById("createLocalButton").onclick = createLocalWorld;
+    document.getElementById("createRoomButton").onclick = createRoom;
+    document.getElementById("joinRoomButton").onclick = () => resolveRoom(document.getElementById("roomCode").value);
+    document.getElementById("roomCode").addEventListener("input", event => { event.target.value = normalizeCode(event.target.value); });
+    document.getElementById("roomCode").addEventListener("keydown", event => { if (event.key === "Enter") resolveRoom(event.target.value); });
+    renderRecentRooms();
 
-        const count =
-            Module.ccall(
-                "getWorldCount",
-                "number"
-            );
-
-        console.log("Count:", count);
-
+    window.onWorldListReady = function () {
         const worlds = [];
-
-        for (let i = 0; i < count; i++)
-        {
-            const world =
-                Module.ccall(
-                    "getWorldName",
-                    "string",
-                    ["number"],
-                    [i]
-                );
-
-            console.log(world);
-
-            worlds.push(world);
+        const count = Module.ccall("getWorldCount", "number");
+        for (let index = 0; index < count; index++) {
+            worlds.push(Module.ccall("getWorldName", "string", ["number"], [index]));
         }
-
-        renderWorlds(worlds);
-
-        statusElement.innerText = "Ready";
+        renderLocalWorlds(worlds.filter(world => !world.startsWith("room_")));
+        localStatus.textContent = "Local worlds are stored in this browser.";
     };
 
-    var Module =
-        {
-            print(text)
-            {
-                console.log(text);
-            },
+    fetch("/api/rooms/status", { method: "GET" })
+        .then(response => {
+            if (!response.ok) throw new Error();
+            setServerStatus("Server available.", "success");
+        })
+        .catch(() => setServerStatus("Multiplayer server unavailable. Local worlds still work.", "error"));
 
-            printErr(text)
-            {
-                console.error(text);
-            },
-
-            onRuntimeInitialized()
-            {
-                console.log("Launcher runtime initialized.");
-                statusElement.innerText = "Loading worlds...";
-            }
-        };
-
+    var Module = {
+        print: text => console.log(text),
+        printErr: text => console.error(text),
+        onRuntimeInitialized() { localStatus.textContent = "Loading local worlds..."; }
+    };
 </script>
-
 {{{ SCRIPT }}}
-
 </body>
-
 </html>

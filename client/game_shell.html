@@ -147,6 +147,36 @@
         }
 
 
+        #room-badge {
+
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 8px;
+            color: #ddd;
+            background: rgba(17, 17, 17, .9);
+            border: 1px solid #555;
+            border-radius: 4px;
+
+        }
+
+        #room-badge[hidden] {
+            display: none;
+        }
+
+
+        #room-code {
+
+            color: #9ecbff;
+            font-family: monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            letter-spacing: .14em;
+            user-select: all;
+
+        }
+
+
         .no-scroll {
 
             overflow: hidden !important;
@@ -177,6 +207,13 @@
               max="100"
               hidden>
     </progress>
+
+
+    <div id="room-badge" hidden>
+        <span>Join code</span>
+        <span id="room-code"></span>
+        <button id="copy-room-code" type="button">Copy</button>
+    </div>
 
 
     <input type="button"
@@ -233,6 +270,42 @@
 
     const caves =
         params.get("caves");
+
+
+    const multiplayerMode =
+        params.get("mode") === "multiplayer";
+
+
+    const roomCode =
+        (params.get("room") || "").trim().toUpperCase();
+
+
+    const roomToken =
+        (sessionStorage.getItem("webvoxel.roomToken." + roomCode) || "").trim().toUpperCase();
+
+
+    const validRoomCode = /^[ABCDEFGHJKMNPQRTUVWXYZ2346789]{6}$/.test(roomCode);
+    const validRoomToken = /^[A-F0-9]{32}$/.test(roomToken);
+
+
+    if (multiplayerMode && validRoomCode) {
+        const roomBadge = document.getElementById("room-badge");
+        const roomCodeElement = document.getElementById("room-code");
+        const copyRoomCodeButton = document.getElementById("copy-room-code");
+
+        roomCodeElement.textContent = roomCode;
+        roomBadge.hidden = false;
+
+        copyRoomCodeButton.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(roomCode);
+                copyRoomCodeButton.textContent = "Copied";
+                setTimeout(() => copyRoomCodeButton.textContent = "Copy", 1500);
+            } catch (_) {
+                window.getSelection()?.selectAllChildren(roomCodeElement);
+            }
+        };
+    }
 
 
     Module = {
@@ -455,6 +528,16 @@
         Module.arguments.push(
             "--caves=" + caves
         );
+    }
+
+
+    if (multiplayerMode) {
+        if (validRoomCode) {
+            Module.arguments.push("--room=" + roomCode);
+        }
+        if (validRoomToken) {
+            Module.arguments.push("--room-token=" + roomToken);
+        }
     }
 
     /*

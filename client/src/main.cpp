@@ -23,6 +23,8 @@ int main(const int argc, char** argv) {
     bool cavesEnabled = true;
     int seed = 0;
     std::string worldName;
+    std::string roomCode;
+    std::string roomToken;
     bool createWorld = false;
     bool listWorlds = false;
     std::optional<int> voxWorldModelIndex = std::nullopt;
@@ -37,6 +39,8 @@ int main(const int argc, char** argv) {
             ("caves", "Enable cave generation", cxxopts::value<bool>()->default_value("true"))
             ("seed", "Seed for world generation", cxxopts::value<int>()->default_value("0"))
             ("world", "World name", cxxopts::value<std::string>())
+            ("room", "Multiplayer room code", cxxopts::value<std::string>())
+            ("room-token", "Multiplayer room access token", cxxopts::value<std::string>())
             ("create", "Create the world if it doesn't exist")
             ("list-worlds", "List available worlds")
             ("help", "Print help");
@@ -68,6 +72,33 @@ int main(const int argc, char** argv) {
                 throw std::runtime_error(
                     "Invalid world name. World names may only contain lowercase letters (a-z), digits (0-9), and underscores (_).");
             }
+        }
+
+        if (result.count("room")) {
+            roomCode = result["room"].as<std::string>();
+            const std::string_view alphabet = "ABCDEFGHJKMNPQRTUVWXYZ2346789";
+            const bool valid = roomCode.size() == 6 &&
+                std::ranges::all_of(roomCode, [&alphabet](const char character) {
+                    return alphabet.contains(character);
+                });
+            if (!valid) {
+                throw std::runtime_error("Invalid multiplayer room code.");
+            }
+        }
+
+        if (result.count("room-token")) {
+            roomToken = result["room-token"].as<std::string>();
+            const bool valid = roomToken.size() == 32 &&
+                std::ranges::all_of(roomToken, [](const unsigned char character) {
+                    return std::isdigit(character) || (character >= 'A' && character <= 'F');
+                });
+            if (!valid) {
+                throw std::runtime_error("Invalid multiplayer room access token.");
+            }
+        }
+
+        if (roomCode.empty() != roomToken.empty()) {
+            throw std::runtime_error("A multiplayer room code and access token must be provided together.");
         }
 
         createWorld = result.count("create") > 0;
@@ -109,11 +140,16 @@ int main(const int argc, char** argv) {
             builder.addSystemToLayer<ChunkManagementSystem>(
                 mainLayerIdx,
                 "worlds/" + worldName,
-                params);
+                params,
+                roomCode,
+                roomToken);
         } else {
             builder.addSystemToLayer<ChunkManagementSystem>(
                 mainLayerIdx,
-                "worlds/" + worldName);
+                "worlds/" + worldName,
+                std::nullopt,
+                roomCode,
+                roomToken);
         }
     }
 

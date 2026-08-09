@@ -21,7 +21,10 @@ public:
 
     explicit ChunkManagementSystem(
         const std::string& path,
-        std::optional<WorldGeneratorParams> worldGeneratorParam = std::nullopt) : System() {
+        std::optional<WorldGeneratorParams> worldGeneratorParam = std::nullopt,
+        std::string roomCode = {},
+        std::string roomToken = {})
+        : System(), m_roomCode(std::move(roomCode)), m_roomToken(std::move(roomToken)) {
         m_savePath = path;
         if (worldGeneratorParam) {
             saveWorldGeneratorParams(m_savePath, worldGeneratorParam.value());
@@ -129,6 +132,8 @@ private:
     std::unique_ptr<WorldGenerator> m_generator{};
     WorldGeneratorParams m_generatorParams{};
     std::string m_savePath{};
+    const std::string m_roomCode{};
+    const std::string m_roomToken{};
 
     void processChunkManagement(const Camera& camera, World& world);
 

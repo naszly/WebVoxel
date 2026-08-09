@@ -240,6 +240,10 @@ void ChunkManagementSystem::scheduleChunksForLoading(const Camera& camera, const
 }
 
 void ChunkManagementSystem::scheduleChunksForSaving(World& world) {
+    if (!m_roomCode.empty()) {
+        return;
+    }
+
     for (auto &chunkRef : world.getChunks()) {
         auto& chunk = chunkRef.get();
         if (chunk.isSaveFileDirty()) {
@@ -334,22 +338,33 @@ void ChunkManagementSystem::handleChunkSave(ChunkHandle& chunkToSave) {
 
 void ChunkManagementSystem::handleChunkLoad(const glm::ivec3& chunkToLoad) {
     Chunk chunk(chunkToLoad);
-    if (chunk.fileExists(m_savePath)) {
+    if (m_roomCode.empty() && chunk.fileExists(m_savePath)) {
         chunk.load(m_savePath);
     } else {
 #if defined(__EMSCRIPTEN__) && defined(WEBVOXEL_USE_CHUNK_API)
-        const std::string url = "/api/chunks/"
+        const std::string endpoint = m_roomCode.empty()
+            ? "/api/chunks/"
+            : "/api/rooms/" + m_roomCode + "/chunks/";
+        std::string url = endpoint
             + std::to_string(chunkToLoad.x) + "/"
             + std::to_string(chunkToLoad.y) + "/"
-            + std::to_string(chunkToLoad.z)
-            + "?seed=" + std::to_string(m_generatorParams.seed)
-            + "&caves=" + (m_generatorParams.cavesEnabled ? "true" : "false")
-            + "&binary=true";
+            + std::to_string(chunkToLoad.z);
+        if (m_roomCode.empty()) {
+            url += "?seed=" + std::to_string(m_generatorParams.seed)
+                + "&caves=" + (m_generatorParams.cavesEnabled ? "true" : "false")
+                + "&binary=true";
+        } else {
+            url += "?binary=true";
+        }
 
         emscripten_fetch_attr_t attributes;
         emscripten_fetch_attr_init(&attributes);
         std::strcpy(attributes.requestMethod, "GET");
         attributes.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
+        const char* roomHeaders[] = {"X-Room-Token", m_roomToken.c_str(), nullptr};
+        if (!m_roomCode.empty()) {
+            attributes.requestHeaders = roomHeaders;
+        }
 
         emscripten_fetch_t* fetch = emscripten_fetch(&attributes, url.c_str());
         bool succeeded = fetch != nullptr && fetch->status == 200;
