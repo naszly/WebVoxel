@@ -6,10 +6,20 @@
 
 class VoxelData {
 public:
+    enum class Tint : uint8_t {
+        None = 0,
+        ForestGrass = 1,
+        BushyPlainsGrass = 2,
+        PlainsGrass = 3,
+        HillsGrass = 4,
+        MountainsGrass = 5,
+    };
+
     constexpr VoxelData() = default;
     VoxelData(const uint8_t r, const uint8_t g, const uint8_t b) : VoxelData{VoxelColor(r, g, b)} {}
     explicit VoxelData(const VoxelColor color) { setVoxelColor(color); }
     explicit VoxelData(const BlockId blockId) { setBlockId(blockId); }
+    VoxelData(const BlockId blockId, const Tint tint) { setBlockId(blockId, tint); }
 
     [[nodiscard]] VoxelColor getColor() const {
         const uint32_t packedColor = m_data;
@@ -20,7 +30,11 @@ public:
     }
 
     [[nodiscard]] BlockId getBlockId() const {
-        return static_cast<BlockId>(m_data);
+        return static_cast<BlockId>(m_data & 0xFFFFFF);
+    }
+
+    [[nodiscard]] Tint getTint() const {
+        return static_cast<Tint>(m_tint);
     }
 
     [[nodiscard]] Block getBlock() const {
@@ -32,7 +46,7 @@ public:
     }
 
     bool operator==(const VoxelData& other) const {
-        return m_data == other.m_data && m_hasTexture == other.m_hasTexture;
+        return m_data == other.m_data && m_hasTexture == other.m_hasTexture && m_tint == other.m_tint;
     }
 
     bool operator!=(const VoxelData& other) const {
@@ -49,16 +63,18 @@ public:
 
     template <typename H>
     friend H AbslHashValue(H h, const VoxelData& v) {
-        return H::combine(std::move(h), v.m_data, v.m_hasTexture);
+        return H::combine(std::move(h), v.m_data, v.m_hasTexture, v.m_tint);
     }
 
 private:
     uint32_t m_data : 24 {0};
     bool m_hasTexture : 1 {false};
     bool m_emitsLight : 1 {false};
+    uint32_t m_tint : 3 {0};  // 3 bits = 8 possible tints
 
     void setVoxelColor(const VoxelColor color) {
         m_hasTexture = false;
+        m_tint = 0;
         const uint32_t packedColor =
             (static_cast<uint32_t>(color.r) << 16) |
             (static_cast<uint32_t>(color.g) << 8) |
@@ -67,6 +83,13 @@ private:
     }
     void setBlockId(const BlockId blockId) {
         m_hasTexture = true;
+        m_tint = 0;
+        m_data = static_cast<uint32_t>(blockId);
+        m_emitsLight = Block(blockId).emitsLight();
+    }
+    void setBlockId(const BlockId blockId, const Tint tint) {
+        m_hasTexture = true;
+        m_tint = static_cast<uint32_t>(tint);
         m_data = static_cast<uint32_t>(blockId);
         m_emitsLight = Block(blockId).emitsLight();
     }

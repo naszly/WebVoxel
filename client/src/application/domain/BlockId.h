@@ -15,3 +15,7 @@ enum class BlockId : uint32_t {
     OakLeaves = 9,
     Count, // This should always be the last element, used to count the number of block types
 };
+
+inline bool hasTint(BlockId blockId) {
+    return blockId == BlockId::Grass || blockId == BlockId::Dirt;
+}

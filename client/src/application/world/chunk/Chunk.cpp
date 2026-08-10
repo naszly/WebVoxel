@@ -97,6 +97,7 @@ void Chunk::generate(WorldGenerator& generator) {
                 if (isSurfaceChunk) {
                     if (height <= noiseValue && !isCaveAt(i, j, k)) {
                         if (height == noiseValue) {
+                            // Grass tint will be applied later with biome info
                             setVoxelInternal(VoxelData(BlockId::Grass), i, j, k);
                         } else if (height >= noiseValue - 2) {
                             setVoxelInternal(VoxelData(BlockId::Dirt), i, j, k);
@@ -172,6 +173,11 @@ void Chunk::generate(WorldGenerator& generator) {
         }
     };
 
+    // Set the chunk's biome to the biome at the chunk center
+    const int centerX = chunkStartX + ChunkWidth / 2;
+    const int centerZ = chunkStartZ + ChunkWidth / 2;
+    m_biome = biomeAt(centerX, centerZ);
+
     for (int anchorX = chunkStartX - MaxVegetationRadius;
          anchorX < chunkStartX + ChunkWidth + MaxVegetationRadius; ++anchorX) {
         for (int anchorZ = chunkStartZ - MaxVegetationRadius;
@@ -188,6 +194,51 @@ void Chunk::generate(WorldGenerator& generator) {
             }
 
             TreeGenerator::generateTree(anchorX, anchorZ, surfaceHeight, vegetation, setVegetationVoxel);
+        }
+    }
+    
+    // Apply grass and dirt tints based on biome
+    for (int i = 0; i < WIDTH; i++) {
+        for (int k = 0; k < WIDTH; k++) {
+            const int globalX = chunkStartX + i;
+            const int globalZ = chunkStartZ + k;
+            const WorldGenerator::BiomeType biome = biomeAt(globalX, globalZ);
+            
+            VoxelData::Tint grassTint;
+            switch (biome) {
+            case WorldGenerator::BiomeType::Forest:
+                grassTint = VoxelData::Tint::ForestGrass;
+                break;
+            case WorldGenerator::BiomeType::BushyPlains:
+                grassTint = VoxelData::Tint::BushyPlainsGrass;
+                break;
+            case WorldGenerator::BiomeType::Plains:
+                grassTint = VoxelData::Tint::PlainsGrass;
+                break;
+            case WorldGenerator::BiomeType::Hills:
+                grassTint = VoxelData::Tint::HillsGrass;
+                break;
+            case WorldGenerator::BiomeType::Mountains:
+                grassTint = VoxelData::Tint::MountainsGrass;
+                break;
+            default:
+                grassTint = VoxelData::Tint::None;
+                break;
+            }
+            
+            // Apply tint to grass and dirt blocks in this column
+            for (int j = WIDTH - 1; j >= 0; j--) {
+                const int localX = i;
+                const int localY = j;
+                const int localZ = k;
+                if (hasVoxel(localX, localY, localZ)) {
+                    VoxelData voxel = getVoxel(localX, localY, localZ);
+                    const BlockId blockId = voxel.getBlockId();
+                    if (hasTint(blockId)) {
+                        setVoxelInternal(VoxelData(blockId, grassTint), localX, localY, localZ);
+                    }
+                }
+            }
         }
     }
 }
@@ -207,6 +258,11 @@ void Chunk::save(const std::string &path) {
 
 std::vector<char> Chunk::serializeCompressed() {
     std::ostringstream oss;
+    
+    // Write biome as first byte
+    const uint8_t biomeValue = static_cast<uint8_t>(m_biome);
+    oss.write(reinterpret_cast<const char*>(&biomeValue), sizeof(uint8_t));
+    
     m_data.serialize(oss);
     const auto serializedData = oss.str();
     const auto compressedData = CompressionUtils::compressData(serializedData.data(), serializedData.size());
@@ -242,6 +298,12 @@ void Chunk::loadCompressed(const std::vector<char>& fileData) {
     );
 
     std::istringstream iss(std::string(data.begin(), data.end()));
+    
+    // Read biome as first byte
+    uint8_t biomeValue;
+    iss.read(reinterpret_cast<char*>(&biomeValue), sizeof(uint8_t));
+    m_biome = static_cast<WorldGenerator::BiomeType>(biomeValue);
+    
     m_data.deserialize(iss);
 
     if (iss.fail()) {

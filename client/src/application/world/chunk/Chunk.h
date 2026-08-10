@@ -18,10 +18,10 @@ public:
     static_assert(WIDTH >= 16 && WIDTH <= 256, "SIZE must be between 16 and 256");
 
     explicit Chunk(const glm::ivec3 position)
-        : m_position(position), m_lastEdit(std::chrono::steady_clock::now()) {}
+        : m_position(position), m_lastEdit(std::chrono::steady_clock::now()), m_biome(WorldGenerator::BiomeType::Plains) {}
 
     explicit Chunk(const int x, const int y, const int z)
-        : m_position(x, y, z), m_lastEdit(std::chrono::steady_clock::now()) {}
+        : m_position(x, y, z), m_lastEdit(std::chrono::steady_clock::now()), m_biome(WorldGenerator::BiomeType::Plains) {}
 
     ~Chunk() = default;
 
@@ -32,6 +32,7 @@ public:
         m_saveFileDirty = other.m_saveFileDirty;
         m_lastEdit = other.m_lastEdit;
         m_litVoxels = other.m_litVoxels;
+        m_biome = other.m_biome;
     }
 
     Chunk& operator=(const Chunk& other) {
@@ -42,6 +43,7 @@ public:
             m_saveFileDirty = other.m_saveFileDirty;
             m_lastEdit = other.m_lastEdit;
             m_litVoxels = other.m_litVoxels;
+            m_biome = other.m_biome;
         }
         return *this;
     }
@@ -77,6 +79,14 @@ public:
         return m_position;
     }
 
+    void setBiome(WorldGenerator::BiomeType biome) {
+        m_biome = biome;
+    }
+
+    [[nodiscard]] WorldGenerator::BiomeType getBiome() const {
+        return m_biome;
+    }
+
     [[nodiscard]] const VoxelData& getVoxel(const uint32_t x, const uint32_t y, const uint32_t z) const {
         return m_data.getVoxel(x, y, z);
     }
@@ -86,7 +96,16 @@ public:
     }
 
     void setVoxel(const VoxelData& voxel, const uint32_t x, const uint32_t y, const uint32_t z) {
-        setVoxelInternal(voxel, x, y, z);
+        // Apply chunk's biome tint to tintable blocks
+        VoxelData finalVoxel = voxel;
+        if (hasTint(voxel.getBlockId())) {
+            const auto tint = biomeToTint(m_biome);
+            if (tint != VoxelData::Tint::None) {
+                finalVoxel = VoxelData(voxel.getBlockId(), tint);
+            }
+        }
+        
+        setVoxelInternal(finalVoxel, x, y, z);
         m_gpuBufferDirty = true;
         m_saveFileDirty = true;
         m_lastEdit = std::chrono::steady_clock::now();
@@ -98,7 +117,15 @@ public:
 
     void executeQueuedVoxelsToSet() {
         for (const auto& [pos, voxel] : m_queuedVoxelsToSet) {
-            setVoxelInternal(voxel, pos.x, pos.y, pos.z);
+            // Apply chunk's biome tint to tintable blocks
+            VoxelData finalVoxel = voxel;
+            if (hasTint(voxel.getBlockId())) {
+                const auto tint = biomeToTint(m_biome);
+                if (tint != VoxelData::Tint::None) {
+                    finalVoxel = VoxelData(voxel.getBlockId(), tint);
+                }
+            }
+            setVoxelInternal(finalVoxel, pos.x, pos.y, pos.z);
         }
         m_queuedVoxelsToSet.resize(0);
         m_gpuBufferDirty = true;
@@ -206,6 +233,7 @@ private:
     bool m_gpuBufferDirty{true};
     bool m_saveFileDirty{false};
     std::chrono::steady_clock::time_point m_lastEdit;
+    WorldGenerator::BiomeType m_biome{WorldGenerator::BiomeType::Plains};
 
     std::vector<QueuedVoxelOp> m_queuedVoxelsToSet;
 
@@ -228,6 +256,23 @@ private:
             m_litVoxels.insert({static_cast<uint8_t>(x), static_cast<uint8_t>(y), static_cast<uint8_t>(z)});
         } else {
             m_litVoxels.erase({static_cast<uint8_t>(x), static_cast<uint8_t>(y), static_cast<uint8_t>(z)});
+        }
+    }
+
+    [[nodiscard]] static VoxelData::Tint biomeToTint(WorldGenerator::BiomeType biome) {
+        switch (biome) {
+        case WorldGenerator::BiomeType::Forest:
+            return VoxelData::Tint::ForestGrass;
+        case WorldGenerator::BiomeType::BushyPlains:
+            return VoxelData::Tint::BushyPlainsGrass;
+        case WorldGenerator::BiomeType::Plains:
+            return VoxelData::Tint::PlainsGrass;
+        case WorldGenerator::BiomeType::Hills:
+            return VoxelData::Tint::HillsGrass;
+        case WorldGenerator::BiomeType::Mountains:
+            return VoxelData::Tint::MountainsGrass;
+        default:
+            return VoxelData::Tint::None;
         }
     }
 

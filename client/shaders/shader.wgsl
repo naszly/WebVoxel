@@ -3,6 +3,7 @@ override LIGHTING: bool = true;
 override FOG: bool = true;
 override POINT_LIGHT: bool = true;
 override SHADOWS: bool = true;
+const DEBUG_BIOME_TINT: bool = false;  // Set to true to visualize biome tints only
 const POINT_LIGHT_RANGE: f32 = 64.0;
 const POINT_LIGHT_INTENSITY: f32 = 2.3;
 const DIRECTIONAL_LIGHT_COLOR: vec3f = vec3f(1.0, 0.99, 0.96);
@@ -58,12 +59,13 @@ struct VertexOut {
     @location(4) @interpolate(flat) emitsLight: u32,
     @location(5) @interpolate(flat) blockId: u32,
     @location(6) @interpolate(flat) voxelColor: vec3f,
-    @location(7) faceLightNx: vec3f,
-    @location(8) faceLightPx: vec3f,
-    @location(9) faceLightNy: vec3f,
-    @location(10) faceLightPy: vec3f,
-    @location(11) faceLightNz: vec3f,
-    @location(12) faceLightPz: vec3f,
+    @location(7) @interpolate(flat) tint: u32,
+    @location(8) faceLightNx: vec3f,
+    @location(9) faceLightPx: vec3f,
+    @location(10) faceLightNy: vec3f,
+    @location(11) faceLightPy: vec3f,
+    @location(12) faceLightNz: vec3f,
+    @location(13) faceLightPz: vec3f,
 }
 
 struct FragmentIn {
@@ -77,12 +79,13 @@ struct FragmentIn {
     @location(4) @interpolate(flat) emitsLight: u32,
     @location(5) @interpolate(flat) blockId: u32,
     @location(6) @interpolate(flat) voxelColor: vec3f,
-    @location(7) faceLightNx: vec3f,
-    @location(8) faceLightPx: vec3f,
-    @location(9) faceLightNy: vec3f,
-    @location(10) faceLightPy: vec3f,
-    @location(11) faceLightNz: vec3f,
-    @location(12) faceLightPz: vec3f,
+    @location(7) @interpolate(flat) tint: u32,
+    @location(8) faceLightNx: vec3f,
+    @location(9) faceLightPx: vec3f,
+    @location(10) faceLightNy: vec3f,
+    @location(11) faceLightPy: vec3f,
+    @location(12) faceLightNz: vec3f,
+    @location(13) faceLightPz: vec3f,
 }
 
 struct FragmentOut {
@@ -269,6 +272,7 @@ fn processVertex(vertex: VertexInput) -> VertexOut {
     out.ambientOcclusion = vertex.ambientOcclusion;
     out.isTexturedVoxel = ((vertex.voxelData >> 24u) & 1u);
     out.emitsLight = ((vertex.voxelData >> 25u) & 1u);
+    out.tint = ((vertex.voxelData >> 26u) & 0x7u);  // 3 bits = mask 0x7u
     out.blockId = vertex.voxelData & 0xFFFFFFu;
     out.voxelColor = vec3f(
         f32((vertex.voxelData >> 16u) & 0xFFu) / 255.0,
@@ -481,6 +485,17 @@ fn getTextureId(blockId: u32, plane: u32) -> u32 {
     }
 }
 
+fn getTintColor(tint: u32) -> vec3f {
+    switch (tint) {
+        case 1u: { return vec3f(34.0, 139.0, 34.0) / 255.0; }      // ForestGrass
+        case 2u: { return vec3f(107.0, 142.0, 35.0) / 255.0; }     // BushyPlainsGrass
+        case 3u: { return vec3f(128.0, 128.0, 90.0) / 255.0; }     // PlainsGrass
+        case 4u: { return vec3f(119.0, 121.0, 92.0) / 255.0; }     // HillsGrass
+        case 5u: { return vec3f(108.0, 110.0, 90.0) / 255.0; }     // MountainsGrass
+        default: { return vec3f(1.0); }                            // No tint
+    }
+}
+
 fn remapUv(uv: vec2f, plane: u32) -> vec2f {
     switch (plane) {
         case planeNx: { return vec2f(1.0 - uv.y, 1.0 - uv.x); }
@@ -649,6 +664,14 @@ fn getShadowFactor(hitPointWorld: vec3f, normal: vec3f, lightProjectionViewMatri
             let textureId: u32 = getTextureId(input.blockId, hit.plane);
             let uv = remapUv(hit.uv, hit.plane);
             albedo = textureLoad(textureArray, vec2i(uv * 16.0f), textureId, 0).rgb;
+            
+            // Apply biome tint to textured blocks (grass and dirt)
+            let tintColor = getTintColor(input.tint);
+            if (DEBUG_BIOME_TINT) {
+                albedo = tintColor;
+            } else {
+                albedo = mix(albedo, albedo * tintColor, 0.35);
+            }
         } else {
             albedo = input.voxelColor;
         }
