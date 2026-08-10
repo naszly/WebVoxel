@@ -5,6 +5,10 @@
 #include "common/Exception.h"
 #include "common/Log.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 WebGpuContext::WebGpuContext() {
     createInstance();
     requestAdapter();
@@ -42,6 +46,14 @@ void onAdapterRequest(const WGPURequestAdapterStatus status, WGPUAdapter adapter
     if (status == WGPURequestAdapterStatus_Success) {
         *data = adapter;
     } else {
+        
+#ifdef __EMSCRIPTEN__
+        const std::string errorMsg = std::string(message.data, message.data + message.length);
+        // Show browser alert for WebGPU unavailable
+        std::string jsAlert = "alert('WebGPU Error:\\n" + errorMsg + "');";
+        emscripten_run_script(jsAlert.c_str());
+#endif
+        
         throw Exception("Failed to request WebGPU adapter: {0}", message.data);
     }
 }
