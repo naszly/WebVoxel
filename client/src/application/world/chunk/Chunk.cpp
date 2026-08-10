@@ -1,4 +1,5 @@
 #include "Chunk.h"
+#include "TreeGenerator.h"
 
 #include "application/common/CompressionUtils.h"
 #include "common/Log.h"
@@ -182,32 +183,11 @@ void Chunk::generate(WorldGenerator& generator) {
             if (generator.isCaveAt(anchorX, surfaceHeight, anchorZ)) continue;
 
             if (vegetation.type == WorldGenerator::VegetationType::Bush) {
-                for (int x = -1; x <= 1; ++x) {
-                    for (int z = -1; z <= 1; ++z) {
-                        if (std::abs(x) + std::abs(z) <= 1) {
-                            setVegetationVoxel(BlockId::OakLeaves, anchorX + x, surfaceHeight + 1, anchorZ + z);
-                        }
-                    }
-                }
-                setVegetationVoxel(BlockId::OakLeaves, anchorX, surfaceHeight + 2, anchorZ);
+                TreeGenerator::generateBush(anchorX, anchorZ, surfaceHeight, setVegetationVoxel);
                 continue;
             }
 
-            for (int y = 1; y <= vegetation.height; ++y) {
-                setVegetationVoxel(BlockId::OakLog, anchorX, surfaceHeight + y, anchorZ);
-            }
-            const int canopyY = surfaceHeight + vegetation.height;
-            for (int y = -2; y <= 0; ++y) {
-                const int radius = y == 0 ? 1 : 2;
-                for (int x = -radius; x <= radius; ++x) {
-                    for (int z = -radius; z <= radius; ++z) {
-                        if (std::abs(x) == radius && std::abs(z) == radius &&
-                            ((anchorX + anchorZ + x + z + y) & 1) != 0) continue;
-                        setVegetationVoxel(BlockId::OakLeaves, anchorX + x, canopyY + y, anchorZ + z);
-                    }
-                }
-            }
-            setVegetationVoxel(BlockId::OakLeaves, anchorX, canopyY + 1, anchorZ);
+            TreeGenerator::generateTree(anchorX, anchorZ, surfaceHeight, vegetation, setVegetationVoxel);
         }
     }
 }

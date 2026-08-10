@@ -161,13 +161,16 @@ WorldGenerator::Vegetation WorldGenerator::vegetationAt(
     const int x, const int z, const BiomeType biome) const {
     const uint32_t hash = vegetationHash(x, z, m_noiseSeed);
     if (biome == BiomeType::Forest && hash % 55 == 0) {
-        return {VegetationType::Tree, static_cast<uint8_t>(4 + (hash >> 8) % 3)};
+        // Height 5-11, variant 0-3 for different oak tree shapes
+        const uint8_t height = static_cast<uint8_t>(5 + (hash >> 8) % 7);
+        const uint8_t variant = (hash >> 12) % 4;  // 0=wide, 1=tall, 2=branching, 3=conical
+        return {VegetationType::Tree, height, variant};
     }
     if ((biome == BiomeType::Forest && hash % 35 == 0) ||
         (biome == BiomeType::BushyPlains && hash % 45 == 0)) {
-        return {VegetationType::Bush, 1};
+        return {VegetationType::Bush, 1, 0};
     }
-    return {VegetationType::None, 0};
+    return {VegetationType::None, 0, 0};
 }
 
 bool WorldGenerator::isCaveAt(const int x, const int y, const int z) const {

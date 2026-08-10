@@ -65,6 +65,7 @@ add_library(webvoxel_generator SHARED
     webvoxel_generator.cpp
     ../client/src/application/world/WorldGenerator.cpp
     ../client/src/application/world/chunk/Chunk.cpp
+    ../client/src/application/world/chunk/TreeGenerator.cpp
     ../client/src/application/domain/Block.cpp
     ../client/src/application/common/CompressionUtils.cpp
     ../client/src/common/FileSystem.cpp

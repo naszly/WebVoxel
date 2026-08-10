@@ -31,6 +31,7 @@ public:
     struct Vegetation {
         VegetationType type;
         uint8_t height;
+        uint8_t variant;  // 0-3: different oak tree shapes
     };
 
     explicit WorldGenerator(WorldGeneratorParams param);
