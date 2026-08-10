@@ -126,10 +126,13 @@ void Chunk::generate(WorldGenerator& generator) {
     if (!canContainVegetation) return;
 
     std::array<std::array<std::vector<uint8_t>, 3>, 3> neighboringHeightMaps;
+    std::array<std::array<std::vector<WorldGenerator::BiomeType>, 3>, 3> neighboringBiomeMaps;
     for (int chunkOffsetX = -1; chunkOffsetX <= 1; ++chunkOffsetX) {
         for (int chunkOffsetZ = -1; chunkOffsetZ <= 1; ++chunkOffsetZ) {
             neighboringHeightMaps[chunkOffsetX + 1][chunkOffsetZ + 1] =
                 generator.generateTerrainHeights(m_position.x + chunkOffsetX, m_position.z + chunkOffsetZ);
+            neighboringBiomeMaps[chunkOffsetX + 1][chunkOffsetZ + 1] =
+                generator.generateBiomes(m_position.x + chunkOffsetX, m_position.z + chunkOffsetZ);
         }
     }
 
@@ -145,6 +148,16 @@ void Chunk::generate(WorldGenerator& generator) {
         return static_cast<int>(heightMap[
             Utils::mod(globalX, ChunkWidth) * WIDTH +
             Utils::mod(globalZ, ChunkWidth)]);
+    };
+    auto biomeAt = [&](const int globalX, const int globalZ) {
+        const int biomeChunkX = Utils::divideRoundDown(globalX, ChunkWidth);
+        const int biomeChunkZ = Utils::divideRoundDown(globalZ, ChunkWidth);
+        const auto& biomeMap = neighboringBiomeMaps
+            [biomeChunkX - m_position.x + 1]
+            [biomeChunkZ - m_position.z + 1];
+        return biomeMap[
+            Utils::mod(globalX, ChunkWidth) * WIDTH +
+            Utils::mod(globalZ, ChunkWidth)];
     };
     auto setVegetationVoxel = [&](const BlockId block, const int globalX, const int globalY, const int globalZ) {
         const int localX = globalX - chunkStartX;
@@ -162,7 +175,7 @@ void Chunk::generate(WorldGenerator& generator) {
          anchorX < chunkStartX + ChunkWidth + MaxVegetationRadius; ++anchorX) {
         for (int anchorZ = chunkStartZ - MaxVegetationRadius;
              anchorZ < chunkStartZ + ChunkWidth + MaxVegetationRadius; ++anchorZ) {
-            const auto vegetation = generator.vegetationAt(anchorX, anchorZ);
+            const auto vegetation = generator.vegetationAt(anchorX, anchorZ, biomeAt(anchorX, anchorZ));
             if (vegetation.type == WorldGenerator::VegetationType::None) continue;
 
             const int surfaceHeight = terrainHeightAt(anchorX, anchorZ);

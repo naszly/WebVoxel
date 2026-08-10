@@ -14,6 +14,13 @@ struct WorldGeneratorParams {
 
 class WorldGenerator {
 public:
+    enum class BiomeType : uint8_t {
+        Plains,
+        BushyPlains,
+        Forest,
+        Hills,
+    };
+
     enum class VegetationType : uint8_t {
         None,
         Tree,
@@ -34,24 +41,38 @@ public:
     WorldGenerator& operator=(WorldGenerator&&) = delete;
 
     std::vector<uint8_t> generateTerrainHeights(int chunkPosX, int chunkPosZ);
+    std::vector<BiomeType> generateBiomes(int chunkPosX, int chunkPosZ);
 
     std::vector<uint8_t> generateCaveDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
 
     std::vector<uint8_t> generateOreDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
 
-    [[nodiscard]] Vegetation vegetationAt(int x, int z) const;
+    [[nodiscard]] Vegetation vegetationAt(int x, int z, BiomeType biome) const;
     [[nodiscard]] bool isCaveAt(int x, int y, int z) const;
 
-    void pruneCacheByDistance(const glm::ivec3& currentPosition, int distance);
+    void pruneCacheByDistance(const glm::ivec3& currentChunkPosition, int distance);
 
 private:
     using ChunkCoord = std::pair<int, int>;
-    HashMap<ChunkCoord, std::vector<uint8_t>> m_gridCache;
+    struct SurfaceData {
+        std::vector<uint8_t> heights;
+        std::vector<BiomeType> biomes;
+    };
+
+    void ensureSurfaceGenerated(const ChunkCoord& coord);
+
+    HashMap<ChunkCoord, SurfaceData> m_surfaceCache;
     Threading::Lock m_cacheLock;
     const FastNoise::SmartNode<> m_terrainGenerator = FastNoise::NewFromEncodedNodeTree("DQAFAAAAAAAAQAgAAAAAAD8AAAAAAA==");
+    const FastNoise::SmartNode<> m_biomeGenerator = FastNoise::New<FastNoise::CellularValue>();
+    const FastNoise::SmartNode<> m_neighborBiomeGenerator;
+    const FastNoise::SmartNode<> m_biomeEdgeGenerator;
+    const FastNoise::SmartNode<> m_hillsGenerator = FastNoise::New<FastNoise::OpenSimplex2>();
     const FastNoise::SmartNode<> m_caveGenerator;
     const FastNoise::SmartNode<> m_oreGenerator;
 
     const float m_noiseFrequency = 0.0004f;
+    const float m_biomeFrequency = 0.0025f;
+    const float m_hillsFrequency = 0.015f;
     const int m_noiseSeed = 0;
 };
