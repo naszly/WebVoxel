@@ -4,33 +4,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
-#include <stdexcept>
 
 namespace {
 
 constexpr int ChunkWidth = static_cast<int>(Chunk::WIDTH);
-constexpr float ForestBoundary = -0.12f;
-constexpr float BushyPlainsBoundary = 0.08f;
-constexpr float HillsBoundary = 0.25f;
-
-WorldGenerator::BiomeType classifyBiome(const float noise) {
-    return noise < ForestBoundary
-        ? WorldGenerator::BiomeType::Forest
-        : noise < BushyPlainsBoundary
-            ? WorldGenerator::BiomeType::Plains
-            : noise < HillsBoundary
-                ? WorldGenerator::BiomeType::BushyPlains
-                : WorldGenerator::BiomeType::Hills;
-}
-
-int noiseGridStart(const int chunkPosition) {
-    const int64_t start = static_cast<int64_t>(chunkPosition) * ChunkWidth;
-    if (start < std::numeric_limits<int>::min() || start > std::numeric_limits<int>::max()) {
-        throw std::out_of_range("Chunk coordinate is outside the supported noise range.");
-    }
-    return static_cast<int>(start);
-}
 
 uint32_t vegetationHash(const int x, const int z, const int seed) {
     uint32_t hash = static_cast<uint32_t>(seed) + 0x9e3779b9u;
@@ -64,22 +41,8 @@ FastNoise::SmartNode<> makeOreGenerator(const bool cavesEnabled) {
     return constant;
 }
 
-FastNoise::SmartNode<> makeBiomeEdgeGenerator() {
-    auto generator = FastNoise::New<FastNoise::CellularDistance>();
-    generator->SetReturnType(FastNoise::CellularDistance::ReturnType::Index0Sub1);
-    return generator;
-}
-
-FastNoise::SmartNode<> makeNeighborBiomeGenerator() {
-    auto generator = FastNoise::New<FastNoise::CellularValue>();
-    generator->SetValueIndex(1);
-    return generator;
-}
-
 WorldGenerator::WorldGenerator(const WorldGeneratorParams param)
-    : m_neighborBiomeGenerator(makeNeighborBiomeGenerator()),
-      m_biomeEdgeGenerator(makeBiomeEdgeGenerator()),
-      m_caveGenerator(makeCaveGenerator(param.cavesEnabled)),
+    : m_caveGenerator(makeCaveGenerator(param.cavesEnabled)),
       m_oreGenerator(makeOreGenerator(param.cavesEnabled)),
       m_noiseSeed(param.seed) {}
 
@@ -100,55 +63,59 @@ std::vector<WorldGenerator::BiomeType> WorldGenerator::generateBiomes(const int 
 void WorldGenerator::ensureSurfaceGenerated(const ChunkCoord& coord) {
     if (m_surfaceCache.contains(coord)) return;
 
-    thread_local std::vector<float> terrainGrid(Chunk::WIDTH * Chunk::WIDTH);
-    thread_local std::vector<float> biomeGrid(Chunk::WIDTH * Chunk::WIDTH);
-    thread_local std::vector<float> neighborBiomeGrid(Chunk::WIDTH * Chunk::WIDTH);
-    thread_local std::vector<float> biomeEdgeGrid(Chunk::WIDTH * Chunk::WIDTH);
-    thread_local std::vector<float> hillsGrid(Chunk::WIDTH * Chunk::WIDTH);
-    const int xStart = noiseGridStart(coord.second);
-    const int yStart = noiseGridStart(coord.first);
+    thread_local std::vector<float> baseHeightGrid(Chunk::WIDTH * Chunk::WIDTH);
+    thread_local std::vector<float> hillynessGrid(Chunk::WIDTH * Chunk::WIDTH);
+    thread_local std::vector<float> biomeNoiseGrid(Chunk::WIDTH * Chunk::WIDTH);
+    const int xStart = coord.second * ChunkWidth;
+    const int yStart = coord.first * ChunkWidth;
     constexpr int xSize = Chunk::WIDTH;
     constexpr int ySize = Chunk::WIDTH;
 
-    m_terrainGenerator->GenUniformGrid2D(
-        terrainGrid.data(), xStart, yStart, xSize, ySize, m_noiseFrequency, m_noiseSeed);
-    m_biomeGenerator->GenUniformGrid2D(
-        biomeGrid.data(), xStart, yStart, xSize, ySize, m_biomeFrequency, m_noiseSeed + 7919);
-    m_neighborBiomeGenerator->GenUniformGrid2D(
-        neighborBiomeGrid.data(), xStart, yStart, xSize, ySize, m_biomeFrequency, m_noiseSeed + 7919);
-    m_biomeEdgeGenerator->GenUniformGrid2D(
-        biomeEdgeGrid.data(), xStart, yStart, xSize, ySize, m_biomeFrequency, m_noiseSeed + 7919);
-    m_hillsGenerator->GenUniformGrid2D(
-        hillsGrid.data(), xStart, yStart, xSize, ySize, m_hillsFrequency, m_noiseSeed + 15401);
+    m_baseHeightGenerator->GenUniformGrid2D(
+        baseHeightGrid.data(), xStart, yStart, xSize, ySize, m_baseHeightFrequency, m_noiseSeed);
+    m_hillynessGenerator->GenUniformGrid2D(
+        hillynessGrid.data(), xStart, yStart, xSize, ySize, m_hillynessFrequency, m_noiseSeed + 1);
+    m_biomeNoiseGenerator->GenUniformGrid2D(
+        biomeNoiseGrid.data(), xStart, yStart, xSize, ySize, m_biomeNoiseFrequency, m_noiseSeed + 2);
 
     SurfaceData surface{
-        .heights = std::vector<uint8_t>(terrainGrid.size()),
-        .biomes = std::vector<BiomeType>(biomeGrid.size()),
+        .heights = std::vector<uint8_t>(baseHeightGrid.size()),
+        .biomes = std::vector<BiomeType>(baseHeightGrid.size()),
     };
-    for (size_t index = 0; index < terrainGrid.size(); ++index) {
-        const float biomeNoise = biomeGrid[index];
-        surface.biomes[index] = classifyBiome(biomeNoise);
-
-        float biomeAmplitude = 18.0f;
-        float biomeCenter = 122.0f;
-        if (surface.biomes[index] == BiomeType::Forest) {
-            biomeAmplitude = 36.0f;
-            biomeCenter = 126.0f;
-        } else if (surface.biomes[index] == BiomeType::Hills) {
-            biomeAmplitude = 26.0f;
-            biomeCenter = 124.0f;
+    for (size_t index = 0; index < baseHeightGrid.size(); ++index) {
+        // Base height from terrain noise - much larger amplitude to create distinct elevation zones
+        const float baseHeight = 128.0f + baseHeightGrid[index] * 80.0f;
+        
+        // Hilliness varies independently - can make any terrain rougher or flatter
+        const float hillynessAmount = std::abs(hillynessGrid[index]) * 4.0f;  // Reduced from 8.0
+        const float finalHeight = baseHeight + hillynessAmount;
+        
+        // Biome classification: from biome noise and height influence
+        const float normalizedHeight = std::clamp(finalHeight / 255.0f, 0.0f, 1.0f);
+        
+        // Height influence: high areas slightly favor forests/mountains, low areas favor plains
+        const float heightInfluence = (normalizedHeight - 0.5f) * 0.3f;  // -0.15 to +0.15 contribution
+        
+        // Biome noise + height creates regions but height doesn't dominate
+        const float biomeValue = biomeNoiseGrid[index] + heightInfluence;
+        
+        // Classify biome: independent of hilliness
+        if (biomeValue > 0.2f) {
+            surface.biomes[index] = BiomeType::Forest;
+        } else if (biomeValue > -0.1f) {
+            surface.biomes[index] = BiomeType::BushyPlains;
+        } else {
+            surface.biomes[index] = BiomeType::Plains;
         }
-        const bool neighboringBiomeDiffers = classifyBiome(neighborBiomeGrid[index]) != surface.biomes[index];
-        const float interiorBlend = neighboringBiomeDiffers
-            ? std::clamp(-biomeEdgeGrid[index] * 3.0f, 0.0f, 1.0f)
-            : 1.0f;
-        const float amplitude = std::lerp(24.0f, biomeAmplitude, interiorBlend);
-        const float center = std::lerp(124.0f, biomeCenter, interiorBlend);
-        const float hillHeight = surface.biomes[index] == BiomeType::Hills
-            ? (hillsGrid[index] + 1.0f) * 10.0f * interiorBlend
-            : 0.0f;
-        surface.heights[index] = static_cast<uint8_t>(std::clamp(
-            std::lround(center + terrainGrid[index] * amplitude + hillHeight), 0L, 255L));
+        
+        // Hilliness adds detail: can override to Mountains/Hills if very hilly
+        if (hillynessAmount > 4.0f && normalizedHeight > 0.55f) {
+            surface.biomes[index] = BiomeType::Mountains;
+        } else if (hillynessAmount > 3.0f && normalizedHeight > 0.45f) {
+            surface.biomes[index] = BiomeType::Hills;
+        }
+        
+        surface.heights[index] = static_cast<uint8_t>(std::clamp(std::lround(finalHeight), 0L, 255L));
     }
 
     m_surfaceCache.emplace(coord, std::move(surface));
@@ -156,9 +123,9 @@ void WorldGenerator::ensureSurfaceGenerated(const ChunkCoord& coord) {
 
 std::vector<uint8_t> WorldGenerator::generateCaveDensityMap(const int chunkPosX, const int chunkPosY, const int chunkPosZ) const {
     std::vector<float> floatGrid(Chunk::WIDTH * Chunk::WIDTH * Chunk::WIDTH);
-    const int xStart = noiseGridStart(chunkPosZ);
-    const int yStart = noiseGridStart(chunkPosY);
-    const int zStart = noiseGridStart(chunkPosX);
+    const int xStart = chunkPosZ * ChunkWidth;
+    const int yStart = chunkPosY * ChunkWidth;
+    const int zStart = chunkPosX * ChunkWidth;
     constexpr int xSize = Chunk::WIDTH;
     constexpr int ySize = Chunk::WIDTH;
     constexpr int zSize = Chunk::WIDTH;
@@ -175,9 +142,9 @@ std::vector<uint8_t> WorldGenerator::generateCaveDensityMap(const int chunkPosX,
 
 std::vector<uint8_t> WorldGenerator::generateOreDensityMap(const int chunkPosX, const int chunkPosY, const int chunkPosZ) const {
     std::vector<float> floatGrid(Chunk::WIDTH * Chunk::WIDTH * Chunk::WIDTH);
-    const int xStart = noiseGridStart(chunkPosZ);
-    const int yStart = noiseGridStart(chunkPosY);
-    const int zStart = noiseGridStart(chunkPosX);
+    const int xStart = chunkPosZ * ChunkWidth;
+    const int yStart = chunkPosY * ChunkWidth;
+    const int zStart = chunkPosX * ChunkWidth;
     m_oreGenerator->GenUniformGrid3D(floatGrid.data(),
                                      xStart, yStart, zStart,
                                      Chunk::WIDTH, Chunk::WIDTH, Chunk::WIDTH,
@@ -210,14 +177,14 @@ bool WorldGenerator::isCaveAt(const int x, const int y, const int z) const {
         z * frequency, y * frequency, x * frequency, m_noiseSeed) > caveThreshold;
 }
 
-void WorldGenerator::pruneCacheByDistance(const glm::ivec3& currentChunkPosition, const int distance) {
+void WorldGenerator::pruneCacheByDistance(const glm::ivec3& currentPosition, const int distance) {
     Threading::ScopedLock lock(&m_cacheLock);
-    const int64_t distanceSquared = static_cast<int64_t>(distance) * distance;
+    const int distanceSquared = distance * distance;
 
     for (auto it = m_surfaceCache.begin(); it != m_surfaceCache.end();) {
-        const int64_t x = static_cast<int64_t>(it->first.first) - currentChunkPosition.x;
-        const int64_t z = static_cast<int64_t>(it->first.second) - currentChunkPosition.z;
-        if (x * x + z * z > distanceSquared) {
+        const int x = it->first.first - currentPosition.z;
+        const int y = it->first.second - currentPosition.x;
+        if (x * x + y * y > distanceSquared) {
             m_surfaceCache.erase(it++);
         } else {
             ++it;
