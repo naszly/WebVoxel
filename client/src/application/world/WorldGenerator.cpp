@@ -87,7 +87,7 @@ void WorldGenerator::ensureSurfaceGenerated(const ChunkCoord& coord) {
         const float baseHeight = 128.0f + baseHeightGrid[index] * 80.0f;
         
         // Hilliness varies independently - can make any terrain rougher or flatter
-        const float hillynessAmount = std::abs(hillynessGrid[index]) * 4.0f;  // Reduced from 8.0
+        const float hillynessAmount = std::abs(hillynessGrid[index]) * 6.0f;  // Increased from 4.0 to make hills taller
         const float finalHeight = baseHeight + hillynessAmount;
         
         // Biome classification: from biome noise and height influence
@@ -109,9 +109,9 @@ void WorldGenerator::ensureSurfaceGenerated(const ChunkCoord& coord) {
         }
         
         // Hilliness adds detail: can override to Mountains/Hills if very hilly
-        if (hillynessAmount > 4.0f && normalizedHeight > 0.55f) {
+        if (hillynessAmount > 3.5f && normalizedHeight > 0.50f) {
             surface.biomes[index] = BiomeType::Mountains;
-        } else if (hillynessAmount > 3.0f && normalizedHeight > 0.45f) {
+        } else if (hillynessAmount > 2.5f && normalizedHeight > 0.40f) {
             surface.biomes[index] = BiomeType::Hills;
         }
         
