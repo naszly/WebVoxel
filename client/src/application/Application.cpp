@@ -33,6 +33,9 @@ void Application::start(const int width, const int height) {
             "textures/blackrock.png",
             "textures/eclipse_crystal.png",
             "textures/moonlit_lantern.png",
+            "textures/oak_log_side.png",
+            "textures/oak_log_top.png",
+            "textures/oak_leaves.png",
         }, *getWebGpuContext())
     .setTextureForTopFace(BlockId::Grass, "textures/grass_top.png")
     .setTextureForSideFaces(BlockId::Grass, "textures/grass_side.png")
@@ -43,6 +46,10 @@ void Application::start(const int width, const int height) {
     .setTextureForAllFaces(BlockId::Blackrock, "textures/blackrock.png")
     .setTextureForAllFaces(BlockId::EclipseCrystal, "textures/eclipse_crystal.png")
     .setTextureForAllFaces(BlockId::MoonlitLantern, "textures/moonlit_lantern.png")
+    .setTextureForSideFaces(BlockId::OakLog, "textures/oak_log_side.png")
+    .setTextureForTopFace(BlockId::OakLog, "textures/oak_log_top.png")
+    .setTextureForBottomFace(BlockId::OakLog, "textures/oak_log_top.png")
+    .setTextureForAllFaces(BlockId::OakLeaves, "textures/oak_leaves.png")
     .build();
 
     for (const auto& layer : m_layers) {

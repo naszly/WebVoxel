@@ -65,6 +65,10 @@ std::vector<uint8_t> serializeJson(const Chunk& chunk, const int32_t seed, const
 
 } // namespace
 
+uint32_t webvoxel_block_count() {
+    return static_cast<uint32_t>(BlockId::Count);
+}
+
 WebVoxelGenerator* webvoxel_generator_create(const int32_t seed, const int32_t caves_enabled) {
     try {
         lastError.clear();

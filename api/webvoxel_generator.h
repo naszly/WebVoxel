@@ -21,6 +21,7 @@ typedef struct WebVoxelMutation {
     uint32_t block_id;
 } WebVoxelMutation;
 
+WEBVOXEL_API uint32_t webvoxel_block_count(void);
 WEBVOXEL_API WebVoxelGenerator* webvoxel_generator_create(int32_t seed, int32_t caves_enabled);
 WEBVOXEL_API void webvoxel_generator_destroy(WebVoxelGenerator* generator);
 

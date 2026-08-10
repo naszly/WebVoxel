@@ -11,5 +11,7 @@ enum class BlockId : uint32_t {
     Blackrock = 5,
     EclipseCrystal = 6,
     MoonlitLantern = 7,
+    OakLog = 8,
+    OakLeaves = 9,
     Count, // This should always be the last element, used to count the number of block types
 };
