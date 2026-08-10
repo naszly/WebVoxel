@@ -4,6 +4,22 @@
 
 #include <algorithm>
 
+namespace {
+
+uint32_t vegetationHash(const int x, const int z, const int seed) {
+    uint32_t hash = static_cast<uint32_t>(seed) + 0x9e3779b9u;
+    hash ^= static_cast<uint32_t>(x) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+    hash ^= static_cast<uint32_t>(z) + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+    hash ^= hash >> 16;
+    hash *= 0x7feb352du;
+    hash ^= hash >> 15;
+    hash *= 0x846ca68bu;
+    hash ^= hash >> 16;
+    return hash;
+}
+
+}
+
 FastNoise::SmartNode<> makeCaveGenerator(const bool cavesEnabled) {
     if (cavesEnabled) {
         return FastNoise::NewFromEncodedNodeTree("EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==EwCamZk+GgABEQACAAAAAADgQBAAAACIQR8AFgABAAAACwADAAAAAgAAAAMAAAAEAAAAAAAAAD8BFAD//wAAAAAAAD8AAAAAPwAAAAA/AAAAAD8BFwAAAIC/AACAPz0KF0BSuB5AEwAAAKBABgAAj8J1PACamZk+AAAAAAAA4XoUPw==");
@@ -84,6 +100,24 @@ std::vector<uint8_t> WorldGenerator::generateOreDensityMap(const int chunkPosX, 
         return static_cast<uint8_t>((v + 1.f) * 127.5f);
     });
     return out;
+}
+
+WorldGenerator::Vegetation WorldGenerator::vegetationAt(const int x, const int z) const {
+    const uint32_t hash = vegetationHash(x, z, m_noiseSeed);
+    if (hash % 180 == 0) {
+        return {VegetationType::Tree, static_cast<uint8_t>(4 + (hash >> 8) % 3)};
+    }
+    if (hash % 70 == 0) {
+        return {VegetationType::Bush, 1};
+    }
+    return {VegetationType::None, 0};
+}
+
+bool WorldGenerator::isCaveAt(const int x, const int y, const int z) const {
+    constexpr float frequency = 0.005f;
+    constexpr float caveThreshold = 125.0f / 127.5f - 1.0f;
+    return m_caveGenerator->GenSingle3D(
+        z * frequency, y * frequency, x * frequency, m_noiseSeed) > caveThreshold;
 }
 
 void WorldGenerator::pruneCacheByDistance(const glm::ivec3& currentPosition, const int distance) {

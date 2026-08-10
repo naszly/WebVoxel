@@ -4,6 +4,15 @@
 #include "common/Log.h"
 #include "common/FileSystem.h"
 
+#include <array>
+
+namespace {
+
+constexpr int MaxVegetationRadius = 2;
+constexpr int MaxVegetationHeight = 7;
+constexpr int ChunkWidth = static_cast<int>(Chunk::WIDTH);
+
+}
 
 static uint8_t hashXz(const int x, const int z) {
     uint32_t v = static_cast<uint32_t>(x) * 0x27d4eb2d ^ static_cast<uint32_t>(z) * 0x85ebca6b;
@@ -63,7 +72,8 @@ void Chunk::generate(WorldGenerator& generator) {
     thread_local std::vector<uint8_t> caveDensityMap;
     thread_local std::vector<uint8_t> oreDensityMap;
 
-    const bool isSurfaceChunk = m_position.y >= 0 && m_position.y * WIDTH < 256;
+    const bool isSurfaceChunk = m_position.y >= 0 && m_position.y * ChunkWidth < 256;
+    const bool canContainVegetation = m_position.y >= 0 && m_position.y * ChunkWidth < 256 + MaxVegetationHeight;
     const bool isUndergroundChunk = m_position.y < 0;
 
     if (isSurfaceChunk || isUndergroundChunk) {
@@ -110,6 +120,81 @@ void Chunk::generate(WorldGenerator& generator) {
                     }
                 }
             }
+        }
+    }
+
+    if (!canContainVegetation) return;
+
+    std::array<std::array<std::vector<uint8_t>, 3>, 3> neighboringHeightMaps;
+    for (int chunkOffsetX = -1; chunkOffsetX <= 1; ++chunkOffsetX) {
+        for (int chunkOffsetZ = -1; chunkOffsetZ <= 1; ++chunkOffsetZ) {
+            neighboringHeightMaps[chunkOffsetX + 1][chunkOffsetZ + 1] =
+                generator.generateTerrainHeights(m_position.x + chunkOffsetX, m_position.z + chunkOffsetZ);
+        }
+    }
+
+    const int chunkStartX = m_position.x * ChunkWidth;
+    const int chunkStartY = m_position.y * ChunkWidth;
+    const int chunkStartZ = m_position.z * ChunkWidth;
+    auto terrainHeightAt = [&](const int globalX, const int globalZ) {
+        const int heightChunkX = Utils::divideRoundDown(globalX, ChunkWidth);
+        const int heightChunkZ = Utils::divideRoundDown(globalZ, ChunkWidth);
+        const auto& heightMap = neighboringHeightMaps
+            [heightChunkX - m_position.x + 1]
+            [heightChunkZ - m_position.z + 1];
+        return static_cast<int>(heightMap[
+            Utils::mod(globalX, ChunkWidth) * WIDTH +
+            Utils::mod(globalZ, ChunkWidth)]);
+    };
+    auto setVegetationVoxel = [&](const BlockId block, const int globalX, const int globalY, const int globalZ) {
+        const int localX = globalX - chunkStartX;
+        const int localY = globalY - chunkStartY;
+        const int localZ = globalZ - chunkStartZ;
+        if (localX < 0 || localX >= ChunkWidth || localY < 0 || localY >= ChunkWidth ||
+            localZ < 0 || localZ >= ChunkWidth) return;
+        if (!hasVoxel(localX, localY, localZ) ||
+            block == BlockId::OakLog && getVoxel(localX, localY, localZ).getBlockId() == BlockId::OakLeaves) {
+            setVoxelInternal(VoxelData(block), localX, localY, localZ);
+        }
+    };
+
+    for (int anchorX = chunkStartX - MaxVegetationRadius;
+         anchorX < chunkStartX + ChunkWidth + MaxVegetationRadius; ++anchorX) {
+        for (int anchorZ = chunkStartZ - MaxVegetationRadius;
+             anchorZ < chunkStartZ + ChunkWidth + MaxVegetationRadius; ++anchorZ) {
+            const auto vegetation = generator.vegetationAt(anchorX, anchorZ);
+            if (vegetation.type == WorldGenerator::VegetationType::None) continue;
+
+            const int surfaceHeight = terrainHeightAt(anchorX, anchorZ);
+            if (generator.isCaveAt(anchorX, surfaceHeight, anchorZ)) continue;
+
+            if (vegetation.type == WorldGenerator::VegetationType::Bush) {
+                for (int x = -1; x <= 1; ++x) {
+                    for (int z = -1; z <= 1; ++z) {
+                        if (std::abs(x) + std::abs(z) <= 1) {
+                            setVegetationVoxel(BlockId::OakLeaves, anchorX + x, surfaceHeight + 1, anchorZ + z);
+                        }
+                    }
+                }
+                setVegetationVoxel(BlockId::OakLeaves, anchorX, surfaceHeight + 2, anchorZ);
+                continue;
+            }
+
+            for (int y = 1; y <= vegetation.height; ++y) {
+                setVegetationVoxel(BlockId::OakLog, anchorX, surfaceHeight + y, anchorZ);
+            }
+            const int canopyY = surfaceHeight + vegetation.height;
+            for (int y = -2; y <= 0; ++y) {
+                const int radius = y == 0 ? 1 : 2;
+                for (int x = -radius; x <= radius; ++x) {
+                    for (int z = -radius; z <= radius; ++z) {
+                        if (std::abs(x) == radius && std::abs(z) == radius &&
+                            ((anchorX + anchorZ + x + z + y) & 1) != 0) continue;
+                        setVegetationVoxel(BlockId::OakLeaves, anchorX + x, canopyY + y, anchorZ + z);
+                    }
+                }
+            }
+            setVegetationVoxel(BlockId::OakLeaves, anchorX, canopyY + 1, anchorZ);
         }
     }
 }

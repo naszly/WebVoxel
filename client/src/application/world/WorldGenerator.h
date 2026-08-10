@@ -14,6 +14,17 @@ struct WorldGeneratorParams {
 
 class WorldGenerator {
 public:
+    enum class VegetationType : uint8_t {
+        None,
+        Tree,
+        Bush,
+    };
+
+    struct Vegetation {
+        VegetationType type;
+        uint8_t height;
+    };
+
     explicit WorldGenerator(WorldGeneratorParams param);
     ~WorldGenerator() = default;
 
@@ -27,6 +38,9 @@ public:
     std::vector<uint8_t> generateCaveDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
 
     std::vector<uint8_t> generateOreDensityMap(int chunkPosX, int chunkPosY, int chunkPosZ) const;
+
+    [[nodiscard]] Vegetation vegetationAt(int x, int z) const;
+    [[nodiscard]] bool isCaveAt(int x, int y, int z) const;
 
     void pruneCacheByDistance(const glm::ivec3& currentPosition, int distance);
 
