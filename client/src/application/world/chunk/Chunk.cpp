@@ -83,6 +83,12 @@ void Chunk::generate(WorldGenerator& generator) {
         oreDensityMap = generator.generateOreDensityMap(m_position.x, m_position.y, m_position.z);
     }
 
+    // Fetch biome map early so surface block placement can use it
+    thread_local std::vector<WorldGenerator::BiomeType> surfaceBiomeMap;
+    if (isSurfaceChunk) {
+        surfaceBiomeMap = generator.generateBiomes(m_position.x, m_position.z);
+    }
+
     auto isCaveAt = [&](const int i, const int j, const int k) -> bool {
         const int caveIdx = i * WIDTH * WIDTH + j * WIDTH + k;
         return caveDensityMap.size() > caveIdx && caveDensityMap[caveIdx] > 125;
@@ -96,10 +102,11 @@ void Chunk::generate(WorldGenerator& generator) {
                 const int height = m_position.y * WIDTH + j;
                 if (isSurfaceChunk) {
                     if (height <= noiseValue && !isCaveAt(i, j, k)) {
+                        const auto biome = surfaceBiomeMap[i * WIDTH + k];
+                        const bool isRocky = biome == WorldGenerator::BiomeType::RockyMountains;
                         if (height == noiseValue) {
-                            // Grass tint will be applied later with biome info
-                            setVoxelInternal(VoxelData(BlockId::Grass), i, j, k);
-                        } else if (height >= noiseValue - 2) {
+                            setVoxelInternal(VoxelData(isRocky ? BlockId::Stone : BlockId::Grass), i, j, k);
+                        } else if (height >= noiseValue - 2 && !isRocky) {
                             setVoxelInternal(VoxelData(BlockId::Dirt), i, j, k);
                         } else {
                             setVoxelInternal(VoxelData(layeredStone(noiseValue, height,

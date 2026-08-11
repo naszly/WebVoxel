@@ -271,6 +271,8 @@ private:
             return VoxelData::Tint::SageGreen;
         case WorldGenerator::BiomeType::Mountains:
             return VoxelData::Tint::StoneGreen;
+        case WorldGenerator::BiomeType::RockyMountains:
+            return VoxelData::Tint::StoneGreen;
         case WorldGenerator::BiomeType::BirchForest:
             return VoxelData::Tint::SpringGreen;
         default:

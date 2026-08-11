@@ -111,7 +111,9 @@ void WorldGenerator::ensureSurfaceGenerated(const ChunkCoord& coord) {
         }
         
         // Hilliness adds detail: can override to Mountains/Hills if very hilly
-        if (hillynessAmount > 3.5f && normalizedHeight > 0.50f) {
+        if (hillynessAmount > 5.0f && normalizedHeight > 0.65f) {
+            surface.biomes[index] = BiomeType::RockyMountains;
+        } else if (hillynessAmount > 3.5f && normalizedHeight > 0.50f) {
             surface.biomes[index] = BiomeType::Mountains;
         } else if (hillynessAmount > 2.5f && normalizedHeight > 0.40f) {
             surface.biomes[index] = BiomeType::Hills;

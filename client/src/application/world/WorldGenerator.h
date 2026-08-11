@@ -21,6 +21,7 @@ public:
         BirchForest,
         Hills,
         Mountains,
+        RockyMountains,
     };
 
     enum class VegetationType : uint8_t {
