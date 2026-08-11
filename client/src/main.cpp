@@ -11,6 +11,7 @@
 #include "application/systems/ChunkVertexDataUpdaterSystem.h"
 #include "application/systems/ControllerSystem.h"
 #include "application/systems/GuiSystem.h"
+#include "application/systems/InventorySystem.h"
 #include "application/systems/RendererSystem.h"
 #include "application/systems/VoxWorldLoaderSystem.h"
 
@@ -154,7 +155,8 @@ int main(const int argc, char** argv) {
     }
 
     const size_t guiLayerIdx = builder.addLayer();
-    builder.addSystemToLayer<GuiSystem>(guiLayerIdx);
+    builder.addSystemToLayer<GuiSystem>(guiLayerIdx)
+           .addSystemToLayer<InventorySystem>(guiLayerIdx);
 
     Application app = builder.build();
 

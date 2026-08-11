@@ -25,9 +25,11 @@ public:
 
     void setAppReference(Application& app) { m_app = &app; }
 
-protected:
+    
     [[nodiscard]] Application& getApplication() const { return *m_app; }
     [[nodiscard]] ApplicationData& getApplicationData() const;
+    
+protected:
     [[nodiscard]] Camera& getCamera() const;
     [[nodiscard]] const Input& getInput() const;
     [[nodiscard]] World& getWorld() const;

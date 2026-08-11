@@ -25,6 +25,7 @@ private:
     float m_verticalVelocity = 0.0f;
     bool m_onGround = false;
     bool m_gravityEnabled = true;
+    bool m_wasInventoryOpen = false;
 
     // Key constants
     static constexpr auto KEY_FORWARD = KeyCode::W;
@@ -35,7 +36,6 @@ private:
     static constexpr auto KEY_JUMP = KeyCode::Space;
     static constexpr auto KEY_DOWN = KeyCode::C;
     static constexpr auto KEY_ESCAPE = KeyCode::Escape;
-    static constexpr auto KEY_MENU = KeyCode::E;
     static constexpr auto KEY_TOGGLE_GRAVITY = KeyCode::G;
 
     // Camera physics constants

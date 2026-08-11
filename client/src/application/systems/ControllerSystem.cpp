@@ -53,8 +53,20 @@ void ControllerSystem::update(const float dt) {
         m_saveTimer = 0.0f;
     }
 
+#ifndef __EMSCRIPTEN__
+    // On non-Emscripten there is no pointer-lock sync on mouse move, so we
+    // manually recapture when the inventory is closed.
+    {
+        const bool inventoryOpen = getApplicationData().inventoryOpen;
+        if (m_wasInventoryOpen && !inventoryOpen) {
+            m_isMouseCaptured = true;
+        }
+        m_wasInventoryOpen = inventoryOpen;
+    }
+#endif
+
     Camera& camera = getCamera();
-    if (m_isMouseCaptured) {
+    if (m_isMouseCaptured && !getApplicationData().inventoryOpen) {
         const Input& input = getInput();
         updateCameraMovement(dt, input, camera);
         animateCameraFov(dt, input, camera);
@@ -141,7 +153,7 @@ void ControllerSystem::onEvent(Event &event) {
         const auto cameraDir = glm::normalize(camera.getDirection());
         constexpr float reach = 1024.0f;
 
-        if (button == MouseCode::ButtonLeft && !m_isMouseCaptured) {
+        if (button == MouseCode::ButtonLeft && !m_isMouseCaptured && !appData.inventoryOpen) {
             m_isMouseCaptured = true;
             input.setCursorMode(Disabled);
             return true;
@@ -198,7 +210,7 @@ void ControllerSystem::onEvent(Event &event) {
 
     dispatcher.dispatch<KeyPressedEvent>([&](const KeyPressedEvent &keyEvent) {
         const auto keyCode = keyEvent.getKeyCode();
-        if ((keyCode == KEY_ESCAPE || keyCode == KEY_MENU) && m_isMouseCaptured) {
+        if (keyCode == KEY_ESCAPE && m_isMouseCaptured) {
             m_isMouseCaptured = false;
             input.setCursorMode(Normal);
             return true;

@@ -183,6 +183,143 @@
 
         }
 
+        #vx-hotbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .vx-slot {
+            width: 52px;
+            height: 52px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.25);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            image-rendering: pixelated;
+        }
+        .vx-slot.selected {
+            border: 2px solid rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.15);
+        }
+        .vx-slot img {
+            width: 36px;
+            height: 36px;
+            image-rendering: pixelated;
+        }
+        .vx-slot-count {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+        }
+        .vx-slot-label {
+            font-size: 8px;
+            font-family: monospace;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+        }
+        #vx-inventory-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        #vx-inventory-overlay.open {
+            display: flex;
+        }
+        #vx-inventory-panel {
+            background: rgba(20,20,20,0.95);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        #vx-inventory-panel h3 {
+            margin: 0 0 8px;
+            font-family: monospace;
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .vx-inv-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 52px);
+            gap: 4px;
+        }
+        .vx-inv-slot {
+            width: 52px;
+            height: 52px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .vx-inv-slot:hover {
+            border-color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.1);
+        }
+        .vx-inv-slot.dragging {
+            opacity: 0.35;
+            cursor: grabbing;
+        }
+        .vx-inv-slot.drag-over {
+            border-color: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.2);
+        }
+        .vx-inv-slot img {
+            width: 36px;
+            height: 36px;
+            image-rendering: pixelated;
+        }
+        .vx-inv-slot-count {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+        }
+        .vx-hotbar-row-label {
+            font-family: monospace;
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            margin-top: 4px;
+        }
+        #vx-close-hint {
+            text-align: center;
+            font-family: monospace;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            margin-top: 4px;
+        }
+
     </style>
 
 </head>

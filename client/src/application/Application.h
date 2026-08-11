@@ -9,11 +9,14 @@
 #include "core/Window.h"
 #include "graphics/BlockTextureManager.h"
 #include "world/World.h"
+#include "Inventory.h"
 
 struct ApplicationData {
     VoxelData selectedVoxel = VoxelData(BlockId::Grass);
     int placedVoxelRadius = 0;
     bool placedVoxelShapeIsSphere = true;
+    Inventory inventory{};
+    bool inventoryOpen = false;
 
     size_t renderedChunks = 0;
     size_t renderedVoxels = 0;
