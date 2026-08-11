@@ -261,16 +261,18 @@ private:
 
     [[nodiscard]] static VoxelData::Tint biomeToTint(WorldGenerator::BiomeType biome) {
         switch (biome) {
-        case WorldGenerator::BiomeType::Forest:
-            return VoxelData::Tint::ForestGrass;
+        case WorldGenerator::BiomeType::OakForest:
+            return VoxelData::Tint::RichGreen;
         case WorldGenerator::BiomeType::BushyPlains:
-            return VoxelData::Tint::BushyPlainsGrass;
+            return VoxelData::Tint::OliveGreen;
         case WorldGenerator::BiomeType::Plains:
-            return VoxelData::Tint::PlainsGrass;
+            return VoxelData::Tint::TanGreen;
         case WorldGenerator::BiomeType::Hills:
-            return VoxelData::Tint::HillsGrass;
+            return VoxelData::Tint::SageGreen;
         case WorldGenerator::BiomeType::Mountains:
-            return VoxelData::Tint::MountainsGrass;
+            return VoxelData::Tint::StoneGreen;
+        case WorldGenerator::BiomeType::BirchForest:
+            return VoxelData::Tint::SpringGreen;
         default:
             return VoxelData::Tint::None;
         }

@@ -8,11 +8,12 @@ class VoxelData {
 public:
     enum class Tint : uint8_t {
         None = 0,
-        ForestGrass = 1,
-        BushyPlainsGrass = 2,
-        PlainsGrass = 3,
-        HillsGrass = 4,
-        MountainsGrass = 5,
+        RichGreen = 1,    // (34, 139, 34)
+        OliveGreen = 2,   // (107, 142, 35)
+        TanGreen = 3,     // (128, 128, 90)
+        SageGreen = 4,    // (119, 121, 92)
+        StoneGreen = 5,   // (108, 110, 90)
+        SpringGreen = 6,  // (144, 194, 100)
     };
 
     constexpr VoxelData() = default;

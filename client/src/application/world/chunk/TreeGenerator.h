@@ -7,6 +7,9 @@ class TreeGenerator {
 public:
     using SetVoxelFunc = std::function<void(BlockId, int, int, int)>;
 
+    static void generateBirchTree(int anchorX, int anchorZ, int surfaceHeight,
+                                   uint8_t height, const SetVoxelFunc& setVoxel);
+
     static void generateBush(int anchorX, int anchorZ, int surfaceHeight, const SetVoxelFunc& setVoxel);
 
     static void generateTree(int anchorX, int anchorZ, int surfaceHeight, 

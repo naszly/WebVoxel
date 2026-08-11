@@ -193,6 +193,11 @@ void Chunk::generate(WorldGenerator& generator) {
                 continue;
             }
 
+            if (vegetation.type == WorldGenerator::VegetationType::BirchTree) {
+                TreeGenerator::generateBirchTree(anchorX, anchorZ, surfaceHeight, vegetation.height, setVegetationVoxel);
+                continue;
+            }
+
             TreeGenerator::generateTree(anchorX, anchorZ, surfaceHeight, vegetation, setVegetationVoxel);
         }
     }
@@ -203,28 +208,7 @@ void Chunk::generate(WorldGenerator& generator) {
             const int globalX = chunkStartX + i;
             const int globalZ = chunkStartZ + k;
             const WorldGenerator::BiomeType biome = biomeAt(globalX, globalZ);
-            
-            VoxelData::Tint grassTint;
-            switch (biome) {
-            case WorldGenerator::BiomeType::Forest:
-                grassTint = VoxelData::Tint::ForestGrass;
-                break;
-            case WorldGenerator::BiomeType::BushyPlains:
-                grassTint = VoxelData::Tint::BushyPlainsGrass;
-                break;
-            case WorldGenerator::BiomeType::Plains:
-                grassTint = VoxelData::Tint::PlainsGrass;
-                break;
-            case WorldGenerator::BiomeType::Hills:
-                grassTint = VoxelData::Tint::HillsGrass;
-                break;
-            case WorldGenerator::BiomeType::Mountains:
-                grassTint = VoxelData::Tint::MountainsGrass;
-                break;
-            default:
-                grassTint = VoxelData::Tint::None;
-                break;
-            }
+            const VoxelData::Tint grassTint = biomeToTint(biome);
             
             // Apply tint to grass and dirt blocks in this column
             for (int j = WIDTH - 1; j >= 0; j--) {

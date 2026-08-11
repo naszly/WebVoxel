@@ -17,14 +17,16 @@ public:
     enum class BiomeType : uint8_t {
         Plains,
         BushyPlains,
-        Forest,
+        OakForest,
+        BirchForest,
         Hills,
         Mountains,
     };
 
     enum class VegetationType : uint8_t {
         None,
-        Tree,
+        OakTree,
+        BirchTree,
         Bush,
     };
 

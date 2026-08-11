@@ -137,3 +137,25 @@ void TreeGenerator::generateCornicalOak(int anchorX, int anchorZ, int surfaceHei
     }
     setVoxel(BlockId::OakLeaves, anchorX, canopyY + 1, anchorZ);
 }
+
+void TreeGenerator::generateBirchTree(int anchorX, int anchorZ, int surfaceHeight,
+                                       uint8_t height, const SetVoxelFunc& setVoxel) {
+    // Slim trunk
+    for (int y = 1; y <= height; ++y) {
+        setVoxel(BlockId::BirchLog, anchorX, surfaceHeight + y, anchorZ);
+    }
+    const int canopyY = surfaceHeight + height;
+
+    // Small round canopy: radius 2 at base, radius 1 at top
+    for (int y = -1; y <= 1; ++y) {
+        const int radius = (y == 1) ? 1 : 2;
+        for (int x = -radius; x <= radius; ++x) {
+            for (int z = -radius; z <= radius; ++z) {
+                if (std::abs(x) + std::abs(z) > radius + 1) continue;
+                if (std::abs(x) == radius && std::abs(z) == radius) continue;
+                setVoxel(BlockId::BirchLeaves, anchorX + x, canopyY + y, anchorZ + z);
+            }
+        }
+    }
+    setVoxel(BlockId::BirchLeaves, anchorX, canopyY + 2, anchorZ);
+}

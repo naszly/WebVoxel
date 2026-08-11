@@ -487,11 +487,12 @@ fn getTextureId(blockId: u32, plane: u32) -> u32 {
 
 fn getTintColor(tint: u32) -> vec3f {
     switch (tint) {
-        case 1u: { return vec3f(34.0, 139.0, 34.0) / 255.0; }      // ForestGrass
-        case 2u: { return vec3f(107.0, 142.0, 35.0) / 255.0; }     // BushyPlainsGrass
-        case 3u: { return vec3f(128.0, 128.0, 90.0) / 255.0; }     // PlainsGrass
-        case 4u: { return vec3f(119.0, 121.0, 92.0) / 255.0; }     // HillsGrass
-        case 5u: { return vec3f(108.0, 110.0, 90.0) / 255.0; }     // MountainsGrass
+        case 1u: { return vec3f(34.0, 139.0, 34.0) / 255.0; }      // RichGreen
+        case 2u: { return vec3f(107.0, 142.0, 35.0) / 255.0; }     // OliveGreen
+        case 3u: { return vec3f(128.0, 128.0, 90.0) / 255.0; }     // TanGreen
+        case 4u: { return vec3f(119.0, 121.0, 92.0) / 255.0; }     // SageGreen
+        case 5u: { return vec3f(108.0, 110.0, 90.0) / 255.0; }     // StoneGreen
+        case 6u: { return vec3f(135.0, 180.0, 98.0) / 255.0; }     // SpringGreen
         default: { return vec3f(1.0); }                            // No tint
     }
 }
